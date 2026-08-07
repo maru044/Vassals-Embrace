@@ -8,8 +8,10 @@ signal province_picked(province: String, country: String)
 const MAP_DATA_PATH := "res://data/map_data.json"
 const COUNTRY_COLORS_PATH := "res://data/country_colors.json"
 const TERRAIN_SHADER_PATH := "res://shaders/map_terrain.gdshader"
+const BORDER_SHADER_PATH := "res://shaders/map_border.gdshader"
 const HEIGHTMAP_PATH := "res://assets/map/height.png"
 const LAND_BASE_COLOR := Color(0.75, 0.72, 0.62)   # 陆地基底中性色
+const BORDER_THICKNESS := 0.06                      # 省界线半宽
 
 # 相机（EU4 式）：俯角随缩放变化，yaw 固定从南看北（南在屏幕下，北退远）
 const PITCH_FAR := deg_to_rad(85.0)
@@ -27,12 +29,15 @@ var _owners := {}                     # province -> country
 var _collider_to_province := {}       # StaticBody3D -> province
 var _heightmap: Texture2D = null
 var _terrain_shader: Shader = null
+var _border_shader: Shader = null
 var _shader_mats: Array = []          # 需每帧更新 zoom/terrain_blend 的材质
+var _province_meshes: Array = []      # 省份原始网格（描边用）
 
 
 func _ready() -> void:
 	_heightmap = load(HEIGHTMAP_PATH)
 	_terrain_shader = load(TERRAIN_SHADER_PATH)
+	_border_shader = load(BORDER_SHADER_PATH)
 	_apply_colors()
 	_update_camera()
 
@@ -86,9 +91,11 @@ func _update_shader_uniforms() -> void:
 	if _shader_mats.is_empty():
 		return
 	var blend := _zoom   # 远=0 平面 / 近=1 立体（可调 smoothstep）
+	var mid := 1.0 - absf(_zoom - 0.5) * 2.0   # 中层最强
 	for mat in _shader_mats:
 		mat.set_shader_parameter("terrain_blend", blend)
 		mat.set_shader_parameter("zoom", _zoom)
+		mat.set_shader_parameter("border_intensity", mid * 0.85)
 
 
 ## ===== 着色 =====
@@ -98,6 +105,7 @@ func _apply_colors() -> void:
 	var country_data := _load_country_data()   # id -> {color, liege}
 	var mats := {}
 	_process_node(_map, _owners, country_data, mats)
+	_build_border_mesh()
 
 
 func _process_node(node: Node, owners: Dictionary, country_data: Dictionary, mats: Dictionary) -> void:
@@ -109,6 +117,7 @@ func _process_node(node: Node, owners: Dictionary, country_data: Dictionary, mat
 				if not mats.has(country):
 					mats[country] = _make_province_material(country_data.get(country, {}))
 				child.material_override = mats[country]
+				_province_meshes.append(child.mesh)   # 收集省份网格（描边）
 				# 拾取碰撞体（射线命中 → StaticBody3D → 省份）
 				child.create_trimesh_collision()
 				var body := child.get_child(child.get_child_count() - 1) as StaticBody3D
@@ -177,21 +186,102 @@ func _province_name(node_name: String) -> String:
 	return node_name
 
 
+## ===== 省界（独立边界线网格） =====
+
+func _build_border_mesh() -> void:
+	if _border_shader == null or _province_meshes.is_empty():
+		return
+	var verts := PackedVector3Array()
+	var indices := PackedInt32Array()
+	for pm in _province_meshes:
+		if not (pm is ArrayMesh):
+			continue
+		var arrays := (pm as ArrayMesh).surface_get_arrays(0)
+		var pos: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		if pos.is_empty() or idx.size() < 3:
+			continue
+		for e in _boundary_edges(idx):
+			_add_edge_quad(verts, indices, pos[e[0]], pos[e[1]])
+	if indices.is_empty():
+		return
+	var mesh := ArrayMesh.new()
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = verts
+	arr[Mesh.ARRAY_INDEX] = indices
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	var mat := ShaderMaterial.new()
+	mat.shader = _border_shader
+	if _heightmap:
+		mat.set_shader_parameter("heightmap", _heightmap)
+	_shader_mats.append(mat)
+	mi.material_override = mat
+	_map.add_child(mi)
+
+
+func _boundary_edges(indices: PackedInt32Array) -> Array:
+	# 返回只被一个三角形共享的边（[a, b] 顶点索引对）
+	var edges := []
+	var edge_count := {}
+	var n := indices.size()
+	for i in range(0, n, 3):
+		for k in 3:
+			var a := indices[i + k]
+			var b := indices[i + (k + 1) % 3]
+			var key: int = mini(a, b) * 100000 + maxi(a, b)
+			if not edge_count.has(key):
+				edge_count[key] = [a, b, 0]
+			edge_count[key][2] += 1
+	for key in edge_count:
+		if edge_count[key][2] == 1:
+			edges.append([edge_count[key][0], edge_count[key][1]])
+	return edges
+
+
+func _add_edge_quad(verts: PackedVector3Array, indices: PackedInt32Array, a: Vector3, b: Vector3) -> void:
+	# 沿边建细长四边形（描边），y 略高于平面，shader 随地形位移
+	var dir := (b - a).normalized()
+	var perp := Vector3(-dir.z, 0.0, dir.x) * BORDER_THICKNESS
+	var h := 0.01
+	var v0 := a + perp + Vector3(0, h, 0)
+	var v1 := a - perp + Vector3(0, h, 0)
+	var v2 := b + perp + Vector3(0, h, 0)
+	var v3 := b - perp + Vector3(0, h, 0)
+	var base := verts.size()
+	verts.append(v0)
+	verts.append(v1)
+	verts.append(v2)
+	verts.append(v3)
+	indices.append(base)
+	indices.append(base + 1)
+	indices.append(base + 2)
+	indices.append(base + 1)
+	indices.append(base + 3)
+	indices.append(base + 2)
+
+
 func _load_country_data() -> Dictionary:
 	# id -> {"color": Color, "liege": String, "liege_color": Color}
 	var list: Array = _load_json(COUNTRY_COLORS_PATH).get("countries", [])
 	var by_id := {}
-	var raw := {}
 	for c in list:
 		var id: String = c.get("id", "")
 		var hex: String = c.get("color", "")
-		raw[id] = c
 		by_id[id] = {"color": Color(hex) if not hex.is_empty() else Color.WHITE, "liege": c.get("liege", "")}
-	# 解析宗主色
+	# 递归解析最上级宗主色（附庸套附庸：far_color = 最上级宗主色）
 	for id in by_id:
-		var liege: String = by_id[id]["liege"]
-		if not liege.is_empty() and by_id.has(liege):
-			by_id[id]["liege_color"] = by_id[liege]["color"]
+		var top: String = by_id[id]["liege"] as String
+		var guard := 0
+		while not top.is_empty() and by_id.has(top) and not (by_id[top]["liege"] as String).is_empty() and guard < 16:
+			top = by_id[top]["liege"]
+			guard += 1
+		if not top.is_empty() and by_id.has(top):
+			by_id[id]["liege_color"] = by_id[top]["color"]
+		else:
+			by_id[id]["liege_color"] = by_id[id]["color"]
 	return by_id
 
 
