@@ -37,17 +37,18 @@ void vertex() {
 // - 高度分阶（V3 卡通 banding）
 // - 雪线随纬度：北低（低地也雪）→ 南高（只有高山有雪）
 vec3 terrain_palette(float h, float lat) {
-	vec3 low  = mix(vec3(0.55, 0.62, 0.50), vec3(0.62, 0.78, 0.48), lat);  // 低地 冷/暖
-	vec3 hill = mix(vec3(0.60, 0.58, 0.52), vec3(0.76, 0.72, 0.42), lat);  // 丘陵 冷/暖
-	vec3 rock = mix(vec3(0.66, 0.63, 0.60), vec3(0.78, 0.64, 0.45), lat);  // 山地 冷/暖
-	// 高度分档（窄 smoothstep，卡通感不硬边）
-	float b1 = smoothstep(0.28, 0.34, h);   // 低地 → 丘陵
-	float b2 = smoothstep(0.58, 0.64, h);   // 丘陵 → 山地
-	vec3 c = mix(low, hill, b1);
-	c = mix(c, rock, b2);
+	// 基准：h=0 纯绿（随纬度略调冷暖）；h 一有变化立即渐变，不整段纯绿
+	vec3 base = mix(vec3(0.42, 0.57, 0.36), vec3(0.50, 0.72, 0.40), lat);
+	vec3 hill = mix(vec3(0.62, 0.60, 0.52), vec3(0.78, 0.70, 0.42), lat);
+	vec3 rock = mix(vec3(0.68, 0.64, 0.60), vec3(0.80, 0.62, 0.44), lat);
+	// 连续渐变：h 从 0 起立即变化（0→绿，0.3→丘陵，0.65→山地），平滑过渡无分阶突兀
+	float t1 = smoothstep(0.0, 0.3, h);     // 绿 → 丘陵
+	float t2 = smoothstep(0.3, 0.65, h);    // 丘陵 → 山地
+	vec3 c = mix(base, hill, t1);
+	c = mix(c, rock, t2);
 	// 纬度相关雪线：北（lat=0）0.05 → 南（lat=1）0.65
 	float snowline = mix(0.05, 0.65, lat);
-	float snow = smoothstep(snowline, snowline + 0.2, h);
+	float snow = smoothstep(snowline, snowline + 0.25, h);
 	c = mix(c, vec3(0.96, 0.95, 0.93), snow);
 	return c;
 }
