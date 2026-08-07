@@ -156,18 +156,22 @@ func _make_land_material() -> Material:
 ## ===== 省份拾取（射线） =====
 
 func _pick(screen_pos: Vector2) -> void:
+	print("map_view: 点击 @ ", screen_pos)
 	var from := _camera.project_ray_origin(screen_pos)
 	var to := from + _camera.project_ray_normal(screen_pos) * 2000.0
 	var query := PhysicsRayQueryParameters3D.create(from, to)
 	var result := get_world_3d().direct_space_state.intersect_ray(query)
 	if result.is_empty():
+		print("map_view: 射线未命中")
 		return
 	var collider: Object = result.get("collider", null)
 	if collider == null or not _collider_to_province.has(collider):
+		print("map_view: 命中但非省份碰撞体: ", collider)
 		return
 	var province: String = _collider_to_province[collider]
 	var country: String = _owners.get(province, "")
 	province_picked.emit(province, country)
+	print("map_view: 拾取 ", province, " -> ", country)
 
 
 func _province_name(node_name: String) -> String:
