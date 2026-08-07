@@ -51,11 +51,13 @@ static func compute_spine(verts: PackedVector3Array) -> Dictionary:
 			var p1: Vector3 = ctrl[i + 1]
 			var p2: Vector3 = ctrl[i + 2]
 			var p3: Vector3 = ctrl[i + 3]
-			for s in SAMPLES_PER_SEG:
+			# 最后一段采到 t=1（曲线真实终点），保证末端平滑、切线自然。
+			# 不再硬接控制点（旧代码 append ctrl[n-2]/ctrl[n-1] 会产生末端折角，
+			# 导致落在末段的字符（最后一个字）切线突变而"歪脖子"）。
+			var segs := SAMPLES_PER_SEG + 1 if i == ctrl.size() - 4 else SAMPLES_PER_SEG
+			for s in segs:
 				var t := float(s) / float(SAMPLES_PER_SEG)
 				points.append(_bspline(p0, p1, p2, p3, t))
-		points.append(ctrl[ctrl.size() - 2] as Vector3)
-		points.append(ctrl[ctrl.size() - 1] as Vector3)
 	else:
 		for p in ctrl:
 			points.append(p as Vector3)
