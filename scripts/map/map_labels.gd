@@ -85,9 +85,10 @@ func add_label(text: String, verts: PackedVector3Array, kind: int) -> void:
 		lb.rotation.y = atan2(-tan.z, tan.x)
 		lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		# 位置沿脊线（弧线感）；高度取字符覆盖区域最大值（防山坡穿模），加小偏移防 z-fighting
+		# 位置沿脊线（弧线感）；高度取字符覆盖区域最大值（防山坡穿模）。
+		# +0.25：高于省份层（y_offset 0.06）约 0.19，近状态立体地形时不被省份网格遮挡
 		var radius := clampf(adv * 0.55, 0.25, 1.2)
-		lb.position = Vector3(pos.x, _sample_height_max(pos.x, pos.z, radius) + 0.06, pos.z)
+		lb.position = Vector3(pos.x, _sample_height_max(pos.x, pos.z, radius) + 0.25, pos.z)
 		root.add_child(lb)
 		t += adv
 	root.visible = false
