@@ -283,3 +283,96 @@ theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBox_btn_normal")
 theme_override_styles/hover = SubResource("StyleBox_btn_hover_quit")
 text = "取消"
+
+[node name="SettingsDialog" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -280.0
+offset_top = -250.0
+offset_right = 280.0
+offset_bottom = 250.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBox_panel")
+
+[node name="Margin" type="MarginContainer" parent="SettingsDialog"]
+layout_mode = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 24
+
+[node name="VBox" type="VBoxContainer" parent="SettingsDialog/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="SettingsDialog/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.4, 0.12, 1)
+theme_override_font_sizes/font_size = 24
+text = "设置"
+
+[node name="VolumeLabel" type="Label" parent="SettingsDialog/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.42, 0.31, 0.16, 1)
+text = "音量"
+
+[node name="VolumeBox" type="HBoxContainer" parent="SettingsDialog/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="VolumeSlider" type="HSlider" parent="SettingsDialog/Margin/VBox/VolumeBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 100.0
+step = 1.0
+value = 80.0
+
+[node name="VolumeValue" type="Label" parent="SettingsDialog/Margin/VBox/VolumeBox"]
+custom_minimum_size = Vector2(52, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.42, 0.31, 0.16, 1)
+text = "80%"
+
+[node name="ResolutionLabel" type="Label" parent="SettingsDialog/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.42, 0.31, 0.16, 1)
+text = "分辨率"
+
+[node name="ResolutionOption" type="OptionButton" parent="SettingsDialog/Margin/VBox"]
+layout_mode = 2
+
+[node name="AutosaveLabel" type="Label" parent="SettingsDialog/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.42, 0.31, 0.16, 1)
+text = "自动保存"
+
+[node name="AutosaveOption" type="OptionButton" parent="SettingsDialog/Margin/VBox"]
+layout_mode = 2
+
+[node name="Buttons" type="HBoxContainer" parent="SettingsDialog/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Save" type="Button" parent="SettingsDialog/Margin/VBox/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.32, 0.22, 0.1, 1)
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBox_btn_normal")
+theme_override_styles/hover = SubResource("StyleBox_btn_hover_start")
+text = "保存"
+
+[node name="Cancel" type="Button" parent="SettingsDialog/Margin/VBox/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.32, 0.22, 0.1, 1)
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBox_btn_normal")
+theme_override_styles/hover = SubResource("StyleBox_btn_hover_quit")
+text = "取消"
