@@ -30,7 +30,23 @@ func _ready() -> void:
 	_update_camera()
 
 
+func _process(delta: float) -> void:
+	_handle_wasd(delta)
+
+
 ## ===== 相机控制 =====
+
+func _handle_wasd(delta: float) -> void:
+	var speed := 12.0 * lerpf(0.6, 2.5, _zoom) * delta
+	var dir := Vector3.ZERO
+	if Input.is_key_pressed(KEY_W): dir.z -= 1.0   # 北（屏幕上方）
+	if Input.is_key_pressed(KEY_S): dir.z += 1.0   # 南
+	if Input.is_key_pressed(KEY_A): dir.x -= 1.0   # 西
+	if Input.is_key_pressed(KEY_D): dir.x += 1.0   # 东
+	if dir != Vector3.ZERO:
+		_target += dir.normalized() * speed
+		_update_camera()
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
@@ -90,18 +106,22 @@ func _process_node(node: Node, owners: Dictionary, colors: Dictionary, mats: Dic
 ## ===== 省份拾取（射线） =====
 
 func _pick(screen_pos: Vector2) -> void:
+	print("map_view: 点击 @ ", screen_pos)
 	var from := _camera.project_ray_origin(screen_pos)
 	var to := from + _camera.project_ray_normal(screen_pos) * 2000.0
 	var query := PhysicsRayQueryParameters3D.create(from, to)
 	var result := get_world_3d().direct_space_state.intersect_ray(query)
 	if result.is_empty():
+		print("map_view: 射线未命中")
 		return
 	var collider: Object = result.get("collider", null)
 	if collider == null or not _collider_to_province.has(collider):
+		print("map_view: 命中但非省份碰撞体: ", collider)
 		return
 	var province: String = _collider_to_province[collider]
 	var country: String = _owners.get(province, "")
 	province_picked.emit(province, country)
+	print("map_view: 拾取 ", province, " -> ", country)
 
 
 func _make_country_material(color: Color) -> StandardMaterial3D:
