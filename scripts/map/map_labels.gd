@@ -1,13 +1,14 @@
 class_name MapLabels
 extends Node3D
 ## 地图标签：为区域生成沿脊线的弧线文字标签（逐字 Label3D，贴地形）。
-## 缩放层级：远=宗主名、中/近=国名+省名。字号随脊线长度动态。
+## 缩放层级：远=只宗主名、中=只国名、近=只省名（三档互斥）。字号随脊线长度动态，含字距。
 
 enum Kind { LIEGE, COUNTRY, PROVINCE }
 
 const HMAP_MIN := Vector2(-15.1, -26.65)
 const HMAP_SIZE := Vector2(29.9, 40.45)
-const PIXEL_SIZE := 0.015    # 文字像素→世界单位（偏大便于阅读）
+const PIXEL_SIZE := 0.015    # 文字像素→世界单位
+const SPACING_RATIO := 0.25  # 字距 = 字号的 25%（汉字留白，防过密）
 
 var _font: Font
 var _height_img: Image = null
@@ -30,20 +31,32 @@ func add_label(text: String, verts: PackedVector3Array, kind: int) -> void:
 	if pts.size() < 2 or len <= 0.0:
 		return
 	# 字号随脊线长度（国家大、省份小）
-	var fs := int(clampf(len * 2.5, 26.0, 110.0))
+	var fs := int(clampf(len * 3.2, 30.0, 130.0))
+	var min_fs := 18
 	if kind == Kind.PROVINCE:
-		fs = int(clampf(len * 1.5, 16.0, 52.0))
-	# 文字总宽（用于居中）
+		fs = int(clampf(len * 1.9, 18.0, 64.0))
+		min_fs = 12
+	# 单字符步进 = 字符宽 + 字距（闭包按引用捕获 fs）
+	var step := func(ch: String) -> float:
+		return (_font.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + fs * SPACING_RATIO) * PIXEL_SIZE
+	# 文字总宽（含字距，用于居中）
 	var text_width := 0.0
 	for i in text.length():
-		text_width += _font.get_string_size(text[i], HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x * PIXEL_SIZE
+		text_width += step.call(text[i])
+	# 防超长：文字宽 > 脊线长时按比例缩小字号，避免字符堆在脊线末端/弯曲处挤成一团
+	if text_width > len:
+		var s := len / text_width
+		fs = maxi(int(fs * s), min_fs)
+		text_width = 0.0
+		for i in text.length():
+			text_width += step.call(text[i])
 	# 从脊线中点开始排版（居中，不顶满）
 	var t := maxf((len - text_width) * 0.5, 0.0)
 	var root := Node3D.new()
 	root.name = text
 	for i in text.length():
 		var ch := text[i]
-		var adv: float = _font.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x * PIXEL_SIZE
+		var adv: float = step.call(ch)
 		var pos := _point_on(pts, t)
 		var tan := _tangent_on(pts, t)
 		var lb := Label3D.new()
