@@ -7,7 +7,7 @@ enum Kind { LIEGE, COUNTRY, PROVINCE }
 
 const HMAP_MIN := Vector2(-15.1, -26.65)
 const HMAP_SIZE := Vector2(29.9, 40.45)
-const PIXEL_SIZE := 0.004    # 文字像素→世界单位
+const PIXEL_SIZE := 0.015    # 文字像素→世界单位（偏大便于阅读）
 
 var _font: Font
 var _height_img: Image = null
@@ -30,13 +30,17 @@ func add_label(text: String, verts: PackedVector3Array, kind: int) -> void:
 	if pts.size() < 2 or len <= 0.0:
 		return
 	# 字号随脊线长度（国家大、省份小）
-	var fs := int(clampf(len * 1.1, 16.0, 48.0))
+	var fs := int(clampf(len * 2.5, 26.0, 110.0))
 	if kind == Kind.PROVINCE:
-		fs = int(clampf(len * 0.7, 10.0, 22.0))
-	# 逐字沿脊线排版
+		fs = int(clampf(len * 1.5, 16.0, 52.0))
+	# 文字总宽（用于居中）
+	var text_width := 0.0
+	for i in text.length():
+		text_width += _font.get_string_size(text[i], HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x * PIXEL_SIZE
+	# 从脊线中点开始排版（居中，不顶满）
+	var t := maxf((len - text_width) * 0.5, 0.0)
 	var root := Node3D.new()
 	root.name = text
-	var t := 0.0
 	for i in text.length():
 		var ch := text[i]
 		var adv: float = _font.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x * PIXEL_SIZE
@@ -48,17 +52,17 @@ func add_label(text: String, verts: PackedVector3Array, kind: int) -> void:
 		lb.font = _font
 		lb.font_size = fs
 		lb.pixel_size = PIXEL_SIZE
-		lb.modulate = Color(0.14, 0.11, 0.07)
+		lb.modulate = Color(0.97, 0.93, 0.8)      # 奶油白字（彩色地图上可读）
+		lb.outline_size = maxi(fs / 8, 2)          # 深色描边
+		lb.outline_modulate = Color(0.2, 0.15, 0.1)
 		# 贴地（法线朝上）+ 沿切线
 		var X := Vector3(tan.x, 0.0, tan.z)
 		var Z := Vector3.UP
 		var Y := Z.cross(X)
 		lb.basis = Basis(X, Y, Z)
-		lb.position = Vector3(pos.x, y + 0.06, pos.z)
+		lb.position = Vector3(pos.x, y + 0.08, pos.z)
 		root.add_child(lb)
 		t += adv
-		if t > len:
-			break
 	root.visible = false
 	add_child(root)
 	_labels.append({"root": root, "kind": kind})
