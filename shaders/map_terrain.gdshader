@@ -57,22 +57,15 @@ void vertex() {
 	v_lat = clamp((VERTEX.z - hmap_min.y) / hmap_size.y, 0.0, 1.0);
 	v_world = VERTEX.xz;
 
-	// 地形法线（高度梯度；y 分量控制坡度强度，0.1 防平面除零/法线朝上）
-	float eps = 0.003;
+	// 地形法线（高度梯度；y 分量控制坡度强度——越小法线越平、明暗越强）
+	float eps = 0.015;
 	float hl = texture(heightmap, uv + vec2(-eps, 0.0)).r;
 	float hr = texture(heightmap, uv + vec2( eps, 0.0)).r;
 	float hd = texture(heightmap, uv + vec2(0.0, -eps)).r;
 	float hu = texture(heightmap, uv + vec2(0.0,  eps)).r;
-	v_normal = normalize(vec3(hl - hr, 2.0 * height_scale * terrain_blend + 0.1, hd - hu));
+	v_normal = normalize(vec3(hl - hr, 1.2 * terrain_blend + 0.2, hd - hu));
 
-	// 草地风摆（低地草地区域，立体时明显）
-	float grass = smoothstep(0.0, 0.12, h) * (1.0 - smoothstep(0.18, 0.45, h));
-	float wind1 = sin(TIME * 2.5 + VERTEX.x * 1.5 + VERTEX.z * 1.3);
-	float wind2 = cos(TIME * 1.8 + VERTEX.x * 1.1 - VERTEX.z * 1.7);
-	VERTEX.x += wind1 * grass_sway * grass * terrain_blend;
-	VERTEX.z += wind2 * grass_sway * 0.55 * grass * terrain_blend;
-
-	// y_offset 不乘 terrain_blend：省份层始终上抬，避免平面模式与陆地基底 z-fighting
+	// 草地效果用噪声变色（fragment），不做顶点位移——避免整个网格抖动
 	VERTEX.y += h * height_scale * terrain_blend + y_offset;
 }
 
@@ -107,16 +100,18 @@ void fragment() {
 	// Toon 明暗（冷深蓝阴影，不用黑色）：仅立体地形（terrain_blend）
 	vec3 light_dir = normalize(vec3(0.55, 0.72, 0.35));
 	float diff = max(dot(normalize(v_normal), light_dir), 0.0);
-	float shade = smoothstep(0.32, 0.55, diff);      // 2 档 toon
-	vec3 shadow_col = vec3(0.12, 0.22, 0.45);        // 冷深蓝
-	float shadow = (1.0 - shade) * 0.62 * terrain_blend;
-	c = mix(c, c * 0.45 + shadow_col * 0.55, shadow);
+	float shade = smoothstep(0.3, 0.5, diff);        // 2 档 toon
+	vec3 shadow_col = vec3(0.10, 0.18, 0.42);        // 冷深蓝（加强）
+	float shadow = (1.0 - shade) * 0.8 * terrain_blend;
+	c = mix(c, c * 0.4 + shadow_col * 0.6, shadow);
 
-	// 云阴影（噪声慢移，冷蓝暗化，全图）
+	// 麦浪/云（合并）：噪声流动明暗，时间变化类似水波/麦浪，草地更明显
 	vec2 wuv = (v_world - hmap_min) / hmap_size;
-	float cloud = fbm(wuv * 2.2 + vec2(TIME * 0.02, TIME * 0.014));
-	float cld = smoothstep(0.55, 0.8, cloud);
-	c = mix(c, c * vec3(0.68, 0.78, 0.94) + vec3(0.03, 0.08, 0.18), cld * cloud_strength);
+	float wave = fbm(wuv * 3.0 + vec2(TIME * 0.05, TIME * 0.035));
+	float grass_mask = smoothstep(0.0, 0.15, h) * (1.0 - smoothstep(0.2, 0.5, h));
+	float wave_strength = mix(cloud_strength * 0.35, cloud_strength * 1.1, grass_mask);
+	float wv = smoothstep(0.45, 0.75, wave);
+	c = mix(c, c * vec3(0.74, 0.83, 0.96) + vec3(0.02, 0.06, 0.14), wv * wave_strength);
 
 	// 选中省份高亮闪烁：提亮 + 略泛白
 	vec3 hl = c * 1.35 + vec3(0.15);
