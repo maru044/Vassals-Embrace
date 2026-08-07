@@ -27,34 +27,40 @@ varying float v_lat;   // 纬度：0=北（高纬） 1=南（低纬）
 varying vec3 v_normal; // 地形法线（高度梯度）
 varying vec2 v_world;  // 世界 XZ
 
-// ---- 2D 梯度噪声（Perlin 风格，无值噪声的方块伪影）----
-float hash21(vec2 p) {
-	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+// ---- 2D Simplex 噪声（Ashima，三角形网格，无正方形格点方块伪影）----
+vec3 permute(vec3 x) {
+	return mod(((x * 34.0) + 1.0) * x, 289.0);
 }
-vec2 grad2(vec2 p) {
-	float a = hash21(p) * 6.2831853;   // 伪随机梯度角
-	return vec2(cos(a), sin(a));
-}
-float vnoise(vec2 p) {
-	vec2 i = floor(p);
-	vec2 f = fract(p);
-	vec2 u = f * f * (3.0 - 2.0 * f);
-	// 四角梯度点乘（-1~1，平滑无格点方块）
-	float n00 = dot(grad2(i), f);
-	float n10 = dot(grad2(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0));
-	float n01 = dot(grad2(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0));
-	float n11 = dot(grad2(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0));
-	return mix(mix(n00, n10, u.x), mix(n01, n11, u.x), u.y);
+float snoise(vec2 v) {
+	const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+	vec2 i = floor(v + dot(v, C.yy));
+	vec2 x0 = v - i + dot(i, C.xx);
+	vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+	vec4 x12 = x0.xyxy + C.xxzz;
+	x12.xy -= i1;
+	i = mod(i, 289.0);
+	vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
+	vec3 m = max(0.5 - vec3(dot(x0, x0), dot(x12.xy, x12.xy), dot(x12.zw, x12.zw)), 0.0);
+	m = m * m;
+	m = m * m;
+	vec3 x = 2.0 * fract(p * C.www) - 1.0;
+	vec3 h = abs(x) - 0.5;
+	vec3 ox = floor(x + 0.5);
+	vec3 a0 = x - ox;
+	m *= 1.79284291400159 - 0.85373472095314 * (a0 * a0 + h * h);
+	vec3 g;
+	g.x = a0.x * x0.x + h.x * x0.y;
+	g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+	return 130.0 * dot(m, g);   // 大致 [-1, 1]
 }
 float fbm(vec2 p) {
-	// 固定旋转矩阵（打乱各层网格对齐，摧毁正交方块感——学习自 Master frosted_glass 解法）
+	// 保留旋转矩阵打乱各层方向性
 	const mat2 rot = mat2(vec2(0.877, 0.479), vec2(-0.479, 0.877));   // ~28.6°
 	float v = 0.0;
 	float a = 0.5;
 	for (int i = 0; i < 4; i++) {
-		v += a * vnoise(p);
-		p = p * 2.0;
-		p = rot * p;   // 每层旋转坐标系，各层格点不再正交对齐 → 无方块伪影
+		v += a * snoise(p);
+		p = rot * p * 2.0;
 		a *= 0.5;
 	}
 	return v;
@@ -116,18 +122,22 @@ void fragment() {
 	float shadow = (1.0 - shade) * 0.8 * terrain_blend;
 	c = mix(c, c * 0.4 + shadow_col * 0.6, shadow);
 
-	// 麦浪/云（借鉴恒星等离子流动）：双层 fbm 噪声，草地颜色在暗/亮间随时间自然变色（亮度+色相）
+	// 麦浪（Simplex + 域扭曲）：草地颜色随时间流动变色（亮度+色相），无方块
 	vec2 wuv = (v_world - hmap_min) / hmap_size;
-	vec2 wp = wuv * 4.5;   // 密度适中（太高会暴露噪声格点成方块）
-	float n1 = fbm(wp + vec2(TIME * 0.18, TIME * 0.14));
-	float n2 = fbm(wp * 1.7 + vec2(-TIME * 0.14, TIME * 0.1));
-	float wave = clamp((n1 + n2) * 0.25 + 0.5, 0.0, 1.0);  // 梯度噪声 -1~1 → 归一到 0~1
+	vec2 wp = wuv * 4.5;   // 麦浪密度
+	vec2 flow1 = vec2(TIME * 0.18, TIME * 0.14);
+	vec2 flow2 = vec2(-TIME * 0.14, TIME * 0.10);
+	// 域扭曲：低频噪声作为偏移量，制造阵风/湍流
+	float warp_x = fbm(wp * 0.8 + flow1);
+	float warp_y = fbm(wp * 0.8 + flow2 + vec2(12.5, 34.1));
+	vec2 warp_offset = vec2(warp_x, warp_y) * 0.35;
+	float n1 = fbm(wp + warp_offset + flow1);
+	float n2 = fbm(wp * 1.7 - warp_offset * 0.5 + flow2);
+	float wave = clamp((n1 + n2) * 0.25 + 0.5, 0.0, 1.0);
 	// 草地（低地）区域：h=0 平地也是草地（地形 shader 只渲染陆地，0 高度即平原）
 	float grass_mask = 1.0 - smoothstep(0.15, 0.45, h);
 	// 草地颜色层次：暗草（偏蓝降亮）↔ 亮草（泛黄提亮），差异适中、随 wave 流动（麦浪）
-	vec3 dark_g = vec3(0.72, 0.80, 1.05);
-	vec3 bright_g = vec3(1.20, 1.12, 0.86);
-	vec3 gcol = mix(c * dark_g, c * bright_g, smoothstep(0.3, 0.7, wave));
+	vec3 gcol = mix(c * vec3(0.72, 0.80, 1.05), c * vec3(1.20, 1.12, 0.86), smoothstep(0.3, 0.7, wave));
 	c = mix(c, gcol, grass_mask);
 	// 非草地（山/雪）轻度云影
 	float cloud = smoothstep(0.55, 0.8, fbm(wuv * 2.0 + vec2(TIME * 0.08, TIME * 0.06)) * 0.5 + 0.5);
