@@ -125,7 +125,7 @@ func _setup_heightmap_overlay() -> void:
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mi.material_override = mat
 	mi.rotation.x = -PI / 2.0
-	mi.position = Vector3(_hmin.x + _hsize.x * 0.5, 0.5, _hmin.y + _hsize.y * 0.5)
+	mi.position = Vector3(_hmin.x + _hsize.x * 0.5, 3.0, _hmin.y + _hsize.y * 0.5)
 	mi.visible = false
 	add_child(mi)
 	_height_overlay = mi
@@ -153,7 +153,7 @@ func _apply_hmap() -> void:
 	if _height_overlay:
 		var pm := _height_overlay.mesh as PlaneMesh
 		pm.size = _hsize
-		_height_overlay.position = Vector3(_hmin.x + _hsize.x * 0.5, 0.5, _hmin.y + _hsize.y * 0.5)
+		_height_overlay.position = Vector3(_hmin.x + _hsize.x * 0.5, 3.0, _hmin.y + _hsize.y * 0.5)
 	print("map_view: hmap_min=", _hmin, " hmap_size=", _hsize)
 
 
