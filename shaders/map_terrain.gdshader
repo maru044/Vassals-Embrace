@@ -136,9 +136,10 @@ void fragment() {
 	float wave = clamp((n1 + n2) * 0.25 + 0.5, 0.0, 1.0);
 	// 草地（低地）区域：h=0 平地也是草地（地形 shader 只渲染陆地，0 高度即平原）
 	float grass_mask = 1.0 - smoothstep(0.15, 0.45, h);
-	// 草地颜色层次：暗草（偏蓝降亮）↔ 亮草（泛黄提亮），差异适中、随 wave 流动（麦浪）
-	vec3 gcol = mix(c * vec3(0.72, 0.80, 1.05), c * vec3(1.20, 1.12, 0.86), smoothstep(0.3, 0.7, wave));
-	c = mix(c, gcol, grass_mask);
+	// 草地颜色层次：暗草（偏蓝降亮）↔ 亮草（泛黄提亮），随 wave 流动（麦浪）
+	// 仅近景生效（*t_terrain），且减弱强度（*0.7）
+	vec3 gcol = mix(c * vec3(0.82, 0.86, 1.02), c * vec3(1.12, 1.07, 0.92), smoothstep(0.3, 0.7, wave));
+	c = mix(c, gcol, grass_mask * t_terrain * 0.7);
 	// 非草地（山/雪）轻度云影
 	float cloud = smoothstep(0.55, 0.8, fbm(wuv * 2.0 + vec2(TIME * 0.08, TIME * 0.06)) * 0.5 + 0.5);
 	c = mix(c, c * vec3(0.78, 0.85, 0.96) + vec3(0.02, 0.05, 0.12), (1.0 - grass_mask) * cloud_strength * 0.3 * cloud);
