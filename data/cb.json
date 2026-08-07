@@ -6,7 +6,7 @@
     {"id": "liberation", "name": "解放同族", "type": "general", "allow_annex": true, "targets": ["Cornwall", "Highlands"], "desc": "解放被异族统治的同文化省份"},
     {"id": "vassalize", "name": "附庸化", "type": "general", "allow_annex": false, "culture_restriction": "norse", "desc": "迫使对方成为附庸（塞壬通用）"},
     {"id": "protectorate", "name": "受保护国", "type": "general", "allow_annex": false, "culture_restriction": "english", "desc": "纳入保护体系（英格兰通用）"},
-    {"id": "seize_leadership", "name": "夺取盟主地位", "type": "general", "allow_annex": false, "culture_restriction": "celtic", "desc": "犬娘打斗争夺部落盟主（交配权/后宫老大）"},
+    {"id": "seize_leadership", "name": "夺取至高王地位", "type": "general", "allow_annex": false, "culture_restriction": "celtic", "desc": "犬娘打斗争夺至高王（交配权/后宫老大）"},
     {"id": "independence", "name": "附庸独立", "type": "general", "allow_annex": false, "condition": "好感度很低", "desc": "附庸对宗主发动独立战争"},
     {"id": "personal_union", "name": "联合统治", "type": "event", "allow_annex": false, "desc": "迫使对方公主加入己方后宫（需事件/调教关系触发）"},
     {"id": "welsh_revolt", "name": "威尔士起义", "type": "event", "allow_annex": false, "desc": "开局 1400.9：联合统治英格兰公主 + 独立条款"},
