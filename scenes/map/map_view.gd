@@ -34,6 +34,7 @@ var _flash_name := ""                 # 当前选中省份（持续高亮呼吸�
 var _flash_time := 0.0                # 呼吸计时
 var _labels: MapLabels = null
 var _top_liege_of := {}               # country -> 最上级宗主
+var _show_spines := false             # F9：脊线调试可视化开关
 
 
 func _ready() -> void:
@@ -76,11 +77,21 @@ func _unhandled_input(event: InputEvent) -> void:
 				_update_camera()
 			MOUSE_BUTTON_LEFT:
 				_pick(event.position)
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F9:
+		_toggle_spines()
 	elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
 		# 中键拖拽平移（左键留给拾取）
 		_target.x -= event.relative.x * 0.03
 		_target.z -= event.relative.y * 0.03
 		_update_camera()
+
+
+## 调试：F9 切换显示/隐藏所有标签的脊线（红）与控制点（黄十字），检查曲线形状。
+func _toggle_spines() -> void:
+	_show_spines = not _show_spines
+	if _labels:
+		_labels.debug_show_spines(_show_spines)
+	print("map_view: 脊线可视化 ", "ON" if _show_spines else "OFF")
 
 
 func _update_camera() -> void:

@@ -66,7 +66,7 @@ static func compute_spine(verts: PackedVector3Array) -> Dictionary:
 	var length := 0.0
 	for i in points.size() - 1:
 		length += points[i].distance_to(points[i + 1])
-	return {"points": points, "length": length}
+	return {"points": points, "length": length, "ctrl": ctrl}
 
 
 static func _smooth_ctrl(ctrl: Array) -> Array:

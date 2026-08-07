@@ -14,6 +14,7 @@ var _font: Font
 var _height_img: Image = null
 var _height_scale := 1.0
 var _labels: Array = []      # { root, kind }
+var _spine_lines: Array = [] # 调试：脊线/控制点 MeshInstance3D（F9 显示）
 
 
 func setup(font: Font, heightmap: Texture2D) -> void:
@@ -81,7 +82,8 @@ func add_label(text: String, verts: PackedVector3Array, kind: int) -> void:
 		t += adv
 	root.visible = false
 	add_child(root)
-	_labels.append({"root": root, "kind": kind})
+	_labels.append({"root": root, "kind": kind, "pts": pts, "ctrl": spine.get("ctrl", [])})
+	_build_spine_lines(pts, spine.get("ctrl", []))
 
 
 func set_zoom(zoom: float) -> void:
@@ -96,6 +98,54 @@ func set_zoom(zoom: float) -> void:
 			Kind.PROVINCE:
 				vis = zoom >= 0.6
 		l["root"].visible = vis
+
+
+## 调试可视化：显示/隐藏所有脊线（红）与控制点（黄十字），供 Master 检查曲线形状。
+func debug_show_spines(show: bool) -> void:
+	for mi in _spine_lines:
+		mi.visible = show
+
+
+func _build_spine_lines(pts: PackedVector3Array, ctrl: Array) -> void:
+	# 脊线（红色实线）
+	var im := ImmediateMesh.new()
+	im.surface_begin(Mesh.PRIMITIVE_LINE_STRIP)
+	for p in pts:
+		im.surface_add_vertex(Vector3(p.x, _dbg_y(p) + 0.3, p.z))
+	im.surface_end()
+	_spine_lines.append(_add_line_mesh(im, Color(1.0, 0.25, 0.25)))
+	# 控制点（黄色十字，方便看出 B 样条控制点分布）
+	if ctrl.size() > 0:
+		var imc := ImmediateMesh.new()
+		imc.surface_begin(Mesh.PRIMITIVE_LINES)
+		var cs := 0.35
+		for c in ctrl:
+			var v: Vector3 = c
+			var y := _dbg_y(v) + 0.3
+			imc.surface_add_vertex(Vector3(v.x - cs, y, v.z))
+			imc.surface_add_vertex(Vector3(v.x + cs, y, v.z))
+			imc.surface_add_vertex(Vector3(v.x, y, v.z - cs))
+			imc.surface_add_vertex(Vector3(v.x, y, v.z + cs))
+		imc.surface_end()
+		_spine_lines.append(_add_line_mesh(imc, Color(1.0, 0.85, 0.2)))
+
+
+func _add_line_mesh(im: ImmediateMesh, col: Color) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = im
+	var m := StandardMaterial3D.new()
+	m.albedo_color = col
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.no_depth_test = true   # 始终可见，便于检查（穿过地形）
+	mi.material_override = m
+	mi.visible = false
+	add_child(mi)
+	return mi
+
+
+func _dbg_y(p: Vector3) -> float:
+	# 脊线 y 采样高度图（与文字一致贴合），便于和文字位置对比
+	return _sample_height_max(p.x, p.z, 0.3)
 
 
 func _sample_height(x: float, z: float) -> float:
