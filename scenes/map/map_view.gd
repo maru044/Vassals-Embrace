@@ -1,13 +1,15 @@
 extends Node3D
-## 地图场景：加载 map.gltf，按国家着色，EU4 式相机控制，省份拾取。
-## 数据依赖：data/map_data.json（省份→国家）、data/country_colors.json（国家颜色）
-## 阶段A：只显示 42 省份色块（隐藏 Britain/Ireland 陆地基底与退化层），Phase B 接地形 shader。
-## 拾取：Phase A 用射线（平面地图可靠）；地形位移后若不准再换颜色拾取。
+## 地图场景：加载 map.gltf，按国家着色（远=宗主色/中=本宗色/近=地形），EU4 相机，省份拾取，平↔立体位移。
+## 数据：data/map_data.json（省份→国家）、data/country_colors.json（颜色+宗主）、assets/map/height.png（高度图）
+## 图层：Britain/Ireland = 陆地基底（地形色）；42 省份 = 覆盖层（国家色 + 微量上抬）。
 
 signal province_picked(province: String, country: String)
 
 const MAP_DATA_PATH := "res://data/map_data.json"
 const COUNTRY_COLORS_PATH := "res://data/country_colors.json"
+const TERRAIN_SHADER_PATH := "res://shaders/map_terrain.gdshader"
+const HEIGHTMAP_PATH := "res://assets/map/height.png"
+const LAND_BASE_COLOR := Color(0.75, 0.72, 0.62)   # 陆地基底中性色
 
 # 相机（EU4 式）：俯角随缩放变化，yaw 固定从南看北（南在屏幕下，北退远）
 const PITCH_FAR := deg_to_rad(85.0)
@@ -23,15 +25,21 @@ var _zoom := 0.5
 var _target := MAP_CENTER
 var _owners := {}                     # province -> country
 var _collider_to_province := {}       # StaticBody3D -> province
+var _heightmap: Texture2D = null
+var _terrain_shader: Shader = null
+var _shader_mats: Array = []          # 需每帧更新 zoom/terrain_blend 的材质
 
 
 func _ready() -> void:
+	_heightmap = load(HEIGHTMAP_PATH)
+	_terrain_shader = load(TERRAIN_SHADER_PATH)
 	_apply_colors()
 	_update_camera()
 
 
 func _process(delta: float) -> void:
 	_handle_wasd(delta)
+	_update_shader_uniforms()
 
 
 ## ===== 相机控制 =====
@@ -74,61 +82,92 @@ func _update_camera() -> void:
 	_camera.look_at(_target, Vector3.UP)
 
 
-## ===== 国家着色 =====
+func _update_shader_uniforms() -> void:
+	if _shader_mats.is_empty():
+		return
+	var blend := _zoom   # 远=0 平面 / 近=1 立体（可调 smoothstep）
+	for mat in _shader_mats:
+		mat.set_shader_parameter("terrain_blend", blend)
+		mat.set_shader_parameter("zoom", _zoom)
+
+
+## ===== 着色 =====
 
 func _apply_colors() -> void:
 	_owners = _load_json(MAP_DATA_PATH).get("province_owner", {})
-	var colors := _load_country_colors()
+	var country_data := _load_country_data()   # id -> {color, liege}
 	var mats := {}
-	_process_node(_map, _owners, colors, mats)
+	_process_node(_map, _owners, country_data, mats)
 
 
-func _process_node(node: Node, owners: Dictionary, colors: Dictionary, mats: Dictionary) -> void:
+func _process_node(node: Node, owners: Dictionary, country_data: Dictionary, mats: Dictionary) -> void:
 	for child in node.get_children():
 		if child is MeshInstance3D:
 			var province := _province_name(child.name)
 			if owners.has(province):
 				var country: String = owners[province]
 				if not mats.has(country):
-					mats[country] = _make_country_material(colors.get(country, Color.WHITE))
+					mats[country] = _make_province_material(country_data.get(country, {}))
 				child.material_override = mats[country]
 				# 拾取碰撞体（射线命中 → StaticBody3D → 省份）
-				child.create_trimesh_collision()   # Godot4 返回 void，自动加 StaticBody3D 子节点
+				child.create_trimesh_collision()
 				var body := child.get_child(child.get_child_count() - 1) as StaticBody3D
 				if body:
 					_collider_to_province[body] = province
+			elif child.name == "Britain" or child.name == "Ireland":
+				# 陆地基底：地形色，无上抬（省份层覆盖其上）
+				child.material_override = _make_land_material()
+				child.visible = true
 			else:
-				# 非省份网格（Britain/Ireland 陆地基底、退化残留）阶段A先隐藏
-				child.visible = false
-		_process_node(child, owners, colors, mats)
+				child.visible = false   # 退化残留隐藏
+		_process_node(child, owners, country_data, mats)
+
+
+func _make_province_material(cdata: Dictionary) -> Material:
+	if _terrain_shader == null:
+		var fallback := StandardMaterial3D.new()
+		fallback.albedo_color = cdata.get("color", Color.WHITE)
+		return fallback
+	var mat := ShaderMaterial.new()
+	mat.shader = _terrain_shader
+	if _heightmap:
+		mat.set_shader_parameter("heightmap", _heightmap)
+	mat.set_shader_parameter("own_color", cdata.get("color", Color.WHITE))
+	mat.set_shader_parameter("far_color", cdata.get("liege_color", cdata.get("color", Color.WHITE)))
+	mat.set_shader_parameter("y_offset", 0.02)
+	_shader_mats.append(mat)
+	return mat
+
+
+func _make_land_material() -> Material:
+	if _terrain_shader == null:
+		return StandardMaterial3D.new()
+	var mat := ShaderMaterial.new()
+	mat.shader = _terrain_shader
+	if _heightmap:
+		mat.set_shader_parameter("heightmap", _heightmap)
+	mat.set_shader_parameter("own_color", LAND_BASE_COLOR)
+	mat.set_shader_parameter("far_color", LAND_BASE_COLOR)
+	mat.set_shader_parameter("y_offset", 0.0)
+	_shader_mats.append(mat)
+	return mat
 
 
 ## ===== 省份拾取（射线） =====
 
 func _pick(screen_pos: Vector2) -> void:
-	print("map_view: 点击 @ ", screen_pos)
 	var from := _camera.project_ray_origin(screen_pos)
 	var to := from + _camera.project_ray_normal(screen_pos) * 2000.0
 	var query := PhysicsRayQueryParameters3D.create(from, to)
 	var result := get_world_3d().direct_space_state.intersect_ray(query)
 	if result.is_empty():
-		print("map_view: 射线未命中")
 		return
 	var collider: Object = result.get("collider", null)
 	if collider == null or not _collider_to_province.has(collider):
-		print("map_view: 命中但非省份碰撞体: ", collider)
 		return
 	var province: String = _collider_to_province[collider]
 	var country: String = _owners.get(province, "")
 	province_picked.emit(province, country)
-	print("map_view: 拾取 ", province, " -> ", country)
-
-
-func _make_country_material(color: Color) -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.roughness = 0.9
-	return mat
 
 
 func _province_name(node_name: String) -> String:
@@ -138,14 +177,22 @@ func _province_name(node_name: String) -> String:
 	return node_name
 
 
-func _load_country_colors() -> Dictionary:
+func _load_country_data() -> Dictionary:
+	# id -> {"color": Color, "liege": String, "liege_color": Color}
 	var list: Array = _load_json(COUNTRY_COLORS_PATH).get("countries", [])
-	var colors := {}
+	var by_id := {}
+	var raw := {}
 	for c in list:
+		var id: String = c.get("id", "")
 		var hex: String = c.get("color", "")
-		if not hex.is_empty():
-			colors[c["id"]] = Color(hex)
-	return colors
+		raw[id] = c
+		by_id[id] = {"color": Color(hex) if not hex.is_empty() else Color.WHITE, "liege": c.get("liege", "")}
+	# 解析宗主色
+	for id in by_id:
+		var liege: String = by_id[id]["liege"]
+		if not liege.is_empty() and by_id.has(liege):
+			by_id[id]["liege_color"] = by_id[liege]["color"]
+	return by_id
 
 
 func _load_json(path: String) -> Dictionary:
