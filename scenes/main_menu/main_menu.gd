@@ -17,6 +17,15 @@ const AUTOSAVE_OPTIONS := [
 	{"key": "yearly", "label": "每年"},
 ]
 
+# ===== 羊皮纸噪声按钮参数 =====
+const PARCHMENT_BASE := Color(0.86, 0.72, 0.46)    # 羊皮纸暖金基色
+const PARCHMENT_HOVER := Color(0.98, 0.85, 0.6)    # hover 亮金
+const PARCHMENT_STRENGTH := 0.07                    # 斑驳强度（±7%）
+const BORDER_COLOR := Color(0.55, 0.38, 0.15)      # 金棕描边
+const BORDER_WIDTH := 4                             # 边框像素（烘焙进贴图）
+const SHADOW_RING := 5                              # 外圈软阴影像素（烘焙进贴图）
+const TEXTURE_SIZE := 256                           # 噪声贴图边长
+
 @onready var _start_button: Button = $MenuButtons/StartGame
 @onready var _load_button: Button = $MenuButtons/LoadGame
 @onready var _config_button: Button = $MenuButtons/ConfigAPI
@@ -53,6 +62,7 @@ func _ready() -> void:
 	_settings_cancel.pressed.connect(_on_settings_cancel_pressed)
 	_volume_slider.value_changed.connect(_on_volume_changed)
 	_apply_startup_resolution()
+	_apply_parchment_buttons()
 
 
 func _on_start_pressed() -> void:
@@ -164,6 +174,72 @@ func _apply_startup_resolution() -> void:
 	if OS.has_feature("headless"):
 		return
 	_apply_resolution()
+
+
+## ===== 羊皮纸噪声按钮（运行时生成贴图） =====
+
+func _apply_parchment_buttons() -> void:
+	var normal_tex := _make_plaque_texture(PARCHMENT_BASE, PARCHMENT_STRENGTH)
+	var hover_tex := _make_plaque_texture(PARCHMENT_HOVER, PARCHMENT_STRENGTH)
+	var buttons: Array[Button] = [
+		_start_button, _load_button, _config_button,
+		_settings_button, _credits_button, _quit_button,
+		_save_button, _cancel_button,
+		_settings_save, _settings_cancel,
+	]
+	for b in buttons:
+		b.add_theme_stylebox_override("normal", _make_plaque_stylebox(normal_tex))
+		b.add_theme_stylebox_override("hover", _make_plaque_stylebox(hover_tex))
+		b.add_theme_stylebox_override("pressed", _make_plaque_stylebox(hover_tex))
+
+
+static func _make_plaque_stylebox(tex: ImageTexture) -> StyleBoxTexture:
+	var sb := StyleBoxTexture.new()
+	sb.texture = tex
+	var m := SHADOW_RING + BORDER_WIDTH
+	sb.texture_margin_left = m
+	sb.texture_margin_top = m
+	sb.texture_margin_right = m
+	sb.texture_margin_bottom = m
+	sb.expand_margin_left = SHADOW_RING
+	sb.expand_margin_top = SHADOW_RING
+	sb.expand_margin_right = SHADOW_RING
+	sb.expand_margin_bottom = SHADOW_RING
+	sb.content_margin_left = 16.0
+	sb.content_margin_top = 8.0
+	sb.content_margin_right = 16.0
+	sb.content_margin_bottom = 8.0
+	return sb
+
+
+static func _make_plaque_texture(base: Color, strength: float) -> ImageTexture:
+	var noise := FastNoiseLite.new()
+	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
+	noise.frequency = 0.09
+	noise.fractal_octaves = 2
+	noise.fractal_gain = 0.5
+	var img := Image.create(TEXTURE_SIZE, TEXTURE_SIZE, false, Image.FORMAT_RGBA8)
+	for y in TEXTURE_SIZE:
+		for x in TEXTURE_SIZE:
+			img.set_pixel(x, y, _plaque_pixel(base, strength, noise, x, y))
+	return ImageTexture.create_from_image(img)
+
+
+static func _plaque_pixel(base: Color, strength: float, noise: FastNoiseLite, x: int, y: int) -> Color:
+	var d := mini(mini(x, TEXTURE_SIZE - 1 - x), mini(y, TEXTURE_SIZE - 1 - y))
+	if d < SHADOW_RING:
+		# 外圈软阴影：透明 → 半透明深棕
+		var t := float(d) / float(SHADOW_RING)
+		return Color(0.25, 0.17, 0.09, 0.0).lerp(Color(0.25, 0.17, 0.09, 0.32), t)
+	var dd := d - SHADOW_RING
+	if dd < BORDER_WIDTH:
+		# 金棕边框（外深内浅，微浮雕）
+		var t := float(dd) / float(BORDER_WIDTH)
+		return BORDER_COLOR.lerp(base.darkened(0.18), t)
+	# 羊皮纸噪声中心：基色 × (1 ± 强度)，轻微斑驳加深减淡
+	var n := noise.get_noise_2d(x, y)
+	var f := 1.0 + n * strength
+	return Color(base.r * f, base.g * f, base.b * f, 1.0)
 
 
 ## ===== 制作人员（暂未实现） =====
