@@ -11,6 +11,7 @@ func _initialize() -> void:
 		"res://scenes/country_select/country_select.tscn",
 		"res://scenes/game_ui/game_ui.tscn",
 		"res://scenes/chat/chat_dialog.tscn",
+		"res://scenes/map/map_view.tscn",
 	]
 	for s in scenes:
 		var packed: PackedScene = load(s)

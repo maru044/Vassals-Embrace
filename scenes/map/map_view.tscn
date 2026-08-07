@@ -1,0 +1,46 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scenes/map/map_view.gd" id="1_mapview"]
+[ext_resource type="PackedScene" path="res://assets/map/map.gltf" id="2_mapgltf"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_ocean"]
+albedo_color = Color(0.15, 0.35, 0.6, 1)
+roughness = 0.4
+metallic = 0.1
+
+[sub_resource type="PlaneMesh" id="Mesh_ocean"]
+size = Vector2(62, 72)
+material = SubResource("Mat_ocean")
+
+[sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
+sky_top_color = Color(0.55, 0.72, 0.9, 1)
+sky_horizon_color = Color(0.8, 0.88, 0.95, 1)
+ground_bottom_color = Color(0.4, 0.5, 0.6, 1)
+ground_horizon_color = Color(0.8, 0.88, 0.95, 1)
+
+[sub_resource type="Sky" id="Sky"]
+sky_material = SubResource("SkyMat")
+
+[sub_resource type="Environment" id="Env"]
+background_mode = 2
+sky = SubResource("Sky")
+
+[node name="MapView" type="Node3D"]
+script = ExtResource("1_mapview")
+
+[node name="Map" parent="." instance=ExtResource("2_mapgltf")]
+
+[node name="Ocean" type="MeshInstance3D" parent="."]
+mesh = SubResource("Mesh_ocean")
+position = Vector3(0, -0.15, -6)
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.75, -0.43, 0.5, 0, 0.76, 0.65, -0.66, -0.49, 0.57, 0, 10, -6)
+light_energy = 1.2
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+current = true
+fov = 50.0
