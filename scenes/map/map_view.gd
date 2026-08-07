@@ -35,6 +35,10 @@ var _flash_time := 0.0                # 呼吸计时
 var _labels: MapLabels = null
 var _top_liege_of := {}               # country -> 最上级宗主
 var _show_spines := false             # F9：脊线调试可视化开关
+var _hmin := Vector2(-15.1, -26.65)   # 高度图采样：左上角世界坐标（可手动微调）
+var _hsize := Vector2(29.9, 40.45)    # 高度图采样：覆盖的世界尺寸（可手动微调）
+var _height_overlay: MeshInstance3D = null
+var _overlay_visible := false         # F10：高度图叠加调试开关
 
 
 func _ready() -> void:
@@ -42,6 +46,7 @@ func _ready() -> void:
 	_terrain_shader = load(TERRAIN_SHADER_PATH)
 	_apply_colors()
 	_setup_labels()
+	_setup_heightmap_overlay()
 	_update_camera()
 
 
@@ -79,6 +84,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				_pick(event.position)
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F9:
 		_toggle_spines()
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F10:
+		_toggle_overlay()
+	elif event is InputEventKey and event.pressed and not event.echo and _overlay_visible:
+		_handle_overlay_keys(event)
 	elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
 		# 中键拖拽平移（左键留给拾取）
 		_target.x -= event.relative.x * 0.03
@@ -92,6 +101,60 @@ func _toggle_spines() -> void:
 	if _labels:
 		_labels.debug_show_spines(_show_spines)
 	print("map_view: 脊线可视化 ", "ON" if _show_spines else "OFF")
+
+
+## 调试：F10 显示/隐藏高度图半透明叠加，用于手动对齐采样常量。
+func _toggle_overlay() -> void:
+	_overlay_visible = not _overlay_visible
+	if _height_overlay:
+		_height_overlay.visible = _overlay_visible
+	print("map_view: 高度图叠加 ", "ON" if _overlay_visible else "OFF")
+
+
+func _setup_heightmap_overlay() -> void:
+	if _heightmap == null:
+		return
+	var pm := PlaneMesh.new()
+	pm.size = _hsize
+	var mi := MeshInstance3D.new()
+	mi.mesh = pm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = _heightmap
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(1, 1, 1, 0.55)
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mi.material_override = mat
+	mi.rotation.x = -PI / 2.0
+	mi.position = Vector3(_hmin.x + _hsize.x * 0.5, 0.5, _hmin.y + _hsize.y * 0.5)
+	mi.visible = false
+	add_child(mi)
+	_height_overlay = mi
+
+
+## 叠加可见时：方向键平移 hmin，Q/E 缩放 hsize（Shift 细调），实时写回 shader。
+func _handle_overlay_keys(event: InputEventKey) -> void:
+	var step := 0.01 if event.shift_pressed else 0.1
+	match event.keycode:
+		KEY_LEFT: _hmin.x -= step
+		KEY_RIGHT: _hmin.x += step
+		KEY_UP: _hmin.y -= step      # 北（z 负方向）
+		KEY_DOWN: _hmin.y += step    # 南（z 正方向）
+		KEY_Q: _hsize *= 1.02
+		KEY_E: _hsize *= 0.98
+		_:
+			return
+	_apply_hmap()
+
+
+func _apply_hmap() -> void:
+	for mat in _shader_mats:
+		mat.set_shader_parameter("hmap_min", _hmin)
+		mat.set_shader_parameter("hmap_size", _hsize)
+	if _height_overlay:
+		var pm := _height_overlay.mesh as PlaneMesh
+		pm.size = _hsize
+		_height_overlay.position = Vector3(_hmin.x + _hsize.x * 0.5, 0.5, _hmin.y + _hsize.y * 0.5)
+	print("map_view: hmap_min=", _hmin, " hmap_size=", _hsize)
 
 
 func _update_camera() -> void:
