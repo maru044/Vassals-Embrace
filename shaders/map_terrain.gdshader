@@ -115,15 +115,15 @@ void fragment() {
 
 	// 麦浪/云（借鉴恒星等离子流动）：双层 fbm 噪声，草地颜色在暗/亮间随时间自然变色（亮度+色相）
 	vec2 wuv = (v_world - hmap_min) / hmap_size;
-	vec2 wp = wuv * 2.5;
-	float n1 = fbm(wp + vec2(TIME * 0.15, TIME * 0.12));   // 加快流动（恒星级）
-	float n2 = fbm(wp * 1.6 + vec2(-TIME * 0.12, TIME * 0.09));
+	vec2 wp = wuv * 9.0;   // 高密度（麦浪对国家尺度是小而密的）
+	float n1 = fbm(wp + vec2(TIME * 0.18, TIME * 0.14));
+	float n2 = fbm(wp * 1.7 + vec2(-TIME * 0.14, TIME * 0.1));
 	float wave = clamp((n1 + n2) * 0.25 + 0.5, 0.0, 1.0);  // 梯度噪声 -1~1 → 归一到 0~1
 	// 草地（低地）区域（放宽覆盖）
 	float grass_mask = smoothstep(0.0, 0.15, h) * (1.0 - smoothstep(0.25, 0.5, h));
-	// 草地颜色层次：暗草（偏蓝降亮）↔ 亮草（泛黄提亮），差异拉大、随 wave 流动（麦浪）
-	vec3 dark_g = vec3(0.68, 0.80, 1.05);
-	vec3 bright_g = vec3(1.28, 1.14, 0.82);
+	// 草地颜色层次：暗草（偏蓝降亮）↔ 亮草（泛黄提亮），差异大、随 wave 流动（麦浪）
+	vec3 dark_g = vec3(0.58, 0.72, 1.10);
+	vec3 bright_g = vec3(1.38, 1.20, 0.76);
 	vec3 gcol = mix(c * dark_g, c * bright_g, smoothstep(0.3, 0.7, wave));
 	c = mix(c, gcol, grass_mask);
 	// 非草地（山/雪）轻度云影
