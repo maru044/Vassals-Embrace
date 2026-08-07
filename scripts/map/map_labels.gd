@@ -72,15 +72,17 @@ func add_label(text: String, verts: PackedVector3Array, kind: int) -> void:
 
 
 func set_zoom(zoom: float) -> void:
-	# 远=宗主名；中=国名；近=国名+省名（避免小国国名/省名重复）
+	# 三档互斥（Master 规则）：远=只宗主名；中=只国名；近=只省名
 	for l in _labels:
+		var vis := false
 		match int(l["kind"]):
 			Kind.LIEGE:
-				l["root"].visible = zoom < 0.35
+				vis = zoom < 0.35
 			Kind.COUNTRY:
-				l["root"].visible = zoom >= 0.2
+				vis = zoom >= 0.35 and zoom < 0.6
 			Kind.PROVINCE:
-				l["root"].visible = zoom >= 0.6
+				vis = zoom >= 0.6
+		l["root"].visible = vis
 
 
 func _sample_height(x: float, z: float) -> float:
