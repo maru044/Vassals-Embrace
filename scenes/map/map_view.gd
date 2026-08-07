@@ -116,21 +116,40 @@ func _setup_heightmap_overlay() -> void:
 	if _heightmap == null:
 		print("map_view: 高度图叠加未创建（heightmap 为空）")
 		return
-	var pm := PlaneMesh.new()
-	pm.size = _hsize
 	var mi := MeshInstance3D.new()
-	mi.mesh = pm
+	mi.mesh = _make_ground_quad(_hsize.x, _hsize.y)
 	var shader := load(HEIGHT_OVERLAY_SHADER) as Shader
 	var mat := ShaderMaterial.new()
 	mat.shader = shader
 	mat.set_shader_parameter("tex", _heightmap)
 	mi.material_override = mat
-	mi.rotation.x = -PI / 2.0
-	mi.position = Vector3(_hmin.x + _hsize.x * 0.5, 3.0, _hmin.y + _hsize.y * 0.5)
+	mi.position = Vector3(_hmin.x, 3.0, _hmin.y)
 	mi.visible = false
 	add_child(mi)
 	_height_overlay = mi
 	print("map_view: 高度图叠加已创建（伪彩色）")
+
+
+## 手动构建 XZ 平面四边形（直接躺平，法线朝上），避免 PlaneMesh 旋转朝向歧义。
+## 顶点 (0,0,0)→左上(uv 0,0)，(w,0,h)→右下(uv 1,1)。
+func _make_ground_quad(w: float, h: float) -> ArrayMesh:
+	var verts := PackedVector3Array([
+		Vector3(0, 0, 0), Vector3(w, 0, 0), Vector3(w, 0, h), Vector3(0, 0, h),
+	])
+	var uvs := PackedVector2Array([
+		Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1),
+	])
+	var normals := PackedVector3Array([Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP])
+	var indices := PackedInt32Array([0, 1, 2, 0, 2, 3])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return m
 
 
 ## 叠加可见时：方向键平移 hmin，Q/E 缩放 hsize（Shift 细调），实时写回 shader。
@@ -153,9 +172,8 @@ func _apply_hmap() -> void:
 		mat.set_shader_parameter("hmap_min", _hmin)
 		mat.set_shader_parameter("hmap_size", _hsize)
 	if _height_overlay:
-		var pm := _height_overlay.mesh as PlaneMesh
-		pm.size = _hsize
-		_height_overlay.position = Vector3(_hmin.x + _hsize.x * 0.5, 3.0, _hmin.y + _hsize.y * 0.5)
+		_height_overlay.mesh = _make_ground_quad(_hsize.x, _hsize.y)
+		_height_overlay.position = Vector3(_hmin.x, 3.0, _hmin.y)
 	print("map_view: hmap_min=", _hmin, " hmap_size=", _hsize)
 
 
