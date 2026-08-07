@@ -189,7 +189,8 @@ func _update_camera() -> void:
 func _update_shader_uniforms() -> void:
 	if _shader_mats.is_empty():
 		return
-	var blend := _zoom   # 远=0 平面 / 近=1 立体（可调 smoothstep）
+	# 远=0 完全平面（避免细分后边界破面）/ 近=1 立体
+	var blend := smoothstep(0.25, 0.8, _zoom)
 	for mat in _shader_mats:
 		mat.set_shader_parameter("terrain_blend", blend)
 		mat.set_shader_parameter("zoom", _zoom)
