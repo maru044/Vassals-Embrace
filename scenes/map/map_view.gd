@@ -30,8 +30,8 @@ var _province_mesh := {}              # province -> MeshInstance3D（高亮用�
 var _heightmap: Texture2D = null
 var _terrain_shader: Shader = null
 var _shader_mats: Array = []          # 需每帧更新 zoom/terrain_blend 的材质
-var _flash_name := ""                 # 正在闪烁的省份
-var _flash_t := -1.0                  # 闪烁计时（<0 表示无闪烁）
+var _flash_name := ""                 # 当前选中省份（持续高亮呼吸）
+var _flash_time := 0.0                # 呼吸计时
 
 
 func _ready() -> void:
@@ -179,34 +179,25 @@ func _pick(screen_pos: Vector2) -> void:
 	_flash_province(province)
 
 
-## ===== 选中省份高亮闪烁（手动动画，避免 tween 属性路径问题） =====
+## ===== 选中省份持续高亮呼吸（EU4 式：2s 周期正弦脉动，不恢复） =====
 
-const FLASH_DURATION := 1.5
+const BREATH_PERIOD := 2.0    # 呼吸周期（秒）
 
 func _flash_province(province: String) -> void:
-	if _province_mesh.has(province):
-		_flash_name = province
-		_flash_t = 0.0
+	if _flash_name == province:
+		return
+	_set_flash(_flash_name, 0.0)   # 复位旧选中
+	_flash_name = province
+	_flash_time = 0.0
 
 
 func _update_flash(delta: float) -> void:
-	if _flash_t < 0.0:
+	if _flash_name.is_empty():
 		return
-	_flash_t += delta
-	if _flash_t >= FLASH_DURATION:
-		_flash_t = -1.0
-		_set_flash(_flash_name, 0.0)
-		return
-	var v := 0.0
-	if _flash_t < 0.75:
-		# 前段：3 次三角快闪
-		var seg := int(_flash_t / 0.25)
-		var local := _flash_t - seg * 0.25
-		v = 1.0 - absf(local - 0.125) * 8.0
-		v = clampf(v, 0.0, 1.0)
-	else:
-		# 后段：缓落
-		v = 1.0 - (_flash_t - 0.75) / 0.75
+	_flash_time += delta
+	# 呼吸感：正弦 2s 周期，highlight 0.35~1.0 持续脉动
+	var v := 0.5 + 0.5 * sin(_flash_time / BREATH_PERIOD * TAU)
+	v = 0.35 + 0.65 * v
 	_set_flash(_flash_name, v)
 
 
