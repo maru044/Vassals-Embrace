@@ -46,7 +46,6 @@ func add_label(text: String, verts: PackedVector3Array, kind: int) -> void:
 		var adv: float = _font.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x * PIXEL_SIZE
 		var pos := _point_on(pts, t)
 		var tan := _tangent_on(pts, t)
-		var y := _sample_height(pos.x, pos.z)
 		var lb := Label3D.new()
 		lb.text = ch
 		lb.font = _font
@@ -55,11 +54,16 @@ func add_label(text: String, verts: PackedVector3Array, kind: int) -> void:
 		lb.modulate = Color(0.97, 0.93, 0.8)      # 奶油白字（彩色地图上可读）
 		lb.outline_size = maxi(fs / 8, 2)          # 深色描边
 		lb.outline_modulate = Color(0.2, 0.15, 0.1)
-		lb.billboard = BaseMaterial3D.BILLBOARD_ENABLED   # 面向相机，恒可读横排
+		# 平铺在地面上（EU4 式）：关闭 billboard，文本平面躺平（法线朝 +Y），
+		# 绕 Y 轴对齐脊线切线在地面的投影，保持横向弧线感。
+		lb.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+		lb.rotation.x = -PI / 2.0
+		lb.rotation.y = atan2(-tan.z, tan.x)
 		lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		# 位置沿脊线（弧线感），贴地形
-		lb.position = Vector3(pos.x, y + 0.08, pos.z)
+		# 位置沿脊线（弧线感）；高度取字符覆盖区域最大值（防山坡穿模），加小偏移防 z-fighting
+		var radius := clampf(adv * 0.55, 0.25, 1.2)
+		lb.position = Vector3(pos.x, _sample_height_max(pos.x, pos.z, radius) + 0.06, pos.z)
 		root.add_child(lb)
 		t += adv
 	root.visible = false
@@ -87,6 +91,19 @@ func _sample_height(x: float, z: float) -> float:
 	var py := clampi(int(uv.y * _height_img.get_height()), 0, _height_img.get_height() - 1)
 	var g := _height_img.get_pixel(px, py).r
 	return g * _height_scale
+
+
+## 采样字符覆盖区域内的最大高度（中心 + 四角），避免平铺文字在坡面穿模。
+func _sample_height_max(x: float, z: float, radius: float) -> float:
+	if _height_img == null:
+		return 0.0
+	var h := -INF
+	for o in [
+		Vector2(0, 0), Vector2(-radius, 0), Vector2(radius, 0),
+		Vector2(0, -radius), Vector2(0, radius),
+	]:
+		h = maxf(h, _sample_height(x + o.x, z + o.y))
+	return h if h != -INF else 0.0
 
 
 static func _point_on(p: PackedVector3Array, d: float) -> Vector3:
