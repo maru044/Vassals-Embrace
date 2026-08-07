@@ -32,12 +32,15 @@ var _terrain_shader: Shader = null
 var _shader_mats: Array = []          # 需每帧更新 zoom/terrain_blend 的材质
 var _flash_name := ""                 # 当前选中省份（持续高亮呼吸）
 var _flash_time := 0.0                # 呼吸计时
+var _labels: MapLabels = null
+var _top_liege_of := {}               # country -> 最上级宗主
 
 
 func _ready() -> void:
 	_heightmap = load(HEIGHTMAP_PATH)
 	_terrain_shader = load(TERRAIN_SHADER_PATH)
 	_apply_colors()
+	_setup_labels()
 	_update_camera()
 
 
@@ -45,6 +48,7 @@ func _process(delta: float) -> void:
 	_handle_wasd(delta)
 	_update_shader_uniforms()
 	_update_flash(delta)
+	_update_labels()
 
 
 ## ===== 相机控制 =====
@@ -94,6 +98,56 @@ func _update_shader_uniforms() -> void:
 	for mat in _shader_mats:
 		mat.set_shader_parameter("terrain_blend", blend)
 		mat.set_shader_parameter("zoom", _zoom)
+
+
+func _update_labels() -> void:
+	if _labels:
+		_labels.set_zoom(_zoom)
+
+
+## ===== 地图标签（国名/省名，沿脊线弧线） =====
+
+func _setup_labels() -> void:
+	_labels = MapLabels.new()
+	add_child(_labels)
+	_labels.setup(ThemeDB.fallback_font, _heightmap)
+	# 收集省份顶点
+	var province_verts := {}
+	var country_verts := {}
+	for province in _province_mesh:
+		var mi: MeshInstance3D = _province_mesh[province]
+		var verts := _mesh_verts(mi.mesh)
+		if verts.is_empty():
+			continue
+		province_verts[province] = verts
+		var country: String = _owners.get(province, "")
+		if country.is_empty():
+			continue
+		if not country_verts.has(country):
+			country_verts[country] = PackedVector3Array()
+		country_verts[country].append_array(verts)
+	# 宗主分组（最上级宗主的领域）
+	var liege_verts := {}
+	for country in country_verts:
+		var top: String = _top_liege_of.get(country, country)
+		if not liege_verts.has(top):
+			liege_verts[top] = PackedVector3Array()
+		liege_verts[top].append_array(country_verts[country])
+	# 省名 / 国名 / 宗主名
+	for province in province_verts:
+		_labels.add_label(province, province_verts[province], MapLabels.Kind.PROVINCE)
+	for country in country_verts:
+		_labels.add_label(country, country_verts[country], MapLabels.Kind.COUNTRY)
+	for liege in liege_verts:
+		_labels.add_label(liege, liege_verts[liege], MapLabels.Kind.LIEGE)
+
+
+func _mesh_verts(mesh: Mesh) -> PackedVector3Array:
+	if not (mesh is ArrayMesh):
+		return PackedVector3Array()
+	var arrays := (mesh as ArrayMesh).surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	return verts
 
 
 ## ===== 着色 =====
@@ -236,6 +290,7 @@ func _load_country_data() -> Dictionary:
 			by_id[id]["liege_color"] = by_id[top]["color"]
 		else:
 			by_id[id]["liege_color"] = by_id[id]["color"]
+		_top_liege_of[id] = top if (not top.is_empty() and by_id.has(top)) else id
 	return by_id
 
 
