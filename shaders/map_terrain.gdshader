@@ -27,23 +27,31 @@ varying float v_lat;   // 纬度：0=北（高纬） 1=南（低纬）
 varying vec3 v_normal; // 地形法线（高度梯度）
 varying vec2 v_world;  // 世界 XZ
 
-// ---- 简单噪声（Godot 4 无内置 noise）----
+// ---- 2D 梯度噪声（Perlin 风格，无值噪声的方块伪影）----
 float hash21(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+}
+vec2 grad2(vec2 p) {
+	float a = hash21(p) * 6.2831853;   // 伪随机梯度角
+	return vec2(cos(a), sin(a));
 }
 float vnoise(vec2 p) {
 	vec2 i = floor(p);
 	vec2 f = fract(p);
 	vec2 u = f * f * (3.0 - 2.0 * f);
-	return mix(mix(hash21(i), hash21(i + vec2(1.0, 0.0)), u.x),
-	           mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), u.x), u.y);
+	// 四角梯度点乘（-1~1，平滑无格点方块）
+	float n00 = dot(grad2(i), f);
+	float n10 = dot(grad2(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0));
+	float n01 = dot(grad2(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0));
+	float n11 = dot(grad2(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0));
+	return mix(mix(n00, n10, u.x), mix(n01, n11, u.x), u.y);
 }
 float fbm(vec2 p) {
 	float v = 0.0;
 	float a = 0.5;
 	for (int i = 0; i < 4; i++) {
 		v += a * vnoise(p);
-		p = p * 2.0 + vec2(3.7, 9.2);
+		p = p * 2.03 + vec2(3.7, 9.2);   // 2.03 打破各层格点对齐，防方块伪影
 		a *= 0.5;
 	}
 	return v;
@@ -110,7 +118,7 @@ void fragment() {
 	vec2 wp = wuv * 2.5;
 	float n1 = fbm(wp + vec2(TIME * 0.15, TIME * 0.12));   // 加快流动（恒星级）
 	float n2 = fbm(wp * 1.6 + vec2(-TIME * 0.12, TIME * 0.09));
-	float wave = clamp((n1 + n2) * 0.5 * 1.15, 0.0, 1.0);
+	float wave = clamp((n1 + n2) * 0.25 + 0.5, 0.0, 1.0);  // 梯度噪声 -1~1 → 归一到 0~1
 	// 草地（低地）区域（放宽覆盖）
 	float grass_mask = smoothstep(0.0, 0.15, h) * (1.0 - smoothstep(0.25, 0.5, h));
 	// 草地颜色层次：暗草（偏蓝降亮）↔ 亮草（泛黄提亮），差异拉大、随 wave 流动（麦浪）
@@ -119,7 +127,7 @@ void fragment() {
 	vec3 gcol = mix(c * dark_g, c * bright_g, smoothstep(0.3, 0.7, wave));
 	c = mix(c, gcol, grass_mask);
 	// 非草地（山/雪）轻度云影
-	float cloud = smoothstep(0.55, 0.8, fbm(wuv * 2.0 + vec2(TIME * 0.08, TIME * 0.06)));
+	float cloud = smoothstep(0.55, 0.8, fbm(wuv * 2.0 + vec2(TIME * 0.08, TIME * 0.06)) * 0.5 + 0.5);
 	c = mix(c, c * vec3(0.78, 0.85, 0.96) + vec3(0.02, 0.05, 0.12), (1.0 - grass_mask) * cloud_strength * 0.3 * cloud);
 
 	// 选中省份高亮闪烁：提亮 + 略泛白
