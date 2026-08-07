@@ -16,6 +16,7 @@ uniform float y_offset = 0.0;          // 省份覆盖层微量上抬，避免�
 uniform vec3 own_color : source_color = vec3(0.8, 0.75, 0.7);  // 本宗色（中层）
 uniform vec3 far_color : source_color = vec3(0.8, 0.75, 0.7);  // 宗主色（远层）
 uniform float zoom = 0.5;               // 0=远 1=近
+uniform float highlight = 0.0;          // 选中高亮闪烁（0-1，脉冲）
 
 varying float v_height;
 
@@ -51,6 +52,10 @@ void fragment() {
 	float t_terrain = smoothstep(0.55, 0.95, zoom);
 	vec3 c = mix(own_color, terrain, t_terrain);
 	c = mix(c, far_color, t_far);
+
+	// 选中省份高亮闪烁：提亮 + 略泛白
+	vec3 hl = c * 1.35 + vec3(0.15);
+	c = mix(c, hl, highlight);
 
 	ALBEDO = c;
 	ROUGHNESS = 0.9;

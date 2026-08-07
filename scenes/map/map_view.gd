@@ -26,6 +26,7 @@ var _zoom := 0.5
 var _target := MAP_CENTER
 var _owners := {}                     # province -> country
 var _collider_to_province := {}       # StaticBody3D -> province
+var _province_mesh := {}              # province -> MeshInstance3D（高亮用）
 var _heightmap: Texture2D = null
 var _terrain_shader: Shader = null
 var _shader_mats: Array = []          # 需每帧更新 zoom/terrain_blend 的材质
@@ -106,10 +107,9 @@ func _process_node(node: Node, owners: Dictionary, country_data: Dictionary, mat
 		if child is MeshInstance3D:
 			var province := _province_name(child.name)
 			if owners.has(province):
-				var country: String = owners[province]
-				if not mats.has(country):
-					mats[country] = _make_province_material(country_data.get(country, {}))
-				child.material_override = mats[country]
+				# 每省独立材质（才能单独高亮闪烁）
+				child.material_override = _make_province_material(country_data.get(owners[province], {}))
+				_province_mesh[province] = child
 				# 拾取碰撞体（射线命中 → StaticBody3D → 省份）
 				child.create_trimesh_collision()
 				var body := child.get_child(child.get_child_count() - 1) as StaticBody3D
@@ -173,6 +173,24 @@ func _pick(screen_pos: Vector2) -> void:
 	var country: String = _owners.get(province, "")
 	province_picked.emit(province, country)
 	print("map_view: 拾取 ", province, " -> ", country)
+	_flash_province(province)
+
+
+## ===== 选中省份高亮闪烁 =====
+
+func _flash_province(province: String) -> void:
+	var mi: MeshInstance3D = _province_mesh.get(province, null)
+	if mi == null:
+		return
+	var mat: ShaderMaterial = mi.material_override as ShaderMaterial
+	if mat == null:
+		return
+	var tween := create_tween()
+	for i in 3:
+		tween.tween_property(mat, "shader_parameter/highlight", 1.0, 0.12).set_trans(Tween.TRANS_SINE)
+		tween.tween_property(mat, "shader_parameter/highlight", 0.0, 0.12).set_trans(Tween.TRANS_SINE)
+	tween.tween_property(mat, "shader_parameter/highlight", 1.0, 0.2).set_trans(Tween.TRANS_SINE)
+	tween.tween_property(mat, "shader_parameter/highlight", 0.0, 0.25).set_trans(Tween.TRANS_SINE)
 
 
 func _province_name(node_name: String) -> String:
