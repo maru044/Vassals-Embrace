@@ -11,6 +11,7 @@ const TERRAIN_SHADER_PATH := "res://shaders/map_terrain.gdshader"
 const HEIGHTMAP_PATH := "res://assets/map/height.png"
 const HEIGHT_OVERLAY_SHADER := "res://shaders/height_overlay.gdshader"
 const LAND_BASE_COLOR := Color(0.75, 0.72, 0.62)   # 陆地基底中性色
+const SUBDIVIDE_MAX_EDGE := 1.0                     # 网格细分最大边长（世界单位），越小地形越细腻
 
 # 相机（EU4 式）：俯角随缩放变化，yaw 固定从南看北（南在屏幕下，北退远）
 const PITCH_FAR := deg_to_rad(85.0)
@@ -257,6 +258,9 @@ func _process_node(node: Node, owners: Dictionary, country_data: Dictionary, mat
 	for child in node.get_children():
 		if child is MeshInstance3D:
 			var province := _province_name(child.name)
+			# 细分网格：让高度图位移能按顶点表现地形起伏（否则粗网格"铁板一块"）
+			if owners.has(province) or child.name == "Britain" or child.name == "Ireland":
+				child.mesh = _subdivide_mesh(child.mesh, SUBDIVIDE_MAX_EDGE)
 			if owners.has(province):
 				# 每省独立材质（才能单独高亮闪烁）
 				child.material_override = _make_province_material(country_data.get(owners[province], {}))
@@ -273,6 +277,68 @@ func _process_node(node: Node, owners: Dictionary, country_data: Dictionary, mat
 			else:
 				child.visible = false   # 退化残留隐藏
 		_process_node(child, owners, country_data, mats)
+
+
+## 中点细分网格：把超长边的三角形切成 4 个（取三边中点），直到所有边 ≤ max_edge。
+## 顶点各自按世界坐标采样高度图 → 地形能真实起伏（解决"铁板一块"）。
+func _subdivide_mesh(mesh: Mesh, max_edge: float) -> Mesh:
+	if not (mesh is ArrayMesh):
+		return mesh
+	var arrays := (mesh as ArrayMesh).surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	if verts.is_empty() or idx.is_empty():
+		return mesh
+	var out_verts := PackedVector3Array(verts)
+	var mid_cache := {}
+	for _iter in 8:
+		var out_idx := PackedInt32Array()
+		var done := true
+		for i in range(0, idx.size(), 3):
+			var a := idx[i]
+			var b := idx[i + 1]
+			var c := idx[i + 2]
+			var ab := out_verts[a].distance_to(out_verts[b])
+			var bc := out_verts[b].distance_to(out_verts[c])
+			var ca := out_verts[c].distance_to(out_verts[a])
+			if ab > max_edge or bc > max_edge or ca > max_edge:
+				done = false
+				var mab := _edge_mid(out_verts, mid_cache, a, b)
+				var mbc := _edge_mid(out_verts, mid_cache, b, c)
+				var mca := _edge_mid(out_verts, mid_cache, c, a)
+				out_idx.append_array([a, mab, mca])
+				out_idx.append_array([b, mbc, mab])
+				out_idx.append_array([c, mca, mbc])
+				out_idx.append_array([mab, mbc, mca])
+			else:
+				out_idx.append_array([a, b, c])
+		idx = out_idx
+		if done:
+			break
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for v in out_verts:
+		st.add_vertex(v)
+	for ii in idx:
+		st.add_index(ii)
+	st.generate_normals()
+	return st.commit()
+
+
+static func _edge_mid(verts: PackedVector3Array, cache: Dictionary, a: int, b: int) -> int:
+	var ia := a
+	var ib := b
+	if ia > ib:
+		ia = b
+		ib = a
+	var key := str(ia) + "_" + str(ib)
+	if cache.has(key):
+		return cache[key]
+	var m := (verts[a] + verts[b]) * 0.5
+	verts.append(m)
+	var new_idx := verts.size() - 1
+	cache[key] = new_idx
+	return new_idx
 
 
 func _make_province_material(cdata: Dictionary) -> Material:
