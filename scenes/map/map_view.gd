@@ -9,6 +9,7 @@ const MAP_DATA_PATH := "res://data/map_data.json"
 const COUNTRY_COLORS_PATH := "res://data/country_colors.json"
 const TERRAIN_SHADER_PATH := "res://shaders/map_terrain.gdshader"
 const HEIGHTMAP_PATH := "res://assets/map/height.png"
+const HEIGHT_OVERLAY_SHADER := "res://shaders/height_overlay.gdshader"
 const LAND_BASE_COLOR := Color(0.75, 0.72, 0.62)   # 陆地基底中性色
 
 # 相机（EU4 式）：俯角随缩放变化，yaw 固定从南看北（南在屏幕下，北退远）
@@ -113,22 +114,23 @@ func _toggle_overlay() -> void:
 
 func _setup_heightmap_overlay() -> void:
 	if _heightmap == null:
+		print("map_view: 高度图叠加未创建（heightmap 为空）")
 		return
 	var pm := PlaneMesh.new()
 	pm.size = _hsize
 	var mi := MeshInstance3D.new()
 	mi.mesh = pm
-	var mat := StandardMaterial3D.new()
-	mat.albedo_texture = _heightmap
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(1, 1, 1, 0.55)
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var shader := load(HEIGHT_OVERLAY_SHADER) as Shader
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+	mat.set_shader_parameter("tex", _heightmap)
 	mi.material_override = mat
 	mi.rotation.x = -PI / 2.0
 	mi.position = Vector3(_hmin.x + _hsize.x * 0.5, 3.0, _hmin.y + _hsize.y * 0.5)
 	mi.visible = false
 	add_child(mi)
 	_height_overlay = mi
+	print("map_view: 高度图叠加已创建（伪彩色）")
 
 
 ## 叠加可见时：方向键平移 hmin，Q/E 缩放 hsize（Shift 细调），实时写回 shader。
