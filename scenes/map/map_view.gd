@@ -30,6 +30,8 @@ var _province_mesh := {}              # province -> MeshInstance3D（高亮用�
 var _heightmap: Texture2D = null
 var _terrain_shader: Shader = null
 var _shader_mats: Array = []          # 需每帧更新 zoom/terrain_blend 的材质
+var _flash_name := ""                 # 正在闪烁的省份
+var _flash_t := -1.0                  # 闪烁计时（<0 表示无闪烁）
 
 
 func _ready() -> void:
@@ -42,6 +44,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_handle_wasd(delta)
 	_update_shader_uniforms()
+	_update_flash(delta)
 
 
 ## ===== 相机控制 =====
@@ -176,21 +179,44 @@ func _pick(screen_pos: Vector2) -> void:
 	_flash_province(province)
 
 
-## ===== 选中省份高亮闪烁 =====
+## ===== 选中省份高亮闪烁（手动动画，避免 tween 属性路径问题） =====
+
+const FLASH_DURATION := 1.5
 
 func _flash_province(province: String) -> void:
+	if _province_mesh.has(province):
+		_flash_name = province
+		_flash_t = 0.0
+
+
+func _update_flash(delta: float) -> void:
+	if _flash_t < 0.0:
+		return
+	_flash_t += delta
+	if _flash_t >= FLASH_DURATION:
+		_flash_t = -1.0
+		_set_flash(_flash_name, 0.0)
+		return
+	var v := 0.0
+	if _flash_t < 0.75:
+		# 前段：3 次三角快闪
+		var seg := int(_flash_t / 0.25)
+		var local := _flash_t - seg * 0.25
+		v = 1.0 - absf(local - 0.125) * 8.0
+		v = clampf(v, 0.0, 1.0)
+	else:
+		# 后段：缓落
+		v = 1.0 - (_flash_t - 0.75) / 0.75
+	_set_flash(_flash_name, v)
+
+
+func _set_flash(province: String, v: float) -> void:
 	var mi: MeshInstance3D = _province_mesh.get(province, null)
 	if mi == null:
 		return
 	var mat: ShaderMaterial = mi.material_override as ShaderMaterial
-	if mat == null:
-		return
-	var tween := create_tween()
-	for i in 3:
-		tween.tween_property(mat, "shader_parameter/highlight", 1.0, 0.12).set_trans(Tween.TRANS_SINE)
-		tween.tween_property(mat, "shader_parameter/highlight", 0.0, 0.12).set_trans(Tween.TRANS_SINE)
-	tween.tween_property(mat, "shader_parameter/highlight", 1.0, 0.2).set_trans(Tween.TRANS_SINE)
-	tween.tween_property(mat, "shader_parameter/highlight", 0.0, 0.25).set_trans(Tween.TRANS_SINE)
+	if mat != null:
+		mat.set_shader_parameter("highlight", v)
 
 
 func _province_name(node_name: String) -> String:
