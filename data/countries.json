@@ -1,0 +1,15 @@
+{
+  "comment": "国家数据骨架：真实数据后续按 游戏规则.md 第四章填充（30+ 国家）",
+  "countries": [
+    {"id": 0, "name": "England", "ruler": "Rosamond Lancaster", "government": "monarchy", "culture_group": "english", "capital": "London", "recommended": true},
+    {"id": 1, "name": "Scotland", "ruler": "Margaret Stewart", "government": "monarchy", "culture_group": "english", "capital": "Lothian", "recommended": true},
+    {"id": 2, "name": "Tyrone", "ruler": "Niamh O'Neill", "government": "tribal", "culture_group": "celtic", "capital": "Tyrone", "recommended": true},
+    {"id": 3, "name": "Wales", "ruler": "Owena Glyndwr", "government": "monarchy", "culture_group": "celtic", "capital": "Wales", "recommended": true},
+    {"id": 4, "name": "The Isles", "ruler": "Freya", "government": "piracy", "culture_group": "norse", "capital": "The Isles", "recommended": true},
+    {"id": 5, "name": "Northumberland", "ruler": "Matilda Percy", "government": "monarchy", "culture_group": "english", "capital": "Northumberland", "recommended": false},
+    {"id": 6, "name": "Westmorland", "ruler": "Isabel Neville", "government": "monarchy", "culture_group": "english", "capital": "Westmorland", "recommended": false},
+    {"id": 7, "name": "York", "ruler": "Eleanor York", "government": "monarchy", "culture_group": "english", "capital": "Yorkshire", "recommended": false},
+    {"id": 8, "name": "Durham", "ruler": "Cecilia", "government": "theocracy", "culture_group": "english", "capital": "Durham", "recommended": false},
+    {"id": 9, "name": "Isle of Man", "ruler": "Mona Crovan", "government": "monarchy", "culture_group": "celtic", "capital": "Isle of Man", "recommended": false}
+  ]
+}

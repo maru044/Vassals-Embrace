@@ -1,0 +1,42 @@
+{
+  "comment": "事件表：历史 / 随机 / 脉冲；选项带权重（AI 按权重自动选）。",
+  "events": [
+    {
+      "id": "welsh_revolt",
+      "type": "historical",
+      "trigger": "开局 1400.9",
+      "name": "威尔士起义",
+      "options": [
+        {"text": "镇压起义（花资源）", "weight": 5},
+        {"text": "安抚（好感/威望）", "weight": 3}
+      ]
+    },
+    {
+      "id": "percy_rebellion",
+      "type": "historical",
+      "trigger": "1403",
+      "name": "珀西叛乱",
+      "options": [
+        {"text": "镇压", "weight": 5},
+        {"text": "议和（让步）", "weight": 2}
+      ]
+    },
+    {
+      "id": "harvest",
+      "type": "random",
+      "name": "丰收",
+      "options": [
+        {"text": "丰收：+税收", "weight": 8}
+      ]
+    },
+    {
+      "id": "plague",
+      "type": "random",
+      "name": "灾疫",
+      "options": [
+        {"text": "花费镇压", "weight": 4},
+        {"text": "放任", "weight": 3}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "comment": "建筑表：每地块四类建筑（农场/市场/妓院/要塞），等级→产出系数。数值后续平衡。",
+  "buildings": {
+    "farm": {
+      "name": "农场",
+      "income_type": "tax",
+      "levels": {"1": 1.0, "2": 1.5, "3": 2.0}
+    },
+    "market": {
+      "name": "市场",
+      "income_type": "trade",
+      "levels": {"1": 1.0, "2": 1.5, "3": 2.0}
+    },
+    "brothel": {
+      "name": "妓院",
+      "income_type": "prostitution",
+      "levels": {"1": 1.0, "2": 1.5, "3": 2.0}
+    },
+    "fort": {
+      "name": "要塞",
+      "income_type": null,
+      "levels": {"0": 0.0, "1": 1.0, "2": 1.0, "3": 1.0}
+    }
+  }
+}

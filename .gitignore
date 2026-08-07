@@ -1,0 +1,12 @@
+# Godot 缓存（导入 / 临时文件）
+.godot/
+
+# 美术资产（AI 生成，体积大，不入库）
+assets/
+
+# 导出产物
+export/
+build/
+
+# 存档 / 用户数据
+user://

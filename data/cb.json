@@ -1,0 +1,15 @@
+{
+  "comment": "CB 表：条件 + 战争目标 + 可用性（general 通用 / event 事件）。数值后续平衡。",
+  "cb": [
+    {"id": "reconquest", "name": "收复失地", "type": "general", "allow_annex": true, "desc": "收复本族/本文化核心省份"},
+    {"id": "claim", "name": "领土宣称", "type": "general", "allow_annex": true, "desc": "索要持有正规宣称的省份"},
+    {"id": "liberation", "name": "解放同族", "type": "general", "allow_annex": true, "targets": ["Cornwall", "Highlands"], "desc": "解放被异族统治的同文化省份"},
+    {"id": "vassalize", "name": "附庸化", "type": "general", "allow_annex": false, "culture_restriction": "norse", "desc": "迫使对方成为附庸（塞壬通用）"},
+    {"id": "protectorate", "name": "受保护国", "type": "general", "allow_annex": false, "culture_restriction": "english", "desc": "纳入保护体系（英格兰通用）"},
+    {"id": "seize_leadership", "name": "夺取盟主地位", "type": "general", "allow_annex": false, "culture_restriction": "celtic", "desc": "犬娘打斗争夺部落盟主（交配权/后宫老大）"},
+    {"id": "independence", "name": "附庸独立", "type": "general", "allow_annex": false, "condition": "好感度很低", "desc": "附庸对宗主发动独立战争"},
+    {"id": "personal_union", "name": "联合统治", "type": "event", "allow_annex": false, "desc": "迫使对方公主加入己方后宫（需事件/调教关系触发）"},
+    {"id": "welsh_revolt", "name": "威尔士起义", "type": "event", "allow_annex": false, "desc": "开局 1400.9：联合统治英格兰公主 + 独立条款"},
+    {"id": "percy_rebellion", "name": "珀西叛乱", "type": "event", "allow_annex": false, "desc": "1403：对英格兰公主现任主人宣战，获胜联统或转移联统权"}
+  ]
+}

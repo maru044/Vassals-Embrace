@@ -1,0 +1,121 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/game_ui/game_ui.gd" id="1_ui"]
+[ext_resource type="PackedScene" path="res://scenes/chat/chat_dialog.tscn" id="2_chat"]
+
+[node name="GameUI" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_ui")
+
+[node name="MapPlaceholder" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.16, 0.22, 0.2, 1)
+
+[node name="TopBar" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 56.0
+grow_horizontal = 2
+
+[node name="HBox" type="HBoxContainer" parent="TopBar"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="CountryName" type="Label" parent="TopBar/HBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "国家"
+
+[node name="Date" type="Label" parent="TopBar/HBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "1400 年 9 月"
+
+[node name="Gold" type="Label" parent="TopBar/HBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "金币 0"
+
+[node name="Prestige" type="Label" parent="TopBar/HBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "威望 0"
+
+[node name="Army" type="Label" parent="TopBar/HBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "军队 0"
+
+[node name="LeftBar" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.0
+anchor_bottom = 1.0
+offset_top = 56.0
+offset_right = 200.0
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="LeftBar"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Economy" type="Button" parent="LeftBar/VBox"]
+layout_mode = 2
+text = "经济"
+
+[node name="Court" type="Button" parent="LeftBar/VBox"]
+layout_mode = 2
+text = "宫廷"
+
+[node name="Diplomacy" type="Button" parent="LeftBar/VBox"]
+layout_mode = 2
+text = "外交"
+
+[node name="Vassal" type="Button" parent="LeftBar/VBox"]
+layout_mode = 2
+text = "附庸"
+
+[node name="Mission" type="Button" parent="LeftBar/VBox"]
+layout_mode = 2
+text = "任务"
+
+[node name="Situation" type="Button" parent="LeftBar/VBox"]
+layout_mode = 2
+text = "局势"
+
+[node name="RightBar" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_top = 0.0
+anchor_bottom = 1.0
+offset_left = -220.0
+offset_top = 56.0
+grow_horizontal = 0
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="RightBar"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Chat" type="Button" parent="RightBar/VBox"]
+layout_mode = 2
+text = "与 Miku 对话"
+
+[node name="EndMonth" type="Button" parent="RightBar/VBox"]
+layout_mode = 2
+text = "结束本月"
+
+[node name="ChatDialog" parent="." instance=ExtResource("2_chat")]

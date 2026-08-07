@@ -1,0 +1,24 @@
+{
+  "comment": "任务表（仅玩家生效）：程序判定 + LLM flag 兜底。",
+  "missions": [
+    {
+      "id": "scotland_claim_england",
+      "country": "Scotland",
+      "name": "宣称英格兰",
+      "requirements": {
+        "all": [
+          {"mission_completed": "hundred_years_war_victory"},
+          {"provinces_owned_by": ["Scotland", "The Isles"], "subject_type_excluded": ["protectorate"]}
+        ],
+        "any": [
+          {"army_greater_than": "England"},
+          {"favor_of_england_greater_than": 80}
+        ],
+        "not": [
+          {"country_exists": "England"}
+        ]
+      },
+      "reward": "联合统治英格兰（包括直接从现有联合统治中 NTR）"
+    }
+  ]
+}

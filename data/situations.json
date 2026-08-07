@@ -1,0 +1,29 @@
+{
+  "comment": "局势表：进度条 0~100，5 阶段（I~V），与事件绑定。",
+  "situations": [
+    {
+      "id": "unify_ireland",
+      "name": "统一爱尔兰",
+      "org": "tribal_confederation",
+      "stages": 5,
+      "desc": "部落联盟凝聚力满即可统一爱尔兰，统一消耗凝聚力"
+    },
+    {
+      "id": "union_nature",
+      "name": "联合统治性质",
+      "org": "personal_union",
+      "stages": 5,
+      "initial_stage": 3,
+      "desc": "从「平等后宫」到「主奴 play」的谱系，初始阶段 III（平衡）"
+    },
+    {
+      "id": "hundred_years_war",
+      "name": "百年战争",
+      "stages": 5,
+      "initial_stage": 3,
+      "value_0": "英国胜利",
+      "value_100": "法国胜利",
+      "desc": "英格兰（及苏格兰）拉锯；事件要求投入兵力/经济/威望，拒绝则偏向另一侧"
+    }
+  ]
+}
