@@ -1,17 +1,7 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scenes/main_menu/main_menu.gd" id="1_main"]
-
-[sub_resource type="Gradient" id="Gradient_bg"]
-offsets = PackedFloat32Array(0, 0.55, 1)
-colors = PackedColorArray(0.16, 0.2, 0.3, 1, 0.24, 0.3, 0.42, 1, 0.1, 0.13, 0.2, 1)
-
-[sub_resource type="GradientTexture2D" id="GradientTexture_bg"]
-gradient = SubResource("Gradient_bg")
-fill_from = Vector2(0, 0)
-fill_to = Vector2(0, 1)
-width = 1920
-height = 1080
+[ext_resource type="Texture2D" path="res://assets/main_menu_bg.png" id="2_bg"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -29,7 +19,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-texture = SubResource("GradientTexture_bg")
+texture = ExtResource("2_bg")
 expand_mode = 1
 stretch_mode = 6
 
