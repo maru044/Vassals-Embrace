@@ -119,8 +119,8 @@ void fragment() {
 	float n1 = fbm(wp + vec2(TIME * 0.18, TIME * 0.14));
 	float n2 = fbm(wp * 1.7 + vec2(-TIME * 0.14, TIME * 0.1));
 	float wave = clamp((n1 + n2) * 0.25 + 0.5, 0.0, 1.0);  // 梯度噪声 -1~1 → 归一到 0~1
-	// 草地（低地）区域（放宽覆盖）
-	float grass_mask = smoothstep(0.0, 0.15, h) * (1.0 - smoothstep(0.25, 0.5, h));
+	// 草地（低地）区域：h=0 平地也是草地（地形 shader 只渲染陆地，0 高度即平原）
+	float grass_mask = 1.0 - smoothstep(0.15, 0.45, h);
 	// 草地颜色层次：暗草（偏蓝降亮）↔ 亮草（泛黄提亮），差异大、随 wave 流动（麦浪）
 	vec3 dark_g = vec3(0.58, 0.72, 1.10);
 	vec3 bright_g = vec3(1.38, 1.20, 0.76);
