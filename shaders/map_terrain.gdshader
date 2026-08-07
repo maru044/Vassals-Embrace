@@ -46,9 +46,9 @@ float vnoise(vec2 p) {
 	float n11 = dot(grad2(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0));
 	return mix(mix(n00, n10, u.x), mix(n01, n11, u.x), u.y);
 }
-// 固定旋转矩阵（打乱各层网格对齐，摧毁正交方块感——参考 Master 解法）
-mat2 rot = mat2(vec2(0.877, 0.479), vec2(-0.479, 0.877));   // 旋转 ~28.6°
 float fbm(vec2 p) {
+	// 固定旋转矩阵（打乱各层网格对齐，摧毁正交方块感——学习自 Master frosted_glass 解法）
+	const mat2 rot = mat2(vec2(0.877, 0.479), vec2(-0.479, 0.877));   // ~28.6°
 	float v = 0.0;
 	float a = 0.5;
 	for (int i = 0; i < 4; i++) {
