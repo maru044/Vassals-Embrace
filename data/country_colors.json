@@ -1,0 +1,32 @@
+{
+  "comment": "国家地图颜色表：在对应国家的 color 字段填 #RRGGBB（如 #C03040）。填完即可用于地图着色。",
+  "countries": [
+    { "id": "England",        "name": "英格兰",     "color": "" },
+    { "id": "Northumberland", "name": "诺森伯兰",   "color": "" },
+    { "id": "Westmorland",    "name": "威斯特摩兰", "color": "" },
+    { "id": "York",           "name": "约克",       "color": "" },
+    { "id": "Durham",         "name": "达勒姆",     "color": "" },
+    { "id": "Wales",          "name": "威尔士",     "color": "" },
+    { "id": "Isle of Man",    "name": "曼岛",       "color": "" },
+    { "id": "Scotland",       "name": "苏格兰",     "color": "" },
+    { "id": "The Isles",      "name": "群岛领地",   "color": "" },
+    { "id": "Orkney",         "name": "奥克尼",     "color": "" },
+    { "id": "Shetland",       "name": "设得兰",     "color": "" },
+    { "id": "Tyrconnell",     "name": "蒂尔康奈尔", "color": "" },
+    { "id": "Tyrone",         "name": "蒂龙",       "color": "" },
+    { "id": "Ulster",         "name": "阿尔斯特",   "color": "" },
+    { "id": "Breifne",        "name": "布雷夫尼",   "color": "" },
+    { "id": "Sligo",          "name": "斯莱戈",     "color": "" },
+    { "id": "Westmeath",      "name": "西米斯",     "color": "" },
+    { "id": "Mayo",           "name": "梅奥",       "color": "" },
+    { "id": "Clanricarde",    "name": "克兰里卡德", "color": "" },
+    { "id": "Offaly",         "name": "奥法利",     "color": "" },
+    { "id": "Kildare",        "name": "基尔代尔",   "color": "" },
+    { "id": "Leinster",       "name": "莱斯特",     "color": "" },
+    { "id": "Wexford",        "name": "韦克斯福德", "color": "" },
+    { "id": "Ormond",         "name": "奥蒙德",     "color": "" },
+    { "id": "Thomond",        "name": "托蒙德",     "color": "" },
+    { "id": "Munster",        "name": "芒斯特",     "color": "" },
+    { "id": "Desmond",        "name": "德斯蒙德",   "color": "" }
+  ]
+}
