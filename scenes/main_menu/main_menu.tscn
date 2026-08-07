@@ -4,6 +4,10 @@
 [ext_resource type="Texture2D" uid="uid://sw561rtl1xvm" path="res://assets/main_menu_bg.png" id="2_bg"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_btn_normal"]
+content_margin_left = 16.0
+content_margin_top = 8.0
+content_margin_right = 16.0
+content_margin_bottom = 8.0
 bg_color = Color(0.86, 0.72, 0.46, 0.9)
 border_width_left = 2
 border_width_top = 2
@@ -14,10 +18,6 @@ corner_radius_top_left = 12
 corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
-content_margin_left = 16.0
-content_margin_top = 8.0
-content_margin_right = 16.0
-content_margin_bottom = 8.0
 shadow_color = Color(0.4, 0.28, 0.12, 0.25)
 shadow_size = 8
 
@@ -63,20 +63,6 @@ corner_radius_bottom_left = 12
 shadow_color = Color(0.85, 0.5, 0.55, 0.3)
 shadow_size = 12
 
-[sub_resource type="StyleBoxFlat" id="StyleBox_btn_hover_quit"]
-bg_color = Color(1, 0.88, 0.6, 0.95)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.85, 0.3, 0.25, 0.7)
-corner_radius_top_left = 12
-corner_radius_top_right = 12
-corner_radius_bottom_right = 12
-corner_radius_bottom_left = 12
-shadow_color = Color(0.85, 0.3, 0.25, 0.3)
-shadow_size = 12
-
 [sub_resource type="StyleBoxFlat" id="StyleBox_btn_hover_settings"]
 bg_color = Color(1, 0.88, 0.6, 0.95)
 border_width_left = 2
@@ -103,6 +89,20 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 shadow_color = Color(0.85, 0.55, 0.5, 0.3)
+shadow_size = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_btn_hover_quit"]
+bg_color = Color(1, 0.88, 0.6, 0.95)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.85, 0.3, 0.25, 0.7)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0.85, 0.3, 0.25, 0.3)
 shadow_size = 12
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_panel"]
@@ -145,9 +145,9 @@ anchors_preset = 4
 anchor_top = 0.5
 anchor_bottom = 0.5
 offset_left = 85.0
-offset_top = -250.0
+offset_top = -241.0
 offset_right = 405.0
-offset_bottom = 250.0
+offset_bottom = 259.0
 grow_vertical = 2
 theme_override_constants/separation = 18
 
@@ -178,7 +178,7 @@ theme_override_styles/normal = SubResource("StyleBox_btn_normal")
 theme_override_styles/hover = SubResource("StyleBox_btn_hover_config")
 text = "配置 API"
 
-[node name="Settings" type="Button" parent="MenuButtons"]
+[node name="Settings" type="Button" parent="MenuButtons" unique_id=605089383]
 custom_minimum_size = Vector2(320, 64)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.32, 0.22, 0.1, 1)
@@ -187,7 +187,7 @@ theme_override_styles/normal = SubResource("StyleBox_btn_normal")
 theme_override_styles/hover = SubResource("StyleBox_btn_hover_settings")
 text = "设置"
 
-[node name="Credits" type="Button" parent="MenuButtons"]
+[node name="Credits" type="Button" parent="MenuButtons" unique_id=910155474]
 custom_minimum_size = Vector2(320, 64)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.32, 0.22, 0.1, 1)
@@ -196,7 +196,7 @@ theme_override_styles/normal = SubResource("StyleBox_btn_normal")
 theme_override_styles/hover = SubResource("StyleBox_btn_hover_credits")
 text = "制作人员"
 
-[node name="Quit" type="Button" parent="MenuButtons"]
+[node name="Quit" type="Button" parent="MenuButtons" unique_id=1359013029]
 custom_minimum_size = Vector2(320, 64)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.32, 0.22, 0.1, 1)
@@ -205,18 +205,15 @@ theme_override_styles/normal = SubResource("StyleBox_btn_normal")
 theme_override_styles/hover = SubResource("StyleBox_btn_hover_quit")
 text = "退出"
 
-[node name="VersionLabel" type="Label" parent="."]
+[node name="VersionLabel" type="Label" parent="." unique_id=972437018]
 layout_mode = 1
 anchors_preset = 2
-anchor_left = 0.0
 anchor_top = 1.0
-anchor_right = 0.0
 anchor_bottom = 1.0
-offset_left = 60.0
-offset_top = -60.0
-offset_right = 440.0
-offset_bottom = -28.0
-grow_horizontal = 2
+offset_left = 127.0
+offset_top = -99.0
+offset_right = 507.0
+offset_bottom = -67.0
 grow_vertical = 0
 theme_override_colors/font_color = Color(0.4, 0.3, 0.16, 0.8)
 theme_override_font_sizes/font_size = 16
@@ -305,7 +302,7 @@ theme_override_styles/normal = SubResource("StyleBox_btn_normal")
 theme_override_styles/hover = SubResource("StyleBox_btn_hover_quit")
 text = "取消"
 
-[node name="SettingsDialog" type="PanelContainer" parent="."]
+[node name="SettingsDialog" type="PanelContainer" parent="." unique_id=1155760788]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -321,66 +318,64 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBox_panel")
 
-[node name="Margin" type="MarginContainer" parent="SettingsDialog"]
+[node name="Margin" type="MarginContainer" parent="SettingsDialog" unique_id=568857385]
 layout_mode = 2
 theme_override_constants/margin_left = 28
 theme_override_constants/margin_top = 24
 theme_override_constants/margin_right = 28
 theme_override_constants/margin_bottom = 24
 
-[node name="VBox" type="VBoxContainer" parent="SettingsDialog/Margin"]
+[node name="VBox" type="VBoxContainer" parent="SettingsDialog/Margin" unique_id=1009837059]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Title" type="Label" parent="SettingsDialog/Margin/VBox"]
+[node name="Title" type="Label" parent="SettingsDialog/Margin/VBox" unique_id=210879892]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.6, 0.4, 0.12, 1)
 theme_override_font_sizes/font_size = 24
 text = "设置"
 
-[node name="VolumeLabel" type="Label" parent="SettingsDialog/Margin/VBox"]
+[node name="VolumeLabel" type="Label" parent="SettingsDialog/Margin/VBox" unique_id=1496403164]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.42, 0.31, 0.16, 1)
 text = "音量"
 
-[node name="VolumeBox" type="HBoxContainer" parent="SettingsDialog/Margin/VBox"]
+[node name="VolumeBox" type="HBoxContainer" parent="SettingsDialog/Margin/VBox" unique_id=738167041]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="VolumeSlider" type="HSlider" parent="SettingsDialog/Margin/VBox/VolumeBox"]
+[node name="VolumeSlider" type="HSlider" parent="SettingsDialog/Margin/VBox/VolumeBox" unique_id=1991475603]
 layout_mode = 2
 size_flags_horizontal = 3
-max_value = 100.0
-step = 1.0
 value = 80.0
 
-[node name="VolumeValue" type="Label" parent="SettingsDialog/Margin/VBox/VolumeBox"]
+[node name="VolumeValue" type="Label" parent="SettingsDialog/Margin/VBox/VolumeBox" unique_id=750489823]
 custom_minimum_size = Vector2(52, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.42, 0.31, 0.16, 1)
 text = "80%"
 
-[node name="ResolutionLabel" type="Label" parent="SettingsDialog/Margin/VBox"]
+[node name="ResolutionLabel" type="Label" parent="SettingsDialog/Margin/VBox" unique_id=2139066159]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.42, 0.31, 0.16, 1)
 text = "分辨率"
 
-[node name="ResolutionOption" type="OptionButton" parent="SettingsDialog/Margin/VBox"]
+[node name="ResolutionOption" type="OptionButton" parent="SettingsDialog/Margin/VBox" unique_id=1921614932]
 layout_mode = 2
 
-[node name="AutosaveLabel" type="Label" parent="SettingsDialog/Margin/VBox"]
+[node name="AutosaveLabel" type="Label" parent="SettingsDialog/Margin/VBox" unique_id=1750538296]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.42, 0.31, 0.16, 1)
 text = "自动保存"
 
-[node name="AutosaveOption" type="OptionButton" parent="SettingsDialog/Margin/VBox"]
+[node name="AutosaveOption" type="OptionButton" parent="SettingsDialog/Margin/VBox" unique_id=1791754636]
 layout_mode = 2
 
-[node name="Buttons" type="HBoxContainer" parent="SettingsDialog/Margin/VBox"]
+[node name="Buttons" type="HBoxContainer" parent="SettingsDialog/Margin/VBox" unique_id=618148958]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Save" type="Button" parent="SettingsDialog/Margin/VBox/Buttons"]
+[node name="Save" type="Button" parent="SettingsDialog/Margin/VBox/Buttons" unique_id=492268408]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.32, 0.22, 0.1, 1)
@@ -389,7 +384,7 @@ theme_override_styles/normal = SubResource("StyleBox_btn_normal")
 theme_override_styles/hover = SubResource("StyleBox_btn_hover_start")
 text = "保存"
 
-[node name="Cancel" type="Button" parent="SettingsDialog/Margin/VBox/Buttons"]
+[node name="Cancel" type="Button" parent="SettingsDialog/Margin/VBox/Buttons" unique_id=1284035087]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.32, 0.22, 0.1, 1)
