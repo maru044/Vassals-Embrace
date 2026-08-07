@@ -1,4 +1,4 @@
-// 地图地形 shader：高度图位移（平↔立体）+ 三层颜色（远宗主/中本宗/近地形）+ 省界描边
+// 地图地形 shader：高度图位移（平↔立体）+ 国家/地形着色
 // 高度图按【世界 XZ 坐标】采样（非 UV），天然适配不规则网格。
 // 对齐常量：x[-15.1,14.8] z[-26.65,13.8]，height.png 1224x1656，40.94px/unit
 shader_type spatial;
@@ -14,7 +14,7 @@ uniform float y_offset = 0.0;          // 省份覆盖层微量上抬，避免�
 
 // ---- 颜色 ----
 uniform vec3 own_color : source_color = vec3(0.8, 0.75, 0.7);  // 本宗色（中层）
-uniform vec3 far_color : source_color = vec3(0.8, 0.75, 0.7);  // 宗主色（远层，取最上级宗主）
+uniform vec3 far_color : source_color = vec3(0.8, 0.75, 0.7);  // 宗主色（远层）
 uniform float zoom = 0.5;               // 0=远 1=近
 
 varying float v_height;
