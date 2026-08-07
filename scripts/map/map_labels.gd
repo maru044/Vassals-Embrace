@@ -43,8 +43,8 @@ func add_label(text: String, verts: PackedVector3Array, kind: int) -> void:
 	if kind == Kind.PROVINCE:
 		fs = int(clampf(len * 1.9, 18.0, 64.0))
 		min_fs = 12
-	elif kind == Kind.COUNTRY and COUNTRY_FS_SCALE.has(text):
-		# 个别国家手动字号系数（Master 微调）
+	elif (kind == Kind.COUNTRY or kind == Kind.LIEGE) and COUNTRY_FS_SCALE.has(text):
+		# 个别国家手动字号系数（Master 微调）——同时作用于中档国名与远档宗主名
 		fs = int(fs * float(COUNTRY_FS_SCALE[text]))
 	# 单字符步进 = 字符宽 + 字距（闭包按引用捕获 fs）
 	var step := func(ch: String) -> float:
