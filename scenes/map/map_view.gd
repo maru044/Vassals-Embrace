@@ -353,7 +353,7 @@ func _make_province_material(cdata: Dictionary) -> Material:
 		mat.set_shader_parameter("heightmap", _heightmap)
 	mat.set_shader_parameter("own_color", cdata.get("color", Color.WHITE))
 	mat.set_shader_parameter("far_color", cdata.get("liege_color", cdata.get("color", Color.WHITE)))
-	mat.set_shader_parameter("y_offset", 0.02)
+	mat.set_shader_parameter("y_offset", 0.06)
 	_shader_mats.append(mat)
 	return mat
 

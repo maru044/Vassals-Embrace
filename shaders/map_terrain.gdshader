@@ -25,7 +25,8 @@ void vertex() {
 	vec2 uv = (VERTEX.xz - hmap_min) / hmap_size;
 	float h = texture(heightmap, uv).r;   // 0=海 1=最高
 	v_height = h;
-	VERTEX.y += h * height_scale * terrain_blend + y_offset * terrain_blend;
+	// y_offset 不乘 terrain_blend：省份层始终上抬，避免平面模式与陆地基底 z-fighting
+	VERTEX.y += h * height_scale * terrain_blend + y_offset;
 }
 
 // 地形色带：低草地绿 → 丘陵黄绿 → 高地岩石 → 雪
