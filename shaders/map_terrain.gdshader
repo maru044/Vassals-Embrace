@@ -19,34 +19,42 @@ uniform float zoom = 0.5;               // 0=远 1=近
 uniform float highlight = 0.0;          // 选中高亮闪烁（0-1，脉冲）
 
 varying float v_height;
+varying float v_lat;   // 纬度：0=北（高纬） 1=南（低纬）
 
 void vertex() {
 	// 高度图按世界 XZ 采样
 	vec2 uv = (VERTEX.xz - hmap_min) / hmap_size;
 	float h = texture(heightmap, uv).r;   // 0=海 1=最高
 	v_height = h;
+	// 纬度（北 z 负 → 0，南 z 正 → 1）
+	v_lat = clamp((VERTEX.z - hmap_min.y) / hmap_size.y, 0.0, 1.0);
 	// y_offset 不乘 terrain_blend：省份层始终上抬，避免平面模式与陆地基底 z-fighting
 	VERTEX.y += h * height_scale * terrain_blend + y_offset;
 }
 
-// 地形色带：低草地绿 → 丘陵黄绿 → 高地岩石 → 雪
-vec3 terrain_palette(float h) {
-	vec3 grass = vec3(0.45, 0.62, 0.34);
-	vec3 hill  = vec3(0.58, 0.62, 0.38);
-	vec3 rock  = vec3(0.62, 0.6, 0.52);
-	vec3 snow  = vec3(0.93, 0.93, 0.92);
-	float h1 = smoothstep(0.08, 0.25, h);
-	float h2 = smoothstep(0.45, 0.65, h);
-	float h3 = smoothstep(0.85, 0.98, h);
-	vec3 c = mix(grass, hill, h1);
-	c = mix(c, rock, h2);
-	c = mix(c, snow, h3);
+// 地形色带（双要素：高度 + 纬度）：
+// - 纬度混合冷暖底色（北冷灰绿/灰褐 → 南暖嫩绿/黄褐）
+// - 高度分阶（V3 卡通 banding）
+// - 雪线随纬度：北低（低地也雪）→ 南高（只有高山有雪）
+vec3 terrain_palette(float h, float lat) {
+	vec3 low  = mix(vec3(0.55, 0.62, 0.50), vec3(0.62, 0.78, 0.48), lat);  // 低地 冷/暖
+	vec3 hill = mix(vec3(0.60, 0.58, 0.52), vec3(0.76, 0.72, 0.42), lat);  // 丘陵 冷/暖
+	vec3 rock = mix(vec3(0.66, 0.63, 0.60), vec3(0.78, 0.64, 0.45), lat);  // 山地 冷/暖
+	// 高度分档（窄 smoothstep，卡通感不硬边）
+	float b1 = smoothstep(0.28, 0.34, h);   // 低地 → 丘陵
+	float b2 = smoothstep(0.58, 0.64, h);   // 丘陵 → 山地
+	vec3 c = mix(low, hill, b1);
+	c = mix(c, rock, b2);
+	// 纬度相关雪线：北（lat=0）0.05 → 南（lat=1）0.65
+	float snowline = mix(0.05, 0.65, lat);
+	float snow = smoothstep(snowline, snowline + 0.2, h);
+	c = mix(c, vec3(0.96, 0.95, 0.93), snow);
 	return c;
 }
 
 void fragment() {
 	float h = v_height;
-	vec3 terrain = terrain_palette(h);
+	vec3 terrain = terrain_palette(h, v_lat);
 
 	// 远层：宗主色（附庸涂宗主国颜色）｜中层：本宗色｜近层：地形
 	float t_far = 1.0 - smoothstep(0.25, 0.6, zoom);
