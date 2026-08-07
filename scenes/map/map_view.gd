@@ -17,6 +17,7 @@ const PITCH_NEAR := deg_to_rad(45.0)
 const DIST_FAR := 55.0
 const DIST_NEAR := 9.0
 const MAP_CENTER := Vector3(0.0, 0.0, -6.0)   # 地图中心（x≈0, z≈-6）
+const ZOOM_MIN := 0.15                          # 最远缩放下限（保留余量防 Z 闪烁）
 
 @onready var _camera: Camera3D = $Camera3D
 @onready var _map: Node3D = $Map
@@ -60,10 +61,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		match event.button_index:
 			MOUSE_BUTTON_WHEEL_UP:
-				_zoom = clampf(_zoom + 0.12, 0.0, 1.0)
+				_zoom = clampf(_zoom + 0.12, ZOOM_MIN, 1.0)
 				_update_camera()
 			MOUSE_BUTTON_WHEEL_DOWN:
-				_zoom = clampf(_zoom - 0.12, 0.0, 1.0)
+				_zoom = clampf(_zoom - 0.12, ZOOM_MIN, 1.0)
 				_update_camera()
 			MOUSE_BUTTON_LEFT:
 				_pick(event.position)
