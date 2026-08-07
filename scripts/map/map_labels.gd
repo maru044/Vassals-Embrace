@@ -55,11 +55,10 @@ func add_label(text: String, verts: PackedVector3Array, kind: int) -> void:
 		lb.modulate = Color(0.97, 0.93, 0.8)      # 奶油白字（彩色地图上可读）
 		lb.outline_size = maxi(fs / 8, 2)          # 深色描边
 		lb.outline_modulate = Color(0.2, 0.15, 0.1)
-		# 贴地（法线朝上）+ 沿切线
-		var X := Vector3(tan.x, 0.0, tan.z)
-		var Z := Vector3.UP
-		var Y := Z.cross(X)
-		lb.basis = Basis(X, Y, Z)
+		lb.billboard = BaseMaterial3D.BILLBOARD_ENABLED   # 面向相机，恒可读横排
+		lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lb.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		# 位置沿脊线（弧线感），贴地形
 		lb.position = Vector3(pos.x, y + 0.08, pos.z)
 		root.add_child(lb)
 		t += adv
@@ -69,15 +68,15 @@ func add_label(text: String, verts: PackedVector3Array, kind: int) -> void:
 
 
 func set_zoom(zoom: float) -> void:
-	# 远=宗主；中/近=国+省
+	# 远=宗主名；中=国名；近=国名+省名（避免小国国名/省名重复）
 	for l in _labels:
 		match int(l["kind"]):
 			Kind.LIEGE:
-				l["root"].visible = zoom < 0.45
+				l["root"].visible = zoom < 0.35
 			Kind.COUNTRY:
 				l["root"].visible = zoom >= 0.2
 			Kind.PROVINCE:
-				l["root"].visible = zoom >= 0.45
+				l["root"].visible = zoom >= 0.6
 
 
 func _sample_height(x: float, z: float) -> float:
