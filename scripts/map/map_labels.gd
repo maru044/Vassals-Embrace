@@ -11,7 +11,7 @@ const PIXEL_SIZE := 0.015    # 文字像素→世界单位
 const SPACING_RATIO := 0.25  # 字距 = 字号的 25%（汉字留白，防过密）
 # 个别国家国名字号手动修正（Master 定：英格兰放大 / 苏格兰放大很多 / 群岛缩小）
 const COUNTRY_FS_SCALE := {
-	"England": 1.25,
+	"England": 1.45,
 	"Scotland": 1.6,
 	"The Isles": 0.6,
 }
