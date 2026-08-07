@@ -125,8 +125,8 @@ void fragment() {
 	// 麦浪（Simplex + 域扭曲）：草地颜色随时间流动变色（亮度+色相），无方块
 	vec2 wuv = (v_world - hmap_min) / hmap_size;
 	vec2 wp = wuv * 4.5;   // 麦浪密度
-	vec2 flow1 = vec2(TIME * 0.18, TIME * 0.14);
-	vec2 flow2 = vec2(-TIME * 0.14, TIME * 0.10);
+	vec2 flow1 = vec2(TIME * 0.09, TIME * 0.07);
+	vec2 flow2 = vec2(-TIME * 0.07, TIME * 0.05);
 	// 域扭曲：低频噪声作为偏移量，制造阵风/湍流
 	float warp_x = fbm(wp * 0.8 + flow1);
 	float warp_y = fbm(wp * 0.8 + flow2 + vec2(12.5, 34.1));
