@@ -18,7 +18,7 @@ const COUNTRY_FS_SCALE := {
 
 var _font: Font
 var _height_img: Image = null
-var _height_scale := 1.0
+var _height_scale := 0.5
 var _labels: Array = []      # { root, kind }
 var _spine_lines: Array = [] # 调试：脊线/控制点 MeshInstance3D（F9 显示）
 

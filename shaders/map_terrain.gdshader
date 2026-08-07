@@ -8,7 +8,7 @@ render_mode cull_disabled;
 uniform sampler2D heightmap : source_color, filter_linear, repeat_disable;
 uniform vec2 hmap_min = vec2(-15.1, -26.65);
 uniform vec2 hmap_size = vec2(29.9, 40.45);
-uniform float height_scale = 1.0;      // 平面约10m → 最高地形约1m
+uniform float height_scale = 0.5;      // 地形最大高度（减小以减轻细分边界破面）
 uniform float terrain_blend = 0.0;     // 0=平面 1=立体（相机距离驱动）
 uniform float y_offset = 0.0;          // 省份覆盖层微量上抬，避免与陆地基底 z-fight
 
