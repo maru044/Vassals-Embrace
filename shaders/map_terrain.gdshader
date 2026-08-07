@@ -46,12 +46,15 @@ float vnoise(vec2 p) {
 	float n11 = dot(grad2(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0));
 	return mix(mix(n00, n10, u.x), mix(n01, n11, u.x), u.y);
 }
+// 固定旋转矩阵（打乱各层网格对齐，摧毁正交方块感——参考 Master 解法）
+mat2 rot = mat2(vec2(0.877, 0.479), vec2(-0.479, 0.877));   // 旋转 ~28.6°
 float fbm(vec2 p) {
 	float v = 0.0;
 	float a = 0.5;
 	for (int i = 0; i < 4; i++) {
 		v += a * vnoise(p);
-		p = p * 2.03 + vec2(3.7, 9.2);   // 2.03 打破各层格点对齐，防方块伪影
+		p = p * 2.0;
+		p = rot * p;   // 每层旋转坐标系，各层格点不再正交对齐 → 无方块伪影
 		a *= 0.5;
 	}
 	return v;
