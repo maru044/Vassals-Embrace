@@ -105,13 +105,22 @@ void fragment() {
 	float shadow = (1.0 - shade) * 0.8 * terrain_blend;
 	c = mix(c, c * 0.4 + shadow_col * 0.6, shadow);
 
-	// 麦浪/云（合并）：噪声流动明暗，时间变化类似水波/麦浪，草地更明显
+	// 麦浪/云（借鉴恒星等离子流动）：双层 fbm 噪声，草地颜色在暗/亮间随时间自然变色（亮度+色相）
 	vec2 wuv = (v_world - hmap_min) / hmap_size;
-	float wave = fbm(wuv * 3.0 + vec2(TIME * 0.05, TIME * 0.035));
-	float grass_mask = smoothstep(0.0, 0.15, h) * (1.0 - smoothstep(0.2, 0.5, h));
-	float wave_strength = mix(cloud_strength * 0.35, cloud_strength * 1.1, grass_mask);
-	float wv = smoothstep(0.45, 0.75, wave);
-	c = mix(c, c * vec3(0.74, 0.83, 0.96) + vec3(0.02, 0.06, 0.14), wv * wave_strength);
+	vec2 wp = wuv * 3.5;
+	float n1 = fbm(wp + vec2(TIME * 0.04, TIME * 0.03));
+	float n2 = fbm(wp * 1.6 + vec2(-TIME * 0.03, TIME * 0.022));
+	float wave = clamp((n1 + n2) * 0.5, 0.0, 1.0);
+	// 草地（低地）区域
+	float grass_mask = smoothstep(0.0, 0.12, h) * (1.0 - smoothstep(0.18, 0.45, h));
+	// 草地颜色层次：暗草（偏蓝降亮）↔ 亮草（泛黄提亮），随 wave 流动（麦浪）
+	vec3 dark_g = vec3(0.78, 0.88, 1.0);
+	vec3 bright_g = vec3(1.15, 1.06, 0.9);
+	vec3 gcol = mix(c * dark_g, c * bright_g, smoothstep(0.35, 0.75, wave));
+	c = mix(c, gcol, grass_mask * 0.9);
+	// 非草地（山/雪）轻度云影
+	float cloud = smoothstep(0.55, 0.8, fbm(wuv * 2.0 + vec2(TIME * 0.02, TIME * 0.014)));
+	c = mix(c, c * vec3(0.78, 0.85, 0.96) + vec3(0.02, 0.05, 0.12), (1.0 - grass_mask) * cloud_strength * 0.3 * cloud);
 
 	// 选中省份高亮闪烁：提亮 + 略泛白
 	vec3 hl = c * 1.35 + vec3(0.15);
