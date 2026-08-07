@@ -9,6 +9,12 @@ const HMAP_MIN := Vector2(-15.1, -26.65)
 const HMAP_SIZE := Vector2(29.9, 40.45)
 const PIXEL_SIZE := 0.015    # 文字像素→世界单位
 const SPACING_RATIO := 0.25  # 字距 = 字号的 25%（汉字留白，防过密）
+# 个别国家国名字号手动修正（Master 定：英格兰放大 / 苏格兰放大很多 / 群岛缩小）
+const COUNTRY_FS_SCALE := {
+	"England": 1.25,
+	"Scotland": 1.6,
+	"The Isles": 0.6,
+}
 
 var _font: Font
 var _height_img: Image = null
@@ -32,11 +38,14 @@ func add_label(text: String, verts: PackedVector3Array, kind: int) -> void:
 	if pts.size() < 2 or len <= 0.0:
 		return
 	# 字号随脊线长度（国家大、省份小）
-	var fs := int(clampf(len * 3.2, 30.0, 130.0))
+	var fs := int(clampf(len * 3.2, 30.0, 180.0))
 	var min_fs := 18
 	if kind == Kind.PROVINCE:
 		fs = int(clampf(len * 1.9, 18.0, 64.0))
 		min_fs = 12
+	elif kind == Kind.COUNTRY and COUNTRY_FS_SCALE.has(text):
+		# 个别国家手动字号系数（Master 微调）
+		fs = int(fs * float(COUNTRY_FS_SCALE[text]))
 	# 单字符步进 = 字符宽 + 字距（闭包按引用捕获 fs）
 	var step := func(ch: String) -> float:
 		return (_font.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + fs * SPACING_RATIO) * PIXEL_SIZE
@@ -44,9 +53,10 @@ func add_label(text: String, verts: PackedVector3Array, kind: int) -> void:
 	var text_width := 0.0
 	for i in text.length():
 		text_width += step.call(text[i])
-	# 防超长：文字宽 > 脊线长时按比例缩小字号，避免字符堆在脊线末端/弯曲处挤成一团
-	if text_width > len:
-		var s := len / text_width
+	# 防超长：国名允许沿切线延伸（最多脊线 2 倍宽），省名严格铺在脊线内（防堆叠）
+	var max_over := 2.0 if kind != Kind.PROVINCE else 1.0
+	if text_width > len * max_over:
+		var s := (len * max_over) / text_width
 		fs = maxi(int(fs * s), min_fs)
 		text_width = 0.0
 		for i in text.length():
@@ -173,13 +183,18 @@ func _sample_height_max(x: float, z: float, radius: float) -> float:
 
 static func _point_on(p: PackedVector3Array, d: float) -> Vector3:
 	var acc := 0.0
+	var total := 0.0
 	for i in p.size() - 1:
 		var seg := p[i].distance_to(p[i + 1])
+		total += seg
 		if acc + seg >= d:
 			var tt := (d - acc) / maxf(seg, 0.0001)
 			return p[i].lerp(p[i + 1], tt)
 		acc += seg
-	return p[p.size() - 1]
+	# 超出脊线末端：沿末段切线外推（国名放大时文字均匀延伸，不堆终点）
+	var last := p.size() - 1
+	var tan := (p[last] - p[maxi(last - 1, 0)]).normalized()
+	return p[last] + tan * (d - total)
 
 
 static func _tangent_on(p: PackedVector3Array, d: float) -> Vector3:
@@ -189,4 +204,5 @@ static func _tangent_on(p: PackedVector3Array, d: float) -> Vector3:
 		if acc + seg >= d:
 			return (p[i + 1] - p[i]).normalized()
 		acc += seg
-	return (p[p.size() - 1] - p[p.size() - 2]).normalized()
+	# 超出脊线末端：末段切线（与 _point_on 外推方向一致）
+	return (p[p.size() - 1] - p[maxi(p.size() - 2, 0)]).normalized()
