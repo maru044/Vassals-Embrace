@@ -1,7 +1,10 @@
 extends Node3D
-## 地图场景：加载 map.gltf，按国家着色，EU4 式相机控制。
+## 地图场景：加载 map.gltf，按国家着色，EU4 式相机控制，省份拾取。
 ## 数据依赖：data/map_data.json（省份→国家）、data/country_colors.json（国家颜色）
 ## 阶段A：只显示 42 省份色块（隐藏 Britain/Ireland 陆地基底与退化层），Phase B 接地形 shader。
+## 拾取：Phase A 用射线（平面地图可靠）；地形位移后若不准再换颜色拾取。
+
+signal province_picked(province: String, country: String)
 
 const MAP_DATA_PATH := "res://data/map_data.json"
 const COUNTRY_COLORS_PATH := "res://data/country_colors.json"
@@ -18,6 +21,8 @@ const MAP_CENTER := Vector3(0.0, 0.0, -6.0)   # 地图中心（x≈0, z≈-6）
 
 var _zoom := 0.5
 var _target := MAP_CENTER
+var _owners := {}                     # province -> country
+var _collider_to_province := {}       # StaticBody3D -> province
 
 
 func _ready() -> void:
@@ -36,6 +41,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			MOUSE_BUTTON_WHEEL_DOWN:
 				_zoom = clampf(_zoom - 0.12, 0.0, 1.0)
 				_update_camera()
+			MOUSE_BUTTON_LEFT:
+				_pick(event.position)
 	elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
 		# 中键拖拽平移（左键留给拾取）
 		_target.x -= event.relative.x * 0.03
@@ -54,10 +61,10 @@ func _update_camera() -> void:
 ## ===== 国家着色 =====
 
 func _apply_colors() -> void:
-	var owners: Dictionary = _load_json(MAP_DATA_PATH).get("province_owner", {})
+	_owners = _load_json(MAP_DATA_PATH).get("province_owner", {})
 	var colors := _load_country_colors()
 	var mats := {}
-	_process_node(_map, owners, colors, mats)
+	_process_node(_map, _owners, colors, mats)
 
 
 func _process_node(node: Node, owners: Dictionary, colors: Dictionary, mats: Dictionary) -> void:
@@ -69,10 +76,32 @@ func _process_node(node: Node, owners: Dictionary, colors: Dictionary, mats: Dic
 				if not mats.has(country):
 					mats[country] = _make_country_material(colors.get(country, Color.WHITE))
 				child.material_override = mats[country]
+				# 拾取碰撞体（射线命中 → StaticBody3D → 省份）
+				child.create_trimesh_collision()   # Godot4 返回 void，自动加 StaticBody3D 子节点
+				var body := child.get_child(child.get_child_count() - 1) as StaticBody3D
+				if body:
+					_collider_to_province[body] = province
 			else:
 				# 非省份网格（Britain/Ireland 陆地基底、退化残留）阶段A先隐藏
 				child.visible = false
 		_process_node(child, owners, colors, mats)
+
+
+## ===== 省份拾取（射线） =====
+
+func _pick(screen_pos: Vector2) -> void:
+	var from := _camera.project_ray_origin(screen_pos)
+	var to := from + _camera.project_ray_normal(screen_pos) * 2000.0
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	var result := get_world_3d().direct_space_state.intersect_ray(query)
+	if result.is_empty():
+		return
+	var collider: Object = result.get("collider", null)
+	if collider == null or not _collider_to_province.has(collider):
+		return
+	var province: String = _collider_to_province[collider]
+	var country: String = _owners.get(province, "")
+	province_picked.emit(province, country)
 
 
 func _make_country_material(color: Color) -> StandardMaterial3D:
