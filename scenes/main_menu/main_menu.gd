@@ -20,7 +20,7 @@ const AUTOSAVE_OPTIONS := [
 # ===== 羊皮纸噪声按钮参数 =====
 const PARCHMENT_BASE := Color(0.86, 0.72, 0.46)    # 羊皮纸暖金基色
 const PARCHMENT_HOVER := Color(0.98, 0.85, 0.6)    # hover 亮金
-const PARCHMENT_STRENGTH := 0.07                    # 斑驳强度（±7%）
+const PARCHMENT_STRENGTH := 0.035                   # 斑驳强度（±3.5%，微弱做旧）
 const BORDER_COLOR := Color(0.55, 0.38, 0.15)      # 金棕描边
 const BORDER_WIDTH := 4                             # 边框像素（烘焙进贴图）
 const SHADOW_RING := 5                              # 外圈软阴影像素（烘焙进贴图）
