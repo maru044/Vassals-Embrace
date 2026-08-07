@@ -4,100 +4,104 @@
 [ext_resource type="Texture2D" uid="uid://sw561rtl1xvm" path="res://assets/main_menu_bg.png" id="2_bg"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_btn_normal"]
-bg_color = Color(0.92, 0.78, 0.5, 0.82)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.72, 0.55, 0.25, 0.55)
-corner_radius_top_left = 25
-corner_radius_top_right = 25
-corner_radius_bottom_right = 25
-corner_radius_bottom_left = 25
+bg_color = Color(0.86, 0.72, 0.46, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.55, 0.38, 0.15, 0.85)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+content_margin_left = 16.0
+content_margin_top = 8.0
+content_margin_right = 16.0
+content_margin_bottom = 8.0
 shadow_color = Color(0.4, 0.28, 0.12, 0.25)
-shadow_size = 6
+shadow_size = 8
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_btn_hover_start"]
 bg_color = Color(1, 0.88, 0.6, 0.95)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
 border_color = Color(0.95, 0.6, 0.15, 0.7)
-corner_radius_top_left = 25
-corner_radius_top_right = 25
-corner_radius_bottom_right = 25
-corner_radius_bottom_left = 25
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
 shadow_color = Color(0.95, 0.6, 0.15, 0.3)
 shadow_size = 12
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_btn_hover_load"]
 bg_color = Color(1, 0.88, 0.6, 0.95)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
 border_color = Color(0.8, 0.55, 0.2, 0.7)
-corner_radius_top_left = 25
-corner_radius_top_right = 25
-corner_radius_bottom_right = 25
-corner_radius_bottom_left = 25
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
 shadow_color = Color(0.8, 0.55, 0.2, 0.3)
 shadow_size = 12
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_btn_hover_config"]
 bg_color = Color(1, 0.88, 0.6, 0.95)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
 border_color = Color(0.85, 0.5, 0.55, 0.7)
-corner_radius_top_left = 25
-corner_radius_top_right = 25
-corner_radius_bottom_right = 25
-corner_radius_bottom_left = 25
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
 shadow_color = Color(0.85, 0.5, 0.55, 0.3)
 shadow_size = 12
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_btn_hover_quit"]
 bg_color = Color(1, 0.88, 0.6, 0.95)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
 border_color = Color(0.85, 0.3, 0.25, 0.7)
-corner_radius_top_left = 25
-corner_radius_top_right = 25
-corner_radius_bottom_right = 25
-corner_radius_bottom_left = 25
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
 shadow_color = Color(0.85, 0.3, 0.25, 0.3)
 shadow_size = 12
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_btn_hover_settings"]
 bg_color = Color(1, 0.88, 0.6, 0.95)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
 border_color = Color(0.72, 0.58, 0.32, 0.7)
-corner_radius_top_left = 25
-corner_radius_top_right = 25
-corner_radius_bottom_right = 25
-corner_radius_bottom_left = 25
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
 shadow_color = Color(0.72, 0.58, 0.32, 0.3)
 shadow_size = 12
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_btn_hover_credits"]
 bg_color = Color(1, 0.88, 0.6, 0.95)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
 border_color = Color(0.85, 0.55, 0.5, 0.7)
-corner_radius_top_left = 25
-corner_radius_top_right = 25
-corner_radius_bottom_right = 25
-corner_radius_bottom_left = 25
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
 shadow_color = Color(0.85, 0.55, 0.5, 0.3)
 shadow_size = 12
 
@@ -145,7 +149,7 @@ offset_top = -250.0
 offset_right = 405.0
 offset_bottom = 250.0
 grow_vertical = 2
-theme_override_constants/separation = 14
+theme_override_constants/separation = 18
 
 [node name="StartGame" type="Button" parent="MenuButtons" unique_id=733907705]
 custom_minimum_size = Vector2(320, 64)
@@ -174,15 +178,6 @@ theme_override_styles/normal = SubResource("StyleBox_btn_normal")
 theme_override_styles/hover = SubResource("StyleBox_btn_hover_config")
 text = "配置 API"
 
-[node name="Quit" type="Button" parent="MenuButtons" unique_id=722731035]
-custom_minimum_size = Vector2(320, 64)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.32, 0.22, 0.1, 1)
-theme_override_font_sizes/font_size = 17
-theme_override_styles/normal = SubResource("StyleBox_btn_normal")
-theme_override_styles/hover = SubResource("StyleBox_btn_hover_quit")
-text = "退出"
-
 [node name="Settings" type="Button" parent="MenuButtons"]
 custom_minimum_size = Vector2(320, 64)
 layout_mode = 2
@@ -200,6 +195,32 @@ theme_override_font_sizes/font_size = 17
 theme_override_styles/normal = SubResource("StyleBox_btn_normal")
 theme_override_styles/hover = SubResource("StyleBox_btn_hover_credits")
 text = "制作人员"
+
+[node name="Quit" type="Button" parent="MenuButtons"]
+custom_minimum_size = Vector2(320, 64)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.32, 0.22, 0.1, 1)
+theme_override_font_sizes/font_size = 17
+theme_override_styles/normal = SubResource("StyleBox_btn_normal")
+theme_override_styles/hover = SubResource("StyleBox_btn_hover_quit")
+text = "退出"
+
+[node name="VersionLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 2
+anchor_left = 0.0
+anchor_top = 1.0
+anchor_right = 0.0
+anchor_bottom = 1.0
+offset_left = 60.0
+offset_top = -60.0
+offset_right = 440.0
+offset_bottom = -28.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.4, 0.3, 0.16, 0.8)
+theme_override_font_sizes/font_size = 16
+text = "v1.0.0 · Yuri Harem Universalis"
 
 [node name="ConfigDialog" type="PanelContainer" parent="." unique_id=1572062295]
 visible = false
