@@ -6,6 +6,8 @@ extends Control
 @onready var _load_button: Button = $MenuButtons/LoadGame
 @onready var _config_button: Button = $MenuButtons/ConfigAPI
 @onready var _quit_button: Button = $MenuButtons/Quit
+@onready var _settings_button: Button = $MenuButtons/Settings
+@onready var _credits_button: Button = $MenuButtons/Credits
 
 @onready var _config_dialog: PanelContainer = $ConfigDialog
 @onready var _api_url_input: LineEdit = $ConfigDialog/Margin/VBox/ApiUrlInput
@@ -20,6 +22,8 @@ func _ready() -> void:
 	_load_button.pressed.connect(_on_load_pressed)
 	_config_button.pressed.connect(_on_config_pressed)
 	_quit_button.pressed.connect(_on_quit_pressed)
+	_settings_button.pressed.connect(_on_settings_pressed)
+	_credits_button.pressed.connect(_on_credits_pressed)
 	_save_button.pressed.connect(_on_save_config_pressed)
 	_cancel_button.pressed.connect(_on_cancel_config_pressed)
 
@@ -57,6 +61,18 @@ func _on_save_config_pressed() -> void:
 
 func _on_cancel_config_pressed() -> void:
 	_config_dialog.visible = false
+
+
+func _on_settings_pressed() -> void:
+	# TODO: 打开设置面板（音量 / 分辨率 / 文本速度等）
+	EventBus.open_panel.emit("settings")
+	push_warning("主界面: 设置面板待实现")
+
+
+func _on_credits_pressed() -> void:
+	# TODO: 打开制作人员名单弹窗
+	EventBus.open_panel.emit("credits")
+	push_warning("主界面: 制作人员弹窗待实现")
 
 
 func _on_quit_pressed() -> void:

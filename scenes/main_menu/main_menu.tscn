@@ -1,7 +1,7 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene format=3 uid="uid://cuukweh44pyy1"]
 
-[ext_resource type="Script" path="res://scenes/main_menu/main_menu.gd" id="1_main"]
-[ext_resource type="Texture2D" path="res://assets/main_menu_bg.png" id="2_bg"]
+[ext_resource type="Script" uid="uid://d1puy78m28bwk" path="res://scenes/main_menu/main_menu.gd" id="1_main"]
+[ext_resource type="Texture2D" uid="uid://sw561rtl1xvm" path="res://assets/main_menu_bg.png" id="2_bg"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_btn_normal"]
 bg_color = Color(0.92, 0.78, 0.5, 0.82)
@@ -18,7 +18,7 @@ shadow_color = Color(0.4, 0.28, 0.12, 0.25)
 shadow_size = 6
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_btn_hover_start"]
-bg_color = Color(1.0, 0.88, 0.6, 0.95)
+bg_color = Color(1, 0.88, 0.6, 0.95)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
@@ -32,7 +32,7 @@ shadow_color = Color(0.95, 0.6, 0.15, 0.3)
 shadow_size = 12
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_btn_hover_load"]
-bg_color = Color(1.0, 0.88, 0.6, 0.95)
+bg_color = Color(1, 0.88, 0.6, 0.95)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
@@ -46,7 +46,7 @@ shadow_color = Color(0.8, 0.55, 0.2, 0.3)
 shadow_size = 12
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_btn_hover_config"]
-bg_color = Color(1.0, 0.88, 0.6, 0.95)
+bg_color = Color(1, 0.88, 0.6, 0.95)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
@@ -60,7 +60,7 @@ shadow_color = Color(0.85, 0.5, 0.55, 0.3)
 shadow_size = 12
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_btn_hover_quit"]
-bg_color = Color(1.0, 0.88, 0.6, 0.95)
+bg_color = Color(1, 0.88, 0.6, 0.95)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
@@ -71,6 +71,34 @@ corner_radius_top_right = 25
 corner_radius_bottom_right = 25
 corner_radius_bottom_left = 25
 shadow_color = Color(0.85, 0.3, 0.25, 0.3)
+shadow_size = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_btn_hover_settings"]
+bg_color = Color(1, 0.88, 0.6, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.72, 0.58, 0.32, 0.7)
+corner_radius_top_left = 25
+corner_radius_top_right = 25
+corner_radius_bottom_right = 25
+corner_radius_bottom_left = 25
+shadow_color = Color(0.72, 0.58, 0.32, 0.3)
+shadow_size = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_btn_hover_credits"]
+bg_color = Color(1, 0.88, 0.6, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.85, 0.55, 0.5, 0.7)
+corner_radius_top_left = 25
+corner_radius_top_right = 25
+corner_radius_bottom_right = 25
+corner_radius_bottom_left = 25
+shadow_color = Color(0.85, 0.55, 0.5, 0.3)
 shadow_size = 12
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_panel"]
@@ -87,7 +115,7 @@ corner_radius_bottom_left = 20
 shadow_color = Color(0.4, 0.28, 0.12, 0.3)
 shadow_size = 24
 
-[node name="MainMenu" type="Control"]
+[node name="MainMenu" type="Control" unique_id=913324291]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -96,7 +124,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_main")
 
-[node name="Background" type="TextureRect" parent="."]
+[node name="Background" type="TextureRect" parent="." unique_id=999201291]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -107,58 +135,73 @@ texture = ExtResource("2_bg")
 expand_mode = 1
 stretch_mode = 6
 
-[node name="MenuButtons" type="VBoxContainer" parent="."]
+[node name="MenuButtons" type="VBoxContainer" parent="." unique_id=164842339]
 layout_mode = 1
 anchors_preset = 4
-anchor_left = 0.0
 anchor_top = 0.5
-anchor_right = 0.0
 anchor_bottom = 0.5
-offset_left = 56.0
-offset_top = -220.0
-offset_right = 376.0
-offset_bottom = 220.0
-grow_horizontal = 2
+offset_left = 85.0
+offset_top = -250.0
+offset_right = 405.0
+offset_bottom = 250.0
 grow_vertical = 2
 theme_override_constants/separation = 14
 
-[node name="StartGame" type="Button" parent="MenuButtons"]
-layout_mode = 2
+[node name="StartGame" type="Button" parent="MenuButtons" unique_id=733907705]
 custom_minimum_size = Vector2(320, 64)
+layout_mode = 2
 theme_override_colors/font_color = Color(0.32, 0.22, 0.1, 1)
 theme_override_font_sizes/font_size = 17
 theme_override_styles/normal = SubResource("StyleBox_btn_normal")
 theme_override_styles/hover = SubResource("StyleBox_btn_hover_start")
 text = "开始游戏"
 
-[node name="LoadGame" type="Button" parent="MenuButtons"]
-layout_mode = 2
+[node name="LoadGame" type="Button" parent="MenuButtons" unique_id=1566045223]
 custom_minimum_size = Vector2(320, 64)
+layout_mode = 2
 theme_override_colors/font_color = Color(0.32, 0.22, 0.1, 1)
 theme_override_font_sizes/font_size = 17
 theme_override_styles/normal = SubResource("StyleBox_btn_normal")
 theme_override_styles/hover = SubResource("StyleBox_btn_hover_load")
 text = "读取游戏"
 
-[node name="ConfigAPI" type="Button" parent="MenuButtons"]
-layout_mode = 2
+[node name="ConfigAPI" type="Button" parent="MenuButtons" unique_id=564426801]
 custom_minimum_size = Vector2(320, 64)
+layout_mode = 2
 theme_override_colors/font_color = Color(0.32, 0.22, 0.1, 1)
 theme_override_font_sizes/font_size = 17
 theme_override_styles/normal = SubResource("StyleBox_btn_normal")
 theme_override_styles/hover = SubResource("StyleBox_btn_hover_config")
 text = "配置 API"
 
-[node name="Quit" type="Button" parent="MenuButtons"]
-layout_mode = 2
+[node name="Quit" type="Button" parent="MenuButtons" unique_id=722731035]
 custom_minimum_size = Vector2(320, 64)
+layout_mode = 2
 theme_override_colors/font_color = Color(0.32, 0.22, 0.1, 1)
 theme_override_font_sizes/font_size = 17
 theme_override_styles/normal = SubResource("StyleBox_btn_normal")
 theme_override_styles/hover = SubResource("StyleBox_btn_hover_quit")
 text = "退出"
 
-[node name="ConfigDialog" type="PanelContainer" parent="."]
+[node name="Settings" type="Button" parent="MenuButtons"]
+custom_minimum_size = Vector2(320, 64)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.32, 0.22, 0.1, 1)
+theme_override_font_sizes/font_size = 17
+theme_override_styles/normal = SubResource("StyleBox_btn_normal")
+theme_override_styles/hover = SubResource("StyleBox_btn_hover_settings")
+text = "设置"
+
+[node name="Credits" type="Button" parent="MenuButtons"]
+custom_minimum_size = Vector2(320, 64)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.32, 0.22, 0.1, 1)
+theme_override_font_sizes/font_size = 17
+theme_override_styles/normal = SubResource("StyleBox_btn_normal")
+theme_override_styles/hover = SubResource("StyleBox_btn_hover_credits")
+text = "制作人员"
+
+[node name="ConfigDialog" type="PanelContainer" parent="." unique_id=1572062295]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -174,56 +217,56 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBox_panel")
 
-[node name="Margin" type="MarginContainer" parent="ConfigDialog"]
+[node name="Margin" type="MarginContainer" parent="ConfigDialog" unique_id=988047054]
 layout_mode = 2
 theme_override_constants/margin_left = 28
 theme_override_constants/margin_top = 24
 theme_override_constants/margin_right = 28
 theme_override_constants/margin_bottom = 24
 
-[node name="VBox" type="VBoxContainer" parent="ConfigDialog/Margin"]
+[node name="VBox" type="VBoxContainer" parent="ConfigDialog/Margin" unique_id=490353684]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Title" type="Label" parent="ConfigDialog/Margin/VBox"]
+[node name="Title" type="Label" parent="ConfigDialog/Margin/VBox" unique_id=679858779]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.6, 0.4, 0.12, 1)
 theme_override_font_sizes/font_size = 24
 text = "配置 LLM API"
 
-[node name="ApiUrlLabel" type="Label" parent="ConfigDialog/Margin/VBox"]
+[node name="ApiUrlLabel" type="Label" parent="ConfigDialog/Margin/VBox" unique_id=1565884004]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.42, 0.31, 0.16, 1)
 text = "API 地址"
 
-[node name="ApiUrlInput" type="LineEdit" parent="ConfigDialog/Margin/VBox"]
+[node name="ApiUrlInput" type="LineEdit" parent="ConfigDialog/Margin/VBox" unique_id=1103982972]
 layout_mode = 2
 placeholder_text = "https://generativelanguage.googleapis.com/v1beta/..."
 
-[node name="ApiKeyLabel" type="Label" parent="ConfigDialog/Margin/VBox"]
+[node name="ApiKeyLabel" type="Label" parent="ConfigDialog/Margin/VBox" unique_id=96280920]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.42, 0.31, 0.16, 1)
 text = "API 密钥"
 
-[node name="ApiKeyInput" type="LineEdit" parent="ConfigDialog/Margin/VBox"]
+[node name="ApiKeyInput" type="LineEdit" parent="ConfigDialog/Margin/VBox" unique_id=136889377]
 layout_mode = 2
-secret = true
 placeholder_text = "输入 API Key"
+secret = true
 
-[node name="ModelLabel" type="Label" parent="ConfigDialog/Margin/VBox"]
+[node name="ModelLabel" type="Label" parent="ConfigDialog/Margin/VBox" unique_id=950508745]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.42, 0.31, 0.16, 1)
 text = "模型"
 
-[node name="ModelInput" type="LineEdit" parent="ConfigDialog/Margin/VBox"]
+[node name="ModelInput" type="LineEdit" parent="ConfigDialog/Margin/VBox" unique_id=130280964]
 layout_mode = 2
 placeholder_text = "如 gemini-2.5-flash"
 
-[node name="Buttons" type="HBoxContainer" parent="ConfigDialog/Margin/VBox"]
+[node name="Buttons" type="HBoxContainer" parent="ConfigDialog/Margin/VBox" unique_id=1465555363]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Save" type="Button" parent="ConfigDialog/Margin/VBox/Buttons"]
+[node name="Save" type="Button" parent="ConfigDialog/Margin/VBox/Buttons" unique_id=1058050787]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.32, 0.22, 0.1, 1)
@@ -232,7 +275,7 @@ theme_override_styles/normal = SubResource("StyleBox_btn_normal")
 theme_override_styles/hover = SubResource("StyleBox_btn_hover_start")
 text = "保存"
 
-[node name="Cancel" type="Button" parent="ConfigDialog/Margin/VBox/Buttons"]
+[node name="Cancel" type="Button" parent="ConfigDialog/Margin/VBox/Buttons" unique_id=387578823]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.32, 0.22, 0.1, 1)
