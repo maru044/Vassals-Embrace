@@ -10,6 +10,7 @@ const COUNTRY_COLORS_PATH := "res://data/country_colors.json"
 const TERRAIN_SHADER_PATH := "res://shaders/map_terrain.gdshader"
 const HEIGHTMAP_PATH := "res://assets/map/height.png"
 const HEIGHT_OVERLAY_SHADER := "res://shaders/height_overlay.gdshader"
+const LABEL_FONT_PATH := "res://assets/fonts/Times New Roman.ttf"   # V3 古典衬线字体
 const LAND_BASE_COLOR := Color(0.75, 0.72, 0.62)   # 陆地基底中性色
 const SUBDIVIDE_MAX_EDGE := 1.0                     # 网格细分最大边长（世界单位），越小地形越细腻
 
@@ -206,7 +207,7 @@ func _update_labels() -> void:
 func _setup_labels() -> void:
 	_labels = MapLabels.new()
 	add_child(_labels)
-	_labels.setup(ThemeDB.fallback_font, _heightmap)
+	_labels.setup(load(LABEL_FONT_PATH) as Font, _heightmap)
 	# 收集省份顶点
 	var province_verts := {}
 	var country_verts := {}
