@@ -91,7 +91,7 @@ void vertex() {
 // - 连续渐变（h=0 纯绿，h 一有变化立即渐变）
 // - 雪线随纬度：北低（低地也雪）→ 南高（只有高山有雪）
 vec3 terrain_palette(float h, float lat) {
-	vec3 base = mix(vec3(0.48, 0.64, 0.42), vec3(0.55, 0.78, 0.46), lat);   // 草地更清亮
+	vec3 base = mix(vec3(0.42, 0.64, 0.38), vec3(0.48, 0.78, 0.40), lat);   // 草地更绿（降R，抵消羊皮纸黄）
 	vec3 hill = mix(vec3(0.62, 0.60, 0.52), vec3(0.78, 0.70, 0.42), lat);
 	vec3 rock = mix(vec3(0.68, 0.64, 0.60), vec3(0.80, 0.62, 0.44), lat);
 	float t1 = smoothstep(0.0, 0.3, h);     // 绿 → 丘陵
