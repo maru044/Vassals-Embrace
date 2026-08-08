@@ -5,6 +5,7 @@ extends Node3D
 
 const COUNTRY_COLORS_PATH := "res://data/country_colors.json"
 const SHIELD_DIR := "res://assets/shields/"
+const DETAIL_BG_PATH := "res://assets/ui/country_detail_bg.png"   # 详情栏装饰背景（Gemini 生成）
 const UI_SLIDE_SECONDS := 0.6
 const UI_FADE_SECONDS := 0.4
 
@@ -95,8 +96,9 @@ func _build_select_layer() -> void:
 		var id: String = c.get("id", "")
 		_shield_buttons[id] = _make_shield_button(id)
 
-	# 右侧：简介面板（可交互，接收点击）——明确 anchor，避免负宽
-	var info := PanelContainer.new()
+	# 右侧：简介面板（可交互，接收点击）——明确 anchor，避免负宽。
+	# 背景 = Gemini 生成的 EU 风装饰图（拉伸铺满容器，Master 手动调容器框大小）。
+	var info := Control.new()
 	info.anchor_left = 0.66
 	info.anchor_right = 1.0
 	info.anchor_top = 0.0
@@ -108,7 +110,15 @@ func _build_select_layer() -> void:
 	info.mouse_filter = Control.MOUSE_FILTER_STOP
 	root.add_child(info)
 
+	var bg := TextureRect.new()
+	bg.texture = load(DETAIL_BG_PATH) if ResourceLoader.exists(DETAIL_BG_PATH) else null
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE   # 拉伸铺满容器
+	bg.stretch_mode = TextureRect.STRETCH_SCALE       # 拉伸（跟随容器框，Master 手动调）
+	info.add_child(bg)
+
 	var margin := MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	margin.add_theme_constant_override("margin_left", 26)
 	margin.add_theme_constant_override("margin_top", 26)
 	margin.add_theme_constant_override("margin_right", 26)
