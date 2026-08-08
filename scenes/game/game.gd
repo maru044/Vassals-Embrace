@@ -182,12 +182,12 @@ func _format_ruler(c: Dictionary) -> String:
 
 ## 资料栏：政体 / 文化 / 首都 / 地位 —— 写入 2 列 GridContainer（每行两个，自动对齐）
 func _update_stats(c: Dictionary) -> void:
-	var gov := _GOV_CN.get(c.get("government", ""), c.get("government", ""))
-	var culture := _CULTURE_CN.get(c.get("culture_group", ""), c.get("culture_group", ""))
+	var gov: String = _GOV_CN.get(c.get("government", ""), c.get("government", ""))
+	var culture: String = _CULTURE_CN.get(c.get("culture_group", ""), c.get("culture_group", ""))
 	var race: String = c.get("race", "")
 	var capital: String = c.get("capital", "—")
 	var liege: String = c.get("liege", "")
-	var status := "独立政权"
+	var status: String = "独立政权"
 	if liege and _country_index.has(liege):
 		status = "%s的附庸" % _countries[_country_index[liege]].get("name", liege)
 	_info_stats.get_node("Stat1").text = "政体：%s" % gov
