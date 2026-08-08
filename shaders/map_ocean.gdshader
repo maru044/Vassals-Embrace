@@ -5,10 +5,10 @@
 shader_type spatial;
 render_mode world_vertex_coords, cull_disabled;
 
-// ---- 对齐（距离场覆盖整个海洋平面，用 ocean 范围非高度图范围）----
+// ---- 对齐（距离场覆盖地图+外扩，用 ocean 范围非高度图范围）----
 uniform sampler2D sea_dist : source_color, filter_linear, repeat_disable;
-uniform vec2 ocean_min = vec2(-16.6, -28.15);
-uniform vec2 ocean_size = vec2(32.9, 43.45);
+uniform vec2 ocean_min = vec2(-19.1, -30.65);
+uniform vec2 ocean_size = vec2(37.9, 48.45);
 uniform float max_dist = 8.0;     // 距离场 clamp 上限（米），与 gen_sea_distance.py 一致
 uniform float zoom = 0.5;         // 0=远 1=近（联动白浪/波动强度）
 uniform float terrain_blend = 0.0; // 0=平面 1=立体（白浪/波动随近景增强）
@@ -74,11 +74,12 @@ void fragment() {
 	float near = terrain_blend * smoothstep(0.25, 0.8, zoom);
 
 	// ① 海洋色带：近海浅色（浅蓝青）紧贴海岸线 → 远海深色（深蓝）。
-	// 向内（远离岸方向）平缓渐变：范围宽，无突兀过渡。
+	// 向内（远离岸方向）平缓渐变，范围上界 2.5m < 纹理外扩 4.0m，保证纹理内渐变完
+	// 成到深色、边缘像素即深色（clamp 无影响）。
 	vec3 near_col = vec3(0.42, 0.56, 0.60);  // 近海浅色（浅蓝青）
 	vec3 far_col  = vec3(0.07, 0.18, 0.32);  // 远海深色（深蓝）
-	// 近岸权重：宽范围 smoothstep 平缓渐变（0.3~3.5m）
-	float shallow_w = 1.0 - smoothstep(0.3, 3.5, dist_m);
+	// 近岸权重：smoothstep 平缓渐变（0.3~2.5m，纹理内完成）
+	float shallow_w = 1.0 - smoothstep(0.3, 2.5, dist_m);
 	vec3 c = mix(far_col, near_col, shallow_w);
 
 	// ② fbm 波动：时间流动噪声 → 微调明暗 + 扰动法线（波浪反光）

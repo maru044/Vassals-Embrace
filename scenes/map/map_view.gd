@@ -15,7 +15,7 @@ const SEA_DISTANCE_PATH := "res://assets/map/sea_distance.png"
 const LABEL_FONT_PATH := "res://assets/fonts/TimesNewRoman-Bold.ttf"   # V3 古典衬线加粗
 const LAND_BASE_COLOR := Color(0.75, 0.72, 0.62)   # 陆地基底中性色
 const SUBDIVIDE_MAX_EDGE := 1.0                     # 网格细分最大边长（世界单位），越小地形越细腻
-const OCEAN_MARGIN := 1.5                           # 海洋平面超出地图范围的外扩（世界单位）
+const OCEAN_MARGIN := 4.0                           # 距离场/海洋平面外扩（须覆盖近海渐变上界 2.5m，与 gen_sea_distance.py 一致）
 const OCEAN_Y := -0.03                              # 海洋平面 y（略低于陆地基底 y=0，陆地遮挡海洋）
 
 # 相机（EU4 式）：俯角随缩放变化，yaw 固定从南看北（南在屏幕下，北退远）
