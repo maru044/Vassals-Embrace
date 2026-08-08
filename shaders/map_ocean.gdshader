@@ -88,9 +88,9 @@ void fragment() {
 	c *= 1.0 + wave * 0.07 * near;
 	vec3 N = normalize(vec3(wave * 0.05, 1.0, wave * 0.04));
 
-	// ③ 近海白浪（foam）：范围扩大到整片近海（0.1~2.0m），自然渐消融入深海。
+	// ③ 近海白浪（foam）：范围适中（0.05~0.6m），自然渐消融入深海。
 	// 泡沫不是均匀描边：用 fbm 破碎调制强度（斑块强弱不均），随距离平滑衰减归零。
-	float foam_mask = 1.0 - smoothstep(0.1, 2.0, dist_m);   // 岸线 1.0 → 2m 处 0.0
+	float foam_mask = 1.0 - smoothstep(0.05, 0.6, dist_m);  // 岸线 1.0 → 0.6m 处 0.0
 	float brk = smoothstep(0.12, 0.6, fbm(uv * 6.0 + vec2(t * 0.6, t * 0.5)));
 	float foam_strength = foam_mask * mix(0.35, 1.0, brk) * near;
 	vec3 foam = mix(c, vec3(0.97, 0.99, 1.0), 0.9);
