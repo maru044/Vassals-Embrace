@@ -15,8 +15,8 @@ uniform float terrain_blend = 0.0; // 0=平面 1=立体（白浪/波动随近景
 
 // ---- 水面细节（法线贴图 + 朝阳天空反射）----
 uniform sampler2D water_normal : source_color, filter_linear, repeat_enable;
-uniform float normal_tile = 3.0;    // 法线贴图世界尺度（米/格，越大波浪越宽、防摩尔纹）
-uniform float normal_strength = 0.28; // 法线扰动强度（近景为主）
+uniform float normal_tile = 4.5;    // 法线贴图世界尺度（米/格，越大波浪越宽、防摩尔纹）
+uniform float normal_strength = 0.18; // 法线扰动强度（近景为主，波浪更低缓）
 uniform sampler2D sky_panorama : source_color, filter_linear, repeat_disable; // 朝阳 HDRI 反射采样
 
 varying vec2 v_world;   // 世界 XZ
