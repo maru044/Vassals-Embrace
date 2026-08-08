@@ -30,7 +30,6 @@ var _selected: int = -1             # 当前选中国家下标
 
 # ---- 国家选择层节点（代码构建）----
 var _select_root: Control = null
-var _grid: GridContainer = null
 var _info_title: Label = null
 var _info_ruler: Label = null    # 统治者（称号）独立行
 var _info_stats: GridContainer = null   # 政体/文化/首都/地位 2×2 资料栏（GridContainer）
@@ -106,17 +105,41 @@ func _build_select_layer() -> void:
 	scroll.mouse_filter = Control.MOUSE_FILTER_PASS
 	root.add_child(scroll)
 
-	var grid := GridContainer.new()
-	grid.columns = 5
-	grid.add_theme_constant_override("h_separation", 14)
-	grid.add_theme_constant_override("v_separation", 14)
-	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(grid)
-	_grid = grid
+	# 上下分栏：上=推荐国家，下=所有国家（盾徽不再混排）
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	scroll.add_child(vbox)
+
+	var rec_label := Label.new()
+	rec_label.text = "推荐国家"
+	rec_label.add_theme_font_size_override("font_size", 22)
+	rec_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.add_child(rec_label)
+
+	var rec_grid := GridContainer.new()
+	rec_grid.columns = 5
+	rec_grid.add_theme_constant_override("h_separation", 14)
+	rec_grid.add_theme_constant_override("v_separation", 14)
+	rec_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(rec_grid)
+
+	var all_label := Label.new()
+	all_label.text = "所有国家"
+	all_label.add_theme_font_size_override("font_size", 22)
+	all_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.add_child(all_label)
+
+	var all_grid := GridContainer.new()
+	all_grid.columns = 5
+	all_grid.add_theme_constant_override("h_separation", 14)
+	all_grid.add_theme_constant_override("v_separation", 14)
+	all_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(all_grid)
 
 	for c in _countries:
 		var id: String = c.get("id", "")
-		_shield_buttons[id] = _make_shield_button(id, c.get("recommended", false))
+		var rec: bool = c.get("recommended", false)
+		_shield_buttons[id] = _make_shield_button(id, rec, rec_grid if rec else all_grid)
 
 	# 右侧：简介面板——独立子场景 country_detail.tscn（布局/背景/按钮全在编辑器里手动对齐）。
 	# 这里只实例化 + 接动态文本，尺寸调整不用再改代码。
@@ -131,7 +154,7 @@ func _build_select_layer() -> void:
 	_style_detail_confirm()
 
 
-func _make_shield_button(id: String, recommended: bool) -> TextureButton:
+func _make_shield_button(id: String, recommended: bool, grid: GridContainer) -> TextureButton:
 	var path := SHIELD_DIR + id + ".png"
 	var tex: Texture2D = load(path) if ResourceLoader.exists(path) else null
 	# EU4 式：纯盾徽、无文字、无默认灰底、统一尺寸（名字只在右侧详情显示）。
@@ -152,7 +175,7 @@ func _make_shield_button(id: String, recommended: bool) -> TextureButton:
 		star.offset_top = -6
 		star.offset_right = 4
 		btn.add_child(star)
-	_grid.add_child(btn)
+	grid.add_child(btn)
 	return btn
 
 
