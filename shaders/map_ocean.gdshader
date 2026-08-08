@@ -93,10 +93,17 @@ void fragment() {
 	float wave = fbm(wp + vec2(t, t * 0.7));
 	c *= 1.0 + wave * 0.07 * near;
 
-	// 法线：fbm 基座 + 水面法线贴图 tile 叠加（近景强、远景弱），波浪细节更真实
+	// 法线：fbm 基座 + 水面法线贴图 tile 叠加（近景强、远景弱），波浪细节更真实。
+	// 域扭曲（Domain Warping）：低频噪声做 UV 偏移，各区域移动方向/速度不同 → 随机湍流波动，
+	// 避免整张贴图沿单一方向平行移动（现代水面标准做法）。
 	vec3 N = normalize(vec3(wave * 0.05, 1.0, wave * 0.04));
 	if (near > 0.01) {
-		vec2 nuv = v_world / normal_tile + vec2(t * 0.03, t * 0.02);
+		vec2 flow = vec2(t * 0.06, t * 0.05);
+		vec2 warp = vec2(
+			fbm(v_world * 0.12 + flow),
+			fbm(v_world * 0.12 + flow + vec2(7.3, 3.1))
+		) * 0.6;   // 空间低频噪声 → 湍流偏移（不同区域不同）
+		vec2 nuv = v_world / normal_tile + warp + flow * 0.25;
 		vec3 nrm = texture(water_normal, nuv).rgb * 2.0 - 1.0;
 		float ns = normal_strength * near;
 		N = normalize(vec3(N.x + nrm.x * ns, 1.0, N.z + nrm.y * ns));
