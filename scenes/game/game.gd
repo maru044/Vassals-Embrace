@@ -54,14 +54,10 @@ func _build_select_layer() -> void:
 
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# 关键：根不拦截鼠标 → 地图可点击选国（EU4 式透明浮现，无灰色滤镜）
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	canvas.add_child(root)
 	_select_root = root
-
-	# 半透明深色底（叠在地图上，地图仍可见）
-	var bg := ColorRect.new()
-	bg.color = Color(0.08, 0.10, 0.14, 0.92)
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_child(bg)
 
 	var title := Label.new()
 	title.text = "选择你的国家"
@@ -70,15 +66,18 @@ func _build_select_layer() -> void:
 	title.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	title.offset_top = 24
 	title.offset_bottom = 80
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(title)
 
-	# 左侧：盾徽滚动网格（27 国）
+	# 左侧：盾徽滚动网格（27 国），透明浮在地图上。
+	# PASS：空白区域穿透 → 地图仍可点击选国；盾徽按钮自身 STOP 可点。
 	var scroll := ScrollContainer.new()
 	scroll.set_anchors_preset(Control.PRESET_LEFT_WIDE)
 	scroll.offset_left = 40
 	scroll.offset_top = 100
 	scroll.offset_right = -520
 	scroll.offset_bottom = -90
+	scroll.mouse_filter = Control.MOUSE_FILTER_PASS
 	root.add_child(scroll)
 
 	var grid := GridContainer.new()
@@ -93,13 +92,14 @@ func _build_select_layer() -> void:
 		var id: String = c.get("id", "")
 		_shield_buttons[id] = _make_shield_button(id)
 
-	# 右侧：简介面板
+	# 右侧：简介面板（可交互，接收点击）
 	var info := PanelContainer.new()
 	info.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
 	info.offset_left = 40
 	info.offset_right = -40
 	info.offset_top = 110
 	info.offset_bottom = -150
+	info.mouse_filter = Control.MOUSE_FILTER_STOP
 	root.add_child(info)
 
 	var margin := MarginContainer.new()
@@ -136,13 +136,16 @@ func _build_select_layer() -> void:
 	vbox.add_child(_confirm)
 
 
-func _make_shield_button(id: String) -> TextureButton:
+func _make_shield_button(id: String) -> Button:
 	var path := SHIELD_DIR + id + ".png"
 	var tex: Texture2D = load(path) if ResourceLoader.exists(path) else null
-	var btn := TextureButton.new()
-	btn.texture_normal = tex
-	btn.custom_minimum_size = Vector2(120, 150)
-	btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+	# 用 Button（含文字国家名），盾徽贴图作 icon——保证始终可见、可点击
+	var btn := Button.new()
+	btn.text = id
+	btn.icon = tex
+	btn.expand_icon = true
+	btn.custom_minimum_size = Vector2(130, 150)
+	btn.add_theme_font_size_override("font_size", 15)
 	btn.pressed.connect(_on_shield_pressed.bind(id))
 	_grid.add_child(btn)
 	return btn
@@ -204,8 +207,8 @@ func _build_game_layer() -> void:
 
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	# 初始在屏幕右外，确认后滑入
-	root.position.x = 1920.0
+	# 初始在屏幕右外，确认后滑入（用实际窗口宽度，防不同分辨率错位）
+	root.position.x = get_viewport().get_visible_rect().size.x
 	canvas.add_child(root)
 	_game_root = root
 
