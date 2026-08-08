@@ -32,7 +32,9 @@ func setup(font: Font, heightmap: Texture2D) -> void:
 func add_label(text: String, verts: PackedVector3Array, kind: int) -> void:
 	if _font == null or text.is_empty() or verts.size() < 3:
 		return
-	text = text.to_upper()   # V3：区域地名全大写（地理测绘庄严感）
+	# V3：仅近景省名全大写（地理测绘感）；中远景（国名/宗主名）保持原样
+	if kind == Kind.PROVINCE:
+		text = text.to_upper()
 	var spine: Dictionary = LabelPath.compute_spine(verts)
 	var pts: PackedVector3Array = spine["points"]
 	var len: float = spine["length"]
