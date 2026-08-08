@@ -23,7 +23,8 @@ var _selected: int = -1             # 当前选中国家下标
 var _select_root: Control = null
 var _grid: GridContainer = null
 var _info_title: Label = null
-var _info_stats: Label = null    # 政体/文化/首都/地位 资料栏（独立标签）
+var _info_ruler: Label = null    # 统治者（称号）独立行
+var _info_stats: GridContainer = null   # 政体/文化/首都/地位 2×2 资料栏（GridContainer）
 var _info_desc: Label = null     # 性格简介（独立标签）
 var _confirm: Button = null
 var _shield_buttons: Dictionary = {} # id -> TextureButton
@@ -113,6 +114,7 @@ func _build_select_layer() -> void:
 	var info := CountryDetailScene.instantiate()
 	root.add_child(info)
 	_info_title = info.get_node("Title")
+	_info_ruler = info.get_node("Ruler")
 	_info_stats = info.get_node("Stats")
 	_info_desc = info.get_node("Desc")
 	_confirm = info.get_node("Confirm")
@@ -160,7 +162,8 @@ func _select_country(id: String) -> void:
 	_selected = _country_index[id]
 	var c: Dictionary = _countries[_selected]
 	_info_title.text = "1400 年的 %s" % c.get("name", id)
-	_info_stats.text = _format_country_stats(c)
+	_info_ruler.text = _format_ruler(c)
+	_update_stats(c)
 	_info_desc.text = c.get("bio", "")
 	_confirm.disabled = false
 	# 高亮：复位所有盾徽 → 选中描边（用 modulate 区分）
@@ -170,25 +173,27 @@ func _select_country(id: String) -> void:
 		_shield_buttons[id].modulate = Color.WHITE
 
 
-## 详情栏「资料栏」文本：统治者（称号）/ 政体 / 文化种族 / 首都 / 宗附庸地位
-## 独立标签（country_detail.tscn 的 Stats），供 Master 单独调整位置；性格简介单独在 Desc 标签。
-func _format_country_stats(c: Dictionary) -> String:
-	var lines: Array[String] = []
+## 统治者行：名字（称号），独立 Label（country_detail.tscn 的 Ruler）
+func _format_ruler(c: Dictionary) -> String:
 	var ruler: String = c.get("ruler", "")
 	var title: String = c.get("title", "")
-	lines.append("%s（%s）" % [ruler, title] if ruler else "")
-	var gov: String = c.get("government", "")
-	lines.append("政体：%s" % _GOV_CN.get(gov, gov))
-	var culture: String = c.get("culture_group", "")
-	lines.append("文化：%s（%s）" % [_CULTURE_CN.get(culture, culture), c.get("race", "")])
-	lines.append("首都：%s" % c.get("capital", "—"))
+	return "%s（%s）" % [ruler, title] if ruler else ""
+
+
+## 资料栏：政体 / 文化 / 首都 / 地位 —— 写入 2 列 GridContainer（每行两个，自动对齐）
+func _update_stats(c: Dictionary) -> void:
+	var gov := _GOV_CN.get(c.get("government", ""), c.get("government", ""))
+	var culture := _CULTURE_CN.get(c.get("culture_group", ""), c.get("culture_group", ""))
+	var race: String = c.get("race", "")
+	var capital: String = c.get("capital", "—")
 	var liege: String = c.get("liege", "")
+	var status := "独立政权"
 	if liege and _country_index.has(liege):
-		var liege_name: String = _countries[_country_index[liege]].get("name", liege)
-		lines.append("地位：%s的附庸" % liege_name)
-	else:
-		lines.append("地位：独立政权")
-	return "\n".join(lines)
+		status = "%s的附庸" % _countries[_country_index[liege]].get("name", liege)
+	_info_stats.get_node("Stat1").text = "政体：%s" % gov
+	_info_stats.get_node("Stat2").text = "文化：%s（%s）" % [culture, race]
+	_info_stats.get_node("Stat3").text = "首都：%s" % capital
+	_info_stats.get_node("Stat4").text = "地位：%s" % status
 
 
 func _on_confirm_pressed() -> void:
