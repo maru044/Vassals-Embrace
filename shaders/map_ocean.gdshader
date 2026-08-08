@@ -76,7 +76,7 @@ void fragment() {
 	// ① 海洋色带：近海与远海颜色接近，仅轻微变色（近海略亮一档的蓝青）。
 	// 平缓渐变，范围上界 2.5m < 纹理外扩 4.0m，纹理内渐变完成。
 	vec3 near_col = vec3(0.14, 0.26, 0.40);  // 近海蓝青（比远海略亮）
-	vec3 far_col  = vec3(0.08, 0.18, 0.30);  // 远海深蓝（差异很小）
+	vec3 far_col  = vec3(0.04, 0.12, 0.22);  // 远海深蓝（加深深度）
 	// 近岸权重：smoothstep 平缓渐变（0.3~2.5m，纹理内完成）
 	float shallow_w = 1.0 - smoothstep(0.3, 2.5, dist_m);
 	vec3 c = mix(far_col, near_col, shallow_w);
