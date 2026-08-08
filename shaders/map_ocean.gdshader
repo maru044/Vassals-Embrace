@@ -73,14 +73,13 @@ void fragment() {
 	// 近景系数（白浪/波动随接近增强）
 	float near = terrain_blend * smoothstep(0.25, 0.8, zoom);
 
-	// ① 等深线色带（古典地图：近海深蓝 → 远海淡色水彩）：
-	// 墨色浓在海岸线（深蓝），向远海扩散变淡（淡蓝泛白），紧贴陆地轮廓。
-	vec3 near_col = vec3(0.06, 0.16, 0.30);  // 近海深蓝
-	vec3 far_col  = vec3(0.46, 0.55, 0.60);  // 远海淡蓝（水彩晕染，泛白）
-	// 近岸权重（0~1.5m 收窄紧贴海岸线），阶梯量化切成 3 段等深线
-	float shallow_w = 1.0 - smoothstep(0.15, 1.5, dist_m);
-	float band = floor(shallow_w * 3.0 + 0.5) / 3.0;
-	vec3 c = mix(far_col, near_col, band);   // 近岸=深蓝、远海=淡色
+	// ① 海洋色带（古典地图水彩：近海较深蓝 → 远海稍淡，但自然平滑渐变）：
+	// 近海比远海深一点、但不太深；远海稍深于上一版、不泛白。平滑过渡无水彩突变。
+	vec3 near_col = vec3(0.12, 0.22, 0.36);  // 近海深蓝（略淡，自然）
+	vec3 far_col  = vec3(0.38, 0.47, 0.55);  // 远海（略深，不泛白）
+	// 近岸权重：扩散范围在初始(0.3~3m)与上一版(0.15~1.5m)之间，平滑渐变
+	float shallow_w = 1.0 - smoothstep(0.25, 2.4, dist_m);
+	vec3 c = mix(far_col, near_col, shallow_w);
 
 	// ② fbm 波动：时间流动噪声 → 微调明暗 + 扰动法线（波浪反光）
 	vec2 wp = uv * 3.0;
