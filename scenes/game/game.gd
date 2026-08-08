@@ -13,6 +13,15 @@ const UI_FADE_SECONDS := 0.4
 const _GOV_CN := {"monarchy": "君主制", "tribal": "部落制", "theocracy": "神权制", "piracy": "海盗制"}
 const _CULTURE_CN := {"english": "英格兰文化", "celtic": "凯尔特文化", "norse": "诺斯文化"}
 
+# ===== 羊皮纸噪声按钮参数（复用主菜单同款：运行时烘焙斑驳贴图） =====
+const _PARCHMENT_BASE := Color(0.86, 0.72, 0.46)      # 羊皮纸暖金基色
+const _PARCHMENT_HOVER := Color(0.98, 0.85, 0.6)      # hover 亮金
+const _PARCHMENT_STRENGTH := 0.035                     # 斑驳强度（±3.5%）
+const _BORDER_COLOR := Color(0.55, 0.38, 0.15)        # 金棕描边
+const _BORDER_WIDTH := 4                               # 边框像素
+const _SHADOW_RING := 5                                # 外圈软阴影像素
+const _TEXTURE_SIZE := 256                             # 噪声贴图边长
+
 @onready var _map_view: Node = $MapView
 
 var _countries: Array = []          # {id, name, color}
@@ -119,6 +128,7 @@ func _build_select_layer() -> void:
 	_info_desc = info.get_node("Desc")
 	_confirm = info.get_node("Confirm")
 	_confirm.pressed.connect(_on_confirm_pressed)
+	_style_detail_confirm()
 
 
 func _make_shield_button(id: String, recommended: bool) -> TextureButton:
@@ -144,6 +154,73 @@ func _make_shield_button(id: String, recommended: bool) -> TextureButton:
 		btn.add_child(star)
 	_grid.add_child(btn)
 	return btn
+
+
+## ===== 详情栏「开始游戏」按钮：金边羊皮纸噪声（与主菜单同款） =====
+func _style_detail_confirm() -> void:
+	var normal_tex := _make_plaque_texture(_PARCHMENT_BASE, _PARCHMENT_STRENGTH)
+	var hover_tex := _make_plaque_texture(_PARCHMENT_HOVER, _PARCHMENT_STRENGTH)
+	_confirm.add_theme_stylebox_override("normal", _make_plaque_stylebox(normal_tex))
+	_confirm.add_theme_stylebox_override("hover", _make_plaque_stylebox(hover_tex))
+	_confirm.add_theme_stylebox_override("pressed", _make_plaque_stylebox(hover_tex))
+	var disabled_sb := StyleBoxFlat.new()
+	disabled_sb.bg_color = Color(0.8, 0.76, 0.66, 0.85)       # 灰羊皮纸（禁用态）
+	disabled_sb.border_width_left = 2
+	disabled_sb.border_width_top = 2
+	disabled_sb.border_width_right = 2
+	disabled_sb.border_width_bottom = 2
+	disabled_sb.border_color = Color(0.62, 0.58, 0.48, 0.8)
+	disabled_sb.set_corner_radius_all(12)
+	_confirm.add_theme_stylebox_override("disabled", disabled_sb)
+
+
+static func _make_plaque_stylebox(tex: ImageTexture) -> StyleBoxTexture:
+	var sb := StyleBoxTexture.new()
+	sb.texture = tex
+	var m := _SHADOW_RING + _BORDER_WIDTH
+	sb.texture_margin_left = m
+	sb.texture_margin_top = m
+	sb.texture_margin_right = m
+	sb.texture_margin_bottom = m
+	sb.expand_margin_left = _SHADOW_RING
+	sb.expand_margin_top = _SHADOW_RING
+	sb.expand_margin_right = _SHADOW_RING
+	sb.expand_margin_bottom = _SHADOW_RING
+	sb.content_margin_left = 16.0
+	sb.content_margin_top = 8.0
+	sb.content_margin_right = 16.0
+	sb.content_margin_bottom = 8.0
+	return sb
+
+
+static func _make_plaque_texture(base: Color, strength: float) -> ImageTexture:
+	var noise := FastNoiseLite.new()
+	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
+	noise.frequency = 0.09
+	noise.fractal_octaves = 2
+	noise.fractal_gain = 0.5
+	var img := Image.create(_TEXTURE_SIZE, _TEXTURE_SIZE, false, Image.FORMAT_RGBA8)
+	for y in _TEXTURE_SIZE:
+		for x in _TEXTURE_SIZE:
+			img.set_pixel(x, y, _plaque_pixel(base, strength, noise, x, y))
+	return ImageTexture.create_from_image(img)
+
+
+static func _plaque_pixel(base: Color, strength: float, noise: FastNoiseLite, x: int, y: int) -> Color:
+	var d := mini(mini(x, _TEXTURE_SIZE - 1 - x), mini(y, _TEXTURE_SIZE - 1 - y))
+	if d < _SHADOW_RING:
+		# 外圈软阴影：透明 → 半透明深棕
+		var t := float(d) / float(_SHADOW_RING)
+		return Color(0.25, 0.17, 0.09, 0.0).lerp(Color(0.25, 0.17, 0.09, 0.32), t)
+	var dd := d - _SHADOW_RING
+	if dd < _BORDER_WIDTH:
+		# 金棕边框（外深内浅，微浮雕）
+		var t := float(dd) / float(_BORDER_WIDTH)
+		return _BORDER_COLOR.lerp(base.darkened(0.18), t)
+	# 羊皮纸噪声中心：基色 × (1 ± 强度)，轻微斑驳加深减淡
+	var n := noise.get_noise_2d(x, y)
+	var f := 1.0 + n * strength
+	return Color(base.r * f, base.g * f, base.b * f, 1.0)
 
 
 func _on_shield_pressed(id: String) -> void:
