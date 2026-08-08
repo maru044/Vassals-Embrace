@@ -144,6 +144,10 @@ void fragment() {
 	float cloud = smoothstep(0.55, 0.8, fbm(wuv * 2.0 + vec2(TIME * 0.08, TIME * 0.06)) * 0.5 + 0.5);
 	c = mix(c, c * vec3(0.78, 0.85, 0.96) + vec3(0.02, 0.05, 0.12), (1.0 - grass_mask) * cloud_strength * 0.3 * cloud);
 
+	// 羊皮纸质感：Simplex 细密微噪点 multiply（微弱 ±6%），去塑料感/加纸糙感（静态纸张纹理）
+	float paper_n = snoise(v_world * 1.6);
+	c *= 1.0 - paper_n * 0.06;
+
 	// 选中省份高亮闪烁：提亮 + 略泛白
 	vec3 hl = c * 1.35 + vec3(0.15);
 	c = mix(c, hl, highlight);
