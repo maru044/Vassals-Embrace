@@ -88,13 +88,13 @@ void fragment() {
 	c *= 1.0 + wave * 0.07 * near;
 	vec3 N = normalize(vec3(wave * 0.05, 1.0, wave * 0.04));
 
-	// ③ 近海白浪（foam）：贴岸白沫 + 高密度 fbm 破碎闪烁。
-	// 近海深蓝用大量白浪中和（密度加强：频率↑ 阈值↓ 混合↑）。
-	float foam_mask = 1.0 - smoothstep(0.02, 0.15, dist_m);
+	// ③ 近海白浪（foam）：范围扩大到整片近海（0.1~2.0m），自然渐消融入深海。
+	// 泡沫不是均匀描边：用 fbm 破碎调制强度（斑块强弱不均），随距离平滑衰减归零。
+	float foam_mask = 1.0 - smoothstep(0.1, 2.0, dist_m);   // 岸线 1.0 → 2m 处 0.0
 	float brk = smoothstep(0.12, 0.6, fbm(uv * 6.0 + vec2(t * 0.6, t * 0.5)));
-	foam_mask *= brk * near;
+	float foam_strength = foam_mask * mix(0.35, 1.0, brk) * near;
 	vec3 foam = mix(c, vec3(0.97, 0.99, 1.0), 0.9);
-	c = mix(c, foam, clamp(foam_mask, 0.0, 1.0));
+	c = mix(c, foam, clamp(foam_strength, 0.0, 1.0));
 
 	// ④ Fresnel 反光：掠射角提亮（水面反光感）
 	float fres = pow(1.0 - max(dot(N, v_view), 0.0), 4.0);
