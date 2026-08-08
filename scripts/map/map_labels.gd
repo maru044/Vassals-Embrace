@@ -127,6 +127,19 @@ func debug_show_spines(show: bool) -> void:
 		mi.visible = show
 
 
+## 清空所有标签与调试脊线（供领土变化后重建）
+func clear() -> void:
+	for l in _labels:
+		var root: Node = l.get("root", null)
+		if is_instance_valid(root):
+			root.queue_free()
+	_labels.clear()
+	for mi in _spine_lines:
+		if is_instance_valid(mi):
+			mi.queue_free()
+	_spine_lines.clear()
+
+
 func _build_spine_lines(pts: PackedVector3Array, ctrl: Array) -> void:
 	# 脊线（红色实线）
 	var im := ImmediateMesh.new()

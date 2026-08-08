@@ -36,6 +36,7 @@ var _shader_mats: Array = []          # 需每帧更新 zoom/terrain_blend 的�
 var _flash_name := ""                 # 当前选中省份（持续高亮呼吸）
 var _flash_time := 0.0                # 呼吸计时
 var _labels: MapLabels = null
+var _country_data := {}               # id -> {color, liege, liege_color}
 var _top_liege_of := {}               # country -> 最上级宗主
 var _show_spines := false             # F9：脊线调试可视化开关
 var _hmin := Vector2(-15.1, -26.65)   # 高度图采样：左上角世界坐标（可手动微调）
@@ -208,6 +209,38 @@ func _setup_labels() -> void:
 	_labels = MapLabels.new()
 	add_child(_labels)
 	_labels.setup(load(LABEL_FONT_PATH) as Font, _heightmap)
+	_build_labels()
+
+
+## 按当前 _owners / _country_data 重建所有标签（供领土变化后调用）。
+## 例：威尔士独立后传新的 province_owner / country_colors，英格兰的字号/范围/宗主名自动适配。
+func refresh_labels(new_owners: Dictionary = {}, new_country_data: Dictionary = {}) -> void:
+	if not new_owners.is_empty():
+		_owners = new_owners
+	if not new_country_data.is_empty():
+		_country_data = new_country_data
+		_update_liege_map()
+	if _labels == null:
+		return
+	_labels.clear()
+	_build_labels()
+
+
+## 从 _country_data 重算最上级宗主映射（附庸套附庸）
+func _update_liege_map() -> void:
+	_top_liege_of.clear()
+	for id in _country_data:
+		var top: String = _country_data[id].get("liege", "") as String
+		var guard := 0
+		while not top.is_empty() and _country_data.has(top) and not (_country_data[top].get("liege", "") as String).is_empty() and guard < 16:
+			top = _country_data[top].get("liege", "") as String
+			guard += 1
+		_top_liege_of[id] = top if (not top.is_empty() and _country_data.has(top)) else id
+
+
+func _build_labels() -> void:
+	if _labels == null:
+		return
 	# 收集省份顶点
 	var province_verts := {}
 	var country_verts := {}
@@ -251,9 +284,10 @@ func _mesh_verts(mesh: Mesh) -> PackedVector3Array:
 
 func _apply_colors() -> void:
 	_owners = _load_json(MAP_DATA_PATH).get("province_owner", {})
-	var country_data := _load_country_data()   # id -> {color, liege}
+	_country_data = _load_country_data()   # id -> {color, liege}
+	_update_liege_map()
 	var mats := {}
-	_process_node(_map, _owners, country_data, mats)
+	_process_node(_map, _owners, _country_data, mats)
 
 
 func _process_node(node: Node, owners: Dictionary, country_data: Dictionary, mats: Dictionary) -> void:
@@ -452,7 +486,6 @@ func _load_country_data() -> Dictionary:
 			by_id[id]["liege_color"] = by_id[top]["color"]
 		else:
 			by_id[id]["liege_color"] = by_id[id]["color"]
-		_top_liege_of[id] = top if (not top.is_empty() and by_id.has(top)) else id
 	return by_id
 
 
