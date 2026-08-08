@@ -1,5 +1,5 @@
 {
-  "comment": "国家数据全量库（27 国，id 为 string 且与 country_colors.json / 盾徽文件名对齐）。来源：游戏规则.md 第四章（统治者/性格）+ 历史环境.md（首都）。字段：id(标识)/name(中文名)/ruler(统治者中文全名)/ruler_en(英文全名)/government(政体)/title(称号)/culture_group(文化组)/race(种族)/capital(首都)/liege(宗主 id，空=独立)/recommended(推荐国)/bio(性格简介，供详情栏与 LLM 上下文)",
+  "comment": "国家数据全量库（27 国，id 为 string 且与 country_colors.json / 盾徽文件名对齐）。来源：游戏规则.md 第四章（统治者/性格）+ 历史环境.md（首都）。字段：id(标识)/name(中文名)/ruler(统治者中文全名)/ruler_en(英文全名)/government(政体)/title(称号)/culture_group(文化组)/race(种族)/capital(首都)/liege(宗主 id，空=独立)/recommended(推荐国)/bio(性格简介，供详情栏与 LLM 上下文)。排序：英格兰/苏格兰置顶（所有国家区前两位），推荐 5 国紧随（诺森伯兰/达勒姆/威尔士/群岛/蒂龙）",
   "countries": [
     {
       "id": "England",
@@ -12,8 +12,22 @@
       "race": "人类",
       "capital": "伦敦",
       "liege": "",
-      "recommended": true,
+      "recommended": false,
       "bio": "闷骚痴女：表面高傲优雅的女王，内心却日夜妄想被犬娘侵犯。威尔士起义与珀西叛乱对她而言是合意的游戏——两位主人轮流玩弄她的期待。"
+    },
+    {
+      "id": "Scotland",
+      "name": "苏格兰",
+      "ruler": "玛格丽特·斯图亚特",
+      "ruler_en": "Margaret Stewart",
+      "government": "monarchy",
+      "title": "公主",
+      "culture_group": "english",
+      "race": "人类",
+      "capital": "爱丁堡",
+      "liege": "",
+      "recommended": false,
+      "bio": "宠物主人：斯图亚特王朝的公主，温柔中带着掌控欲，喜欢把亲近的人当宠物宠爱。塞壬尤其喜欢她，把她当『饲主』，围着她蹭来蹭去。"
     },
     {
       "id": "Northumberland",
@@ -26,8 +40,64 @@
       "race": "人类",
       "capital": "诺森伯兰",
       "liege": "England",
-      "recommended": false,
+      "recommended": true,
       "bio": "野性战姬：北方战姬，骁勇刚烈。表面向英格兰称臣，内心桀骜不驯，1403 叛乱暗藏征服欲，想证明自己比宗主更强。"
+    },
+    {
+      "id": "Durham",
+      "name": "达勒姆",
+      "ruler": "塞西莉亚",
+      "ruler_en": "Cecilia",
+      "government": "theocracy",
+      "title": "采邑圣女",
+      "culture_group": "english",
+      "race": "人类",
+      "capital": "达勒姆",
+      "liege": "England",
+      "recommended": true,
+      "bio": "淫堕圣女：表面虔诚圣洁的采邑圣女，内心暗慕堕落——越克制越渴望被玷污，享受『圣女堕落』的背德快感。"
+    },
+    {
+      "id": "Wales",
+      "name": "威尔士",
+      "ruler": "欧文娜·格林杜尔",
+      "ruler_en": "Owena Glyndŵr",
+      "government": "monarchy",
+      "title": "公主",
+      "culture_group": "celtic",
+      "race": "犬娘",
+      "capital": "威尔士",
+      "liege": "England",
+      "recommended": true,
+      "bio": "犬娘叛军：犬娘旺盛的性欲驱动着叛乱——既是政治事业，也是情欲释放。垂涎高傲的人类公主罗莎蒙德，最想攻入伦敦『验收』这个闷骚痴女。开局即叛乱（1400.9）。"
+    },
+    {
+      "id": "The Isles",
+      "name": "群岛领地",
+      "ruler": "芙蕾雅",
+      "ruler_en": "Freya",
+      "government": "piracy",
+      "title": "栖姬",
+      "culture_group": "norse",
+      "race": "塞壬",
+      "capital": "群岛领地",
+      "liege": "",
+      "recommended": true,
+      "bio": "大姐头栖姬：北欧爱与美之神之名，性欲最强的大姐头。北欧-盖尔海盗政权，名义臣服苏格兰、实际高度自治，海盗联盟核心。"
+    },
+    {
+      "id": "Tyrone",
+      "name": "蒂龙",
+      "ruler": "内芙·奥尼尔",
+      "ruler_en": "Niamh O'Neill",
+      "government": "tribal",
+      "title": "犬姬",
+      "culture_group": "celtic",
+      "race": "犬娘",
+      "capital": "蒂龙",
+      "liege": "",
+      "recommended": true,
+      "bio": "众犬之首：奥尼尔家族的爱尔兰最强犬娘，阿尔斯特权力中心，最常出任至高王。犬耳最挺、吠声最响。喜欢打篮球。"
     },
     {
       "id": "Westmorland",
@@ -58,34 +128,6 @@
       "bio": "野心公主：王室旁支的野心公主，暗自觊觎英格兰王位。表面安分守礼，实则卧薪尝胆的争夺者。"
     },
     {
-      "id": "Durham",
-      "name": "达勒姆",
-      "ruler": "塞西莉亚",
-      "ruler_en": "Cecilia",
-      "government": "theocracy",
-      "title": "采邑圣女",
-      "culture_group": "english",
-      "race": "人类",
-      "capital": "达勒姆",
-      "liege": "England",
-      "recommended": false,
-      "bio": "淫堕圣女：表面虔诚圣洁的采邑圣女，内心暗慕堕落——越克制越渴望被玷污，享受『圣女堕落』的背德快感。"
-    },
-    {
-      "id": "Wales",
-      "name": "威尔士",
-      "ruler": "欧文娜·格林杜尔",
-      "ruler_en": "Owena Glyndŵr",
-      "government": "monarchy",
-      "title": "公主",
-      "culture_group": "celtic",
-      "race": "犬娘",
-      "capital": "威尔士",
-      "liege": "England",
-      "recommended": true,
-      "bio": "犬娘叛军：犬娘旺盛的性欲驱动着叛乱——既是政治事业，也是情欲释放。垂涎高傲的人类公主罗莎蒙德，最想攻入伦敦『验收』这个闷骚痴女。开局即叛乱（1400.9）。"
-    },
-    {
       "id": "Isle of Man",
       "name": "曼岛",
       "ruler": "莫娜·克罗文",
@@ -98,34 +140,6 @@
       "liege": "England",
       "recommended": false,
       "bio": "温柔岛姬：与世无争的岛国公主，温柔安静，在英格兰庇护下过着悠闲日子。后宫里的『乖孩子』，最依赖宗主。"
-    },
-    {
-      "id": "Scotland",
-      "name": "苏格兰",
-      "ruler": "玛格丽特·斯图亚特",
-      "ruler_en": "Margaret Stewart",
-      "government": "monarchy",
-      "title": "公主",
-      "culture_group": "english",
-      "race": "人类",
-      "capital": "爱丁堡",
-      "liege": "",
-      "recommended": true,
-      "bio": "宠物主人：斯图亚特王朝的公主，温柔中带着掌控欲，喜欢把亲近的人当宠物宠爱。塞壬尤其喜欢她，把她当『饲主』，围着她蹭来蹭去。"
-    },
-    {
-      "id": "The Isles",
-      "name": "群岛领地",
-      "ruler": "芙蕾雅",
-      "ruler_en": "Freya",
-      "government": "piracy",
-      "title": "栖姬",
-      "culture_group": "norse",
-      "race": "塞壬",
-      "capital": "群岛领地",
-      "liege": "",
-      "recommended": true,
-      "bio": "大姐头栖姬：北欧爱与美之神之名，性欲最强的大姐头。北欧-盖尔海盗政权，名义臣服苏格兰、实际高度自治，海盗联盟核心。"
     },
     {
       "id": "Orkney",
@@ -168,20 +182,6 @@
       "liege": "",
       "recommended": false,
       "bio": "凶猛护族：奥唐纳家族的西北豪族，凶猛护族的野性猎犬，守护爱尔兰西北门户。"
-    },
-    {
-      "id": "Tyrone",
-      "name": "蒂龙",
-      "ruler": "内芙·奥尼尔",
-      "ruler_en": "Niamh O'Neill",
-      "government": "tribal",
-      "title": "犬姬",
-      "culture_group": "celtic",
-      "race": "犬娘",
-      "capital": "蒂龙",
-      "liege": "",
-      "recommended": true,
-      "bio": "众犬之首：奥尼尔家族的爱尔兰最强犬娘，阿尔斯特权力中心，最常出任至高王。犬耳最挺、吠声最响。喜欢打篮球。"
     },
     {
       "id": "Ulster",
