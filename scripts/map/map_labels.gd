@@ -32,6 +32,7 @@ func setup(font: Font, heightmap: Texture2D) -> void:
 func add_label(text: String, verts: PackedVector3Array, kind: int) -> void:
 	if _font == null or text.is_empty() or verts.size() < 3:
 		return
+	text = text.to_upper()   # V3：区域地名全大写（地理测绘庄严感）
 	var spine: Dictionary = LabelPath.compute_spine(verts)
 	var pts: PackedVector3Array = spine["points"]
 	var len: float = spine["length"]
@@ -75,14 +76,16 @@ func add_label(text: String, verts: PackedVector3Array, kind: int) -> void:
 		lb.font = _font
 		lb.font_size = fs
 		lb.pixel_size = PIXEL_SIZE
-		# V3 对比度：近景地形图（省名）深棕墨色字+浅描边（雪地/地形上都可读）；中远景（国名/宗主名）奶油白+墨色描边
+		# V3 对比度：近景地形图（省名）极深棕黑#2C1A0B+微弱奶黄描边（雪地/浅色地形上清晰）；
+		# 中远景（国名/宗主名）奶油白+墨色宽描边（政治色块上清晰）
 		if kind == Kind.PROVINCE:
-			lb.modulate = Color(0.34, 0.26, 0.14)       # 深棕墨色
-			lb.outline_modulate = Color(0.96, 0.92, 0.82)  # 浅奶油描边
+			lb.modulate = Color(0.17, 0.10, 0.04)          # 极深棕黑 #2C1A0B
+			lb.outline_modulate = Color(0.95, 0.90, 0.78)  # 微弱奶黄描边（光晕感）
+			lb.outline_size = maxi(fs / 10, 1)             # 细描边（微弱）
 		else:
-			lb.modulate = Color(0.97, 0.93, 0.8)        # 奶油白
+			lb.modulate = Color(0.97, 0.93, 0.8)          # 奶油白
 			lb.outline_modulate = Color(0.1, 0.08, 0.06)   # 墨色描边
-		lb.outline_size = maxi(fs / 5, 2)                # 更宽描边（V3 式清晰）
+			lb.outline_size = maxi(fs / 5, 2)              # 宽描边
 		# 平铺在地面上（EU4 式）：关闭 billboard，文本平面躺平（法线朝 +Y），
 		# 绕 Y 轴对齐脊线切线在地面的投影，保持横向弧线感。
 		lb.billboard = BaseMaterial3D.BILLBOARD_DISABLED
