@@ -75,9 +75,14 @@ func add_label(text: String, verts: PackedVector3Array, kind: int) -> void:
 		lb.font = _font
 		lb.font_size = fs
 		lb.pixel_size = PIXEL_SIZE
-		lb.modulate = Color(0.97, 0.93, 0.8)      # 奶油白字（彩色地图上可读）
-		lb.outline_size = maxi(fs / 8, 2)          # 深色描边
-		lb.outline_modulate = Color(0.2, 0.15, 0.1)
+		# V3 对比度：近景地形图（省名）深棕墨色字+浅描边（雪地/地形上都可读）；中远景（国名/宗主名）奶油白+墨色描边
+		if kind == Kind.PROVINCE:
+			lb.modulate = Color(0.34, 0.26, 0.14)       # 深棕墨色
+			lb.outline_modulate = Color(0.96, 0.92, 0.82)  # 浅奶油描边
+		else:
+			lb.modulate = Color(0.97, 0.93, 0.8)        # 奶油白
+			lb.outline_modulate = Color(0.1, 0.08, 0.06)   # 墨色描边
+		lb.outline_size = maxi(fs / 5, 2)                # 更宽描边（V3 式清晰）
 		# 平铺在地面上（EU4 式）：关闭 billboard，文本平面躺平（法线朝 +Y），
 		# 绕 Y 轴对齐脊线切线在地面的投影，保持横向弧线感。
 		lb.billboard = BaseMaterial3D.BILLBOARD_DISABLED
