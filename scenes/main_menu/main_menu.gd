@@ -63,6 +63,7 @@ func _ready() -> void:
 	_volume_slider.value_changed.connect(_on_volume_changed)
 	_apply_startup_resolution()
 	_apply_parchment_buttons()
+	AudioManager.play_menu_music()
 
 
 func _on_start_pressed() -> void:
@@ -154,6 +155,7 @@ func _on_settings_save_pressed() -> void:
 	ConfigManager.autosave_interval = _autosave_option.get_item_metadata(_autosave_option.selected)
 	ConfigManager.save_config()
 	_apply_resolution()
+	AudioManager.apply_volume()
 	_settings_dialog.visible = false
 
 

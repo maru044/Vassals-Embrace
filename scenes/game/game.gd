@@ -52,6 +52,8 @@ func _ready() -> void:
 	_build_game_layer()
 	# 点地图选国：province_picked(province, country) → 定位国家并高亮
 	_map_view.province_picked.connect(_on_map_province_picked)
+	# 国家选择阶段：主旋律 BGM
+	AudioManager.play_menu_music()
 
 
 func _load_countries() -> void:
@@ -303,6 +305,7 @@ func _on_confirm_pressed() -> void:
 	EventBus.country_selected.emit(_selected)
 	EventBus.confirm_country.emit()
 	GameManager.start_new_game(_selected)
+	AudioManager.play_game_music()
 	_transition_to_game(id)
 
 

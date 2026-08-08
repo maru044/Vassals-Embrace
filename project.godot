@@ -26,6 +26,7 @@ EventBus="*res://scripts/core/event_bus.gd"
 ConfigManager="*res://scripts/core/config_manager.gd"
 GameManager="*res://scripts/core/game_manager.gd"
 SaveManager="*res://scripts/core/save_manager.gd"
+AudioManager="*res://scripts/core/audio_manager.gd"
 
 [display]
 
