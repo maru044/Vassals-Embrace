@@ -19,6 +19,7 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_top = -103.0
 offset_bottom = 145.0
 grow_horizontal = 2
 grow_vertical = 2
@@ -26,42 +27,44 @@ texture = ExtResource("1_bg")
 expand_mode = 1
 stretch_mode = 1
 
-[node name="Title" type="Label" parent="."]
+[node name="Title" type="Label" parent="." unique_id=1537018680]
 layout_mode = 0
-offset_left = 30.0
-offset_top = 26.0
-offset_right = 342.0
-offset_bottom = 66.0
+offset_left = 122.79993
+offset_top = 60.0
+offset_right = 452.79993
+offset_bottom = 102.0
 theme_override_colors/font_color = Color(0.247, 0.169, 0.078, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.25)
 theme_override_constants/shadow_offset_x = 0
 theme_override_constants/shadow_offset_y = 1
 theme_override_font_sizes/font_size = 30
+horizontal_alignment = 1
 text = "点击盾徽或地图上的国家"
 
-[node name="Ruler" type="Label" parent="."]
+[node name="Ruler" type="Label" parent="." unique_id=272777860]
 layout_mode = 0
-offset_left = 30.0
-offset_top = 70.0
-offset_right = 342.0
-offset_bottom = 100.0
+offset_left = 134.79993
+offset_top = 101.0
+offset_right = 446.79993
+offset_bottom = 132.0
 theme_override_colors/font_color = Color(0.271, 0.184, 0.102, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.25)
 theme_override_constants/shadow_offset_x = 0
 theme_override_constants/shadow_offset_y = 1
 theme_override_font_sizes/font_size = 22
+horizontal_alignment = 1
 
-[node name="Stats" type="GridContainer" parent="."]
+[node name="Stats" type="GridContainer" parent="." unique_id=1677946176]
 layout_mode = 0
-offset_left = 30.0
-offset_top = 104.0
-offset_right = 342.0
-offset_bottom = 180.0
+offset_left = 106.79993
+offset_top = 164.0
+offset_right = 490.79993
+offset_bottom = 240.0
 theme_override_constants/h_separation = 24
 theme_override_constants/v_separation = 8
 columns = 2
 
-[node name="Stat1" type="Label" parent="Stats"]
+[node name="Stat1" type="Label" parent="Stats" unique_id=318507946]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.302, 0.22, 0.125, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.22)
@@ -70,7 +73,7 @@ theme_override_constants/shadow_offset_y = 1
 theme_override_font_sizes/font_size = 20
 text = "政体：君主制"
 
-[node name="Stat2" type="Label" parent="Stats"]
+[node name="Stat2" type="Label" parent="Stats" unique_id=577656363]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.302, 0.22, 0.125, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.22)
@@ -79,7 +82,7 @@ theme_override_constants/shadow_offset_y = 1
 theme_override_font_sizes/font_size = 20
 text = "文化：英格兰文化（人类）"
 
-[node name="Stat3" type="Label" parent="Stats"]
+[node name="Stat3" type="Label" parent="Stats" unique_id=13614382]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.302, 0.22, 0.125, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.22)
@@ -88,7 +91,7 @@ theme_override_constants/shadow_offset_y = 1
 theme_override_font_sizes/font_size = 20
 text = "首都：伦敦"
 
-[node name="Stat4" type="Label" parent="Stats"]
+[node name="Stat4" type="Label" parent="Stats" unique_id=1902342219]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.302, 0.22, 0.125, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.22)
@@ -97,27 +100,27 @@ theme_override_constants/shadow_offset_y = 1
 theme_override_font_sizes/font_size = 20
 text = "地位：独立政权"
 
-[node name="Desc" type="Label" parent="."]
+[node name="Desc" type="Label" parent="." unique_id=1311355686]
 layout_mode = 0
-offset_left = 30.0
-offset_top = 186.0
-offset_right = 342.0
-offset_bottom = 356.0
+offset_left = 112.79993
+offset_top = 332.0
+offset_right = 487.79993
+offset_bottom = 502.0
 theme_override_colors/font_color = Color(0.329, 0.251, 0.165, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.22)
 theme_override_constants/shadow_offset_x = 0
 theme_override_constants/shadow_offset_y = 1
 autowrap_mode = 3
 
-[node name="Confirm" type="Button" parent="."]
+[node name="Confirm" type="Button" parent="." unique_id=1049771258]
 layout_mode = 0
-offset_left = 30.0
-offset_top = 368.0
-offset_right = 342.0
-offset_bottom = 432.0
+offset_left = 139.79993
+offset_top = 869.0
+offset_right = 451.79993
+offset_bottom = 933.0
 theme_override_colors/font_color = Color(0.29, 0.204, 0.149, 1)
-theme_override_colors/font_hover_color = Color(0.227, 0.157, 0.098, 1)
 theme_override_colors/font_pressed_color = Color(0.227, 0.157, 0.098, 1)
+theme_override_colors/font_hover_color = Color(0.227, 0.157, 0.098, 1)
 theme_override_colors/font_disabled_color = Color(0.541, 0.478, 0.376, 1)
 theme_override_font_sizes/font_size = 24
 disabled = true
