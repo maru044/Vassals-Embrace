@@ -73,14 +73,14 @@ void fragment() {
 	// 近景系数（白浪/波动随接近增强）
 	float near = terrain_blend * smoothstep(0.25, 0.8, zoom);
 
-	// ① 等深线色带（V3 手绘感）：深海偏绿深蓝 → 大陆架泥沙色，衰减收紧紧贴海岸线
-	vec3 deep    = vec3(0.05, 0.17, 0.28);   // 深海（偏绿深蓝，收敛）
-	vec3 shallow = vec3(0.33, 0.40, 0.36);   // 大陆架泥沙色（沙土×蓝混合，非荧光青）
-	// 浅水带从 0.3~3m 收窄到 0.15~1.5m（缩小一半以上，紧贴陆地轮廓）
+	// ① 等深线色带（古典地图：近海深蓝 → 远海淡色水彩）：
+	// 墨色浓在海岸线（深蓝），向远海扩散变淡（淡蓝泛白），紧贴陆地轮廓。
+	vec3 near_col = vec3(0.06, 0.16, 0.30);  // 近海深蓝
+	vec3 far_col  = vec3(0.46, 0.55, 0.60);  // 远海淡蓝（水彩晕染，泛白）
+	// 近岸权重（0~1.5m 收窄紧贴海岸线），阶梯量化切成 3 段等深线
 	float shallow_w = 1.0 - smoothstep(0.15, 1.5, dist_m);
-	// 阶梯量化：切成 3 段（海岸线→浅带→深带），等深线手绘质感
 	float band = floor(shallow_w * 3.0 + 0.5) / 3.0;
-	vec3 c = mix(deep, shallow, band);
+	vec3 c = mix(far_col, near_col, band);   // 近岸=深蓝、远海=淡色
 
 	// ② fbm 波动：时间流动噪声 → 微调明暗 + 扰动法线（波浪反光）
 	vec2 wp = uv * 3.0;
@@ -89,11 +89,12 @@ void fragment() {
 	c *= 1.0 + wave * 0.07 * near;
 	vec3 N = normalize(vec3(wave * 0.05, 1.0, wave * 0.04));
 
-	// ③ 近海白浪（foam）：贴岸 0.02~0.12m 白沫（更窄更贴岸）+ fbm 破碎闪烁
-	float foam_mask = 1.0 - smoothstep(0.02, 0.12, dist_m);
-	float brk = smoothstep(0.25, 0.7, fbm(uv * 4.0 + vec2(t * 0.6, t * 0.5)));
+	// ③ 近海白浪（foam）：贴岸白沫 + 高密度 fbm 破碎闪烁。
+	// 近海深蓝用大量白浪中和（密度加强：频率↑ 阈值↓ 混合↑）。
+	float foam_mask = 1.0 - smoothstep(0.02, 0.15, dist_m);
+	float brk = smoothstep(0.12, 0.6, fbm(uv * 6.0 + vec2(t * 0.6, t * 0.5)));
 	foam_mask *= brk * near;
-	vec3 foam = mix(c, vec3(0.97, 0.99, 1.0), 0.85);
+	vec3 foam = mix(c, vec3(0.97, 0.99, 1.0), 0.9);
 	c = mix(c, foam, clamp(foam_mask, 0.0, 1.0));
 
 	// ④ Fresnel 反光：掠射角提亮（水面反光感）
