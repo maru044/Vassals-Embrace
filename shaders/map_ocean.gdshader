@@ -73,10 +73,10 @@ void fragment() {
 	// 近景系数（白浪/波动随接近增强）
 	float near = terrain_blend * smoothstep(0.25, 0.8, zoom);
 
-	// ① 海洋色带：近海较深蓝（深蓝青）→ 远海更深（深蓝）。
-	// 向内（远离岸方向）平缓渐变，范围上界 2.5m < 纹理外扩 4.0m，纹理内渐变完成。
-	vec3 near_col = vec3(0.16, 0.30, 0.44);  // 近海深蓝青（加深不少）
-	vec3 far_col  = vec3(0.05, 0.14, 0.26);  // 远海更深蓝
+	// ① 海洋色带：近海与远海颜色接近，仅轻微变色（近海略亮一档的蓝青）。
+	// 平缓渐变，范围上界 2.5m < 纹理外扩 4.0m，纹理内渐变完成。
+	vec3 near_col = vec3(0.14, 0.26, 0.40);  // 近海蓝青（比远海略亮）
+	vec3 far_col  = vec3(0.08, 0.18, 0.30);  // 远海深蓝（差异很小）
 	// 近岸权重：smoothstep 平缓渐变（0.3~2.5m，纹理内完成）
 	float shallow_w = 1.0 - smoothstep(0.3, 2.5, dist_m);
 	vec3 c = mix(far_col, near_col, shallow_w);
@@ -88,12 +88,12 @@ void fragment() {
 	c *= 1.0 + wave * 0.07 * near;
 	vec3 N = normalize(vec3(wave * 0.05, 1.0, wave * 0.04));
 
-	// ③ 近海白浪（foam）：范围适中（0.05~0.6m），自然渐消融入深海。
-	// 近景白浪进一步抑制（防"自发光"闪眼）：强度随近景系数明显衰减。
-	float foam_mask = 1.0 - smoothstep(0.05, 0.6, dist_m);  // 岸线 1.0 → 0.6m 处 0.0
+	// ③ 近海白浪（foam）：范围收窄（0.03~0.4m），自然渐消融入深海。
+	// 白浪强度进一步减弱（近海只轻微提亮，不喧宾夺主）。
+	float foam_mask = 1.0 - smoothstep(0.03, 0.4, dist_m);  // 岸线 1.0 → 0.4m 处 0.0
 	float brk = smoothstep(0.12, 0.6, fbm(uv * 6.0 + vec2(t * 0.6, t * 0.5)));
-	float foam_strength = foam_mask * mix(0.25, 0.7, brk) * (0.15 + 0.6 * near);
-	vec3 foam = mix(c, vec3(0.90, 0.93, 0.97), 0.75);  // 泡沫更柔、更不明显
+	float foam_strength = foam_mask * mix(0.2, 0.6, brk) * (0.1 + 0.5 * near);
+	vec3 foam = mix(c, vec3(0.90, 0.93, 0.97), 0.7);  // 泡沫柔和、低调
 	c = mix(c, foam, clamp(foam_strength, 0.0, 1.0));
 
 	// ④ Fresnel 反光：掠射角提亮（水面反光感），近景强度进一步降低防刺眼
