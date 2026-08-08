@@ -5,10 +5,10 @@
 shader_type spatial;
 render_mode world_vertex_coords, cull_disabled;
 
-// ---- 对齐（与高度图/距离场共享） ----
+// ---- 对齐（距离场覆盖整个海洋平面，用 ocean 范围非高度图范围）----
 uniform sampler2D sea_dist : source_color, filter_linear, repeat_disable;
-uniform vec2 hmap_min = vec2(-15.1, -26.65);
-uniform vec2 hmap_size = vec2(29.9, 40.45);
+uniform vec2 ocean_min = vec2(-16.6, -28.15);
+uniform vec2 ocean_size = vec2(32.9, 43.45);
 uniform float max_dist = 8.0;     // 距离场 clamp 上限（米），与 gen_sea_distance.py 一致
 uniform float zoom = 0.5;         // 0=远 1=近（联动白浪/波动强度）
 uniform float terrain_blend = 0.0; // 0=平面 1=立体（白浪/波动随近景增强）
@@ -60,8 +60,8 @@ void vertex() {
 }
 
 void fragment() {
-	// 世界坐标采样距离场（与高度图同对齐常量）→ 米制距离
-	vec2 uv = (v_world - hmap_min) / hmap_size;
+	// 世界坐标采样距离场（覆盖整个海洋平面）→ 米制距离
+	vec2 uv = (v_world - ocean_min) / ocean_size;
 	float dist_m = texture(sea_dist, uv).r * max_dist;
 
 	// 近景系数（白浪/波动随接近增强）

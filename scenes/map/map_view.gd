@@ -164,11 +164,15 @@ func _make_ground_quad(w: float, h: float) -> ArrayMesh:
 
 ## 海洋平面：覆盖地图范围 + 外扩的 XZ 大平面，y 略低于陆地基底（陆地遮挡海洋，防 z-fight）。
 ## 用「海岸距离场」sea_distance.png 驱动深度渐变与近海白浪；无碰撞体（不参与省份拾取）。
+## 距离场纹理覆盖【整个海洋平面】（含 OCEAN_MARGIN 外扩），ocean_min/ocean_size 传 shader 采样，
+## 保证平面任何位置都有真实距离、无 clamp 硬交界。
 func _setup_ocean() -> void:
 	if _ocean:
 		return
 	var w := _hsize.x + OCEAN_MARGIN * 2.0
 	var h := _hsize.y + OCEAN_MARGIN * 2.0
+	var ocean_min := Vector2(_hmin.x - OCEAN_MARGIN, _hmin.y - OCEAN_MARGIN)
+	var ocean_size := Vector2(w, h)
 	var mi := MeshInstance3D.new()
 	mi.mesh = _make_ground_quad(w, h)
 	var mat := ShaderMaterial.new()
@@ -176,14 +180,14 @@ func _setup_ocean() -> void:
 	if _heightmap:
 		var sea_dist := load(SEA_DISTANCE_PATH) as Texture2D
 		mat.set_shader_parameter("sea_dist", sea_dist)
-	mat.set_shader_parameter("hmap_min", _hmin)
-	mat.set_shader_parameter("hmap_size", _hsize)
+	mat.set_shader_parameter("ocean_min", ocean_min)
+	mat.set_shader_parameter("ocean_size", ocean_size)
 	mat.set_shader_parameter("max_dist", 8.0)
 	mat.set_shader_parameter("terrain_blend", 0.0)
 	mat.set_shader_parameter("zoom", _zoom)
 	mi.material_override = mat
 	# 平面左下角对齐到 hmin 外扩 OCEAN_MARGIN
-	mi.position = Vector3(_hmin.x - OCEAN_MARGIN, OCEAN_Y, _hmin.y - OCEAN_MARGIN)
+	mi.position = Vector3(ocean_min.x, OCEAN_Y, ocean_min.y)
 	add_child(mi)
 	_ocean = mi
 	_ocean_mat = mat
