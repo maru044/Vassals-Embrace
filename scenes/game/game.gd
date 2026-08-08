@@ -6,7 +6,7 @@ extends Node3D
 const COUNTRIES_PATH := "res://data/countries.json"     # 国家档案主数据源（27 国全量）
 const COUNTRY_COLORS_PATH := "res://data/country_colors.json"   # 补充颜色/宗主色
 const SHIELD_DIR := "res://assets/shields/"
-const DETAIL_BG_PATH := "res://assets/ui/country_detail_bg.png"   # 详情栏装饰背景（Gemini 生成）
+const CountryDetailScene := preload("res://scenes/game/country_detail.tscn")   # 详情栏子场景（编辑器里手动对齐）
 const UI_SLIDE_SECONDS := 0.6
 const UI_FADE_SECONDS := 0.4
 
@@ -107,60 +107,14 @@ func _build_select_layer() -> void:
 		var id: String = c.get("id", "")
 		_shield_buttons[id] = _make_shield_button(id, c.get("recommended", false))
 
-	# 右侧：简介面板（可交互，接收点击）——明确 anchor，避免负宽。
-	# 背景 = Gemini 生成的 EU 风装饰图（拉伸铺满容器，Master 手动调容器框大小）。
-	var info := Control.new()
-	info.anchor_left = 0.66
-	info.anchor_right = 1.0
-	info.anchor_top = 0.0
-	info.anchor_bottom = 1.0
-	info.offset_left = 20
-	info.offset_right = -40
-	info.offset_top = 110
-	info.offset_bottom = -150
-	info.mouse_filter = Control.MOUSE_FILTER_STOP
+	# 右侧：简介面板——独立子场景 country_detail.tscn（布局/背景/按钮全在编辑器里手动对齐）。
+	# 这里只实例化 + 接动态文本，尺寸调整不用再改代码。
+	var info := CountryDetailScene.instantiate()
 	root.add_child(info)
-
-	var bg := TextureRect.new()
-	bg.texture = load(DETAIL_BG_PATH) if ResourceLoader.exists(DETAIL_BG_PATH) else null
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE   # 拉伸铺满容器
-	bg.stretch_mode = TextureRect.STRETCH_SCALE       # 拉伸（跟随容器框，Master 手动调）
-	info.add_child(bg)
-
-	var margin := MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 26)
-	margin.add_theme_constant_override("margin_top", 26)
-	margin.add_theme_constant_override("margin_right", 26)
-	margin.add_theme_constant_override("margin_bottom", 26)
-	info.add_child(margin)
-
-	var vbox := VBoxContainer.new()
-	margin.add_child(vbox)
-
-	_info_title = Label.new()
-	_info_title.text = "点击盾徽或地图上的国家"
-	_info_title.add_theme_font_size_override("font_size", 30)
-	vbox.add_child(_info_title)
-
-	_info_desc = Label.new()
-	_info_desc.text = ""
-	_info_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_info_desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_child(_info_desc)
-
-	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 24)
-	vbox.add_child(spacer)
-
-	_confirm = Button.new()
-	_confirm.text = "以该国开始游戏"
-	_confirm.custom_minimum_size = Vector2(0, 52)
-	_confirm.add_theme_font_size_override("font_size", 22)
-	_confirm.disabled = true
+	_info_title = info.get_node("Margin/VBox/Title")
+	_info_desc = info.get_node("Margin/VBox/Desc")
+	_confirm = info.get_node("Margin/VBox/Confirm")
 	_confirm.pressed.connect(_on_confirm_pressed)
-	vbox.add_child(_confirm)
 
 
 func _make_shield_button(id: String, recommended: bool) -> TextureButton:
