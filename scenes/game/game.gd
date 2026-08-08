@@ -145,10 +145,12 @@ func _build_select_layer() -> void:
 func _make_shield_button(id: String) -> TextureButton:
 	var path := SHIELD_DIR + id + ".png"
 	var tex: Texture2D = load(path) if ResourceLoader.exists(path) else null
-	# EU4 式：纯盾徽、无文字、无默认灰底、统一尺寸（名字只在右侧详情显示）
+	# EU4 式：纯盾徽、无文字、无默认灰底、统一尺寸（名字只在右侧详情显示）。
+	# 关键：ignore_texture_size=true——否则纹理原始尺寸(256×320)覆盖按钮大小，盾徽超出容器。
 	var btn := TextureButton.new()
 	btn.texture_normal = tex
-	btn.custom_minimum_size = Vector2(128, 160)
+	btn.ignore_texture_size = true
+	btn.custom_minimum_size = Vector2(88, 110)
 	btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 	btn.pressed.connect(_on_shield_pressed.bind(id))
 	_grid.add_child(btn)
