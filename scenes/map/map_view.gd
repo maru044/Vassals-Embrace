@@ -10,9 +10,13 @@ const COUNTRY_COLORS_PATH := "res://data/country_colors.json"
 const TERRAIN_SHADER_PATH := "res://shaders/map_terrain.gdshader"
 const HEIGHTMAP_PATH := "res://assets/map/height.png"
 const HEIGHT_OVERLAY_SHADER := "res://shaders/height_overlay.gdshader"
+const OCEAN_SHADER_PATH := "res://shaders/map_ocean.gdshader"
+const SEA_DISTANCE_PATH := "res://assets/map/sea_distance.png"
 const LABEL_FONT_PATH := "res://assets/fonts/TimesNewRoman-Bold.ttf"   # V3 古典衬线加粗
 const LAND_BASE_COLOR := Color(0.75, 0.72, 0.62)   # 陆地基底中性色
 const SUBDIVIDE_MAX_EDGE := 1.0                     # 网格细分最大边长（世界单位），越小地形越细腻
+const OCEAN_MARGIN := 1.5                           # 海洋平面超出地图范围的外扩（世界单位）
+const OCEAN_Y := -0.03                              # 海洋平面 y（略低于陆地基底 y=0，陆地遮挡海洋）
 
 # 相机（EU4 式）：俯角随缩放变化，yaw 固定从南看北（南在屏幕下，北退远）
 const PITCH_FAR := deg_to_rad(85.0)
@@ -43,6 +47,8 @@ var _hmin := Vector2(-15.1, -26.65)   # 高度图采样：左上角世界坐标�
 var _hsize := Vector2(29.9, 40.45)    # 高度图采样：覆盖的世界尺寸（可手动微调）
 var _height_overlay: MeshInstance3D = null
 var _overlay_visible := false         # F10：高度图叠加调试开关
+var _ocean: MeshInstance3D = null
+var _ocean_mat: ShaderMaterial = null
 
 
 func _ready() -> void:
@@ -51,6 +57,7 @@ func _ready() -> void:
 	_apply_colors()
 	_setup_labels()
 	_setup_heightmap_overlay()
+	_setup_ocean()
 	_update_camera()
 
 
@@ -155,6 +162,34 @@ func _make_ground_quad(w: float, h: float) -> ArrayMesh:
 	return m
 
 
+## 海洋平面：覆盖地图范围 + 外扩的 XZ 大平面，y 略低于陆地基底（陆地遮挡海洋，防 z-fight）。
+## 用「海岸距离场」sea_distance.png 驱动深度渐变与近海白浪；无碰撞体（不参与省份拾取）。
+func _setup_ocean() -> void:
+	if _ocean:
+		return
+	var w := _hsize.x + OCEAN_MARGIN * 2.0
+	var h := _hsize.y + OCEAN_MARGIN * 2.0
+	var mi := MeshInstance3D.new()
+	mi.mesh = _make_ground_quad(w, h)
+	var mat := ShaderMaterial.new()
+	mat.shader = load(OCEAN_SHADER_PATH) as Shader
+	if _heightmap:
+		var sea_dist := load(SEA_DISTANCE_PATH) as Texture2D
+		mat.set_shader_parameter("sea_dist", sea_dist)
+	mat.set_shader_parameter("hmap_min", _hmin)
+	mat.set_shader_parameter("hmap_size", _hsize)
+	mat.set_shader_parameter("max_dist", 8.0)
+	mat.set_shader_parameter("terrain_blend", 0.0)
+	mat.set_shader_parameter("zoom", _zoom)
+	mi.material_override = mat
+	# 平面左下角对齐到 hmin 外扩 OCEAN_MARGIN
+	mi.position = Vector3(_hmin.x - OCEAN_MARGIN, OCEAN_Y, _hmin.y - OCEAN_MARGIN)
+	add_child(mi)
+	_ocean = mi
+	_ocean_mat = mat
+	print("map_view: 海洋平面已创建（深度渐变 + 近海白浪 + Fresnel + fbm 波动）")
+
+
 ## 叠加可见时：方向键平移 hmin，Q/E 缩放 hsize（Shift 细调），实时写回 shader。
 func _handle_overlay_keys(event: InputEventKey) -> void:
 	var step := 0.01 if event.shift_pressed else 0.1
@@ -196,6 +231,10 @@ func _update_shader_uniforms() -> void:
 	for mat in _shader_mats:
 		mat.set_shader_parameter("terrain_blend", blend)
 		mat.set_shader_parameter("zoom", _zoom)
+	# 海洋材质联动 zoom / terrain_blend（白浪/波动随近景增强）
+	if _ocean_mat:
+		_ocean_mat.set_shader_parameter("terrain_blend", blend)
+		_ocean_mat.set_shader_parameter("zoom", _zoom)
 
 
 func _update_labels() -> void:
