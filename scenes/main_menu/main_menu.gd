@@ -67,7 +67,8 @@ func _ready() -> void:
 
 func _on_start_pressed() -> void:
 	EventBus.start_game.emit()
-	get_tree().change_scene_to_file("res://scenes/country_select/country_select.tscn")
+	# 整合场景：MapView + 国家选择层 + 游戏 UI 层（同场景 Tween 切换，地图不重载）
+	get_tree().change_scene_to_file("res://scenes/game/game.tscn")
 
 
 func _on_load_pressed() -> void:
