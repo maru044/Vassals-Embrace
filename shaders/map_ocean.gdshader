@@ -15,8 +15,8 @@ uniform float terrain_blend = 0.0; // 0=平面 1=立体（白浪/波动随近景
 
 // ---- 水面细节（法线贴图 + 朝阳天空反射）----
 uniform sampler2D water_normal : source_color, filter_linear, repeat_enable;
-uniform float normal_tile = 0.45;   // 法线贴图世界尺度（米/格，越小越密）
-uniform float normal_strength = 0.5; // 法线扰动强度（近景为主）
+uniform float normal_tile = 1.8;    // 法线贴图世界尺度（米/格，越大波浪越宽、防摩尔纹）
+uniform float normal_strength = 0.35; // 法线扰动强度（近景为主）
 uniform sampler2D sky_panorama : source_color, filter_linear, repeat_disable; // 朝阳 HDRI 反射采样
 
 varying vec2 v_world;   // 世界 XZ
@@ -110,15 +110,15 @@ void fragment() {
 	vec3 foam = mix(c, vec3(0.90, 0.93, 0.97), 0.7);  // 泡沫柔和、低调
 	c = mix(c, foam, clamp(foam_strength, 0.0, 1.0));
 
-	// ④ Fresnel 反光：掠射角采样朝阳 HDRI（等距圆柱 → 反射方向），水面出现金色反光
+	// ④ Fresnel 反光：掠射角采样朝阳 HDRI（等距圆柱 → 反射方向），水面金色反光
 	float fres = pow(1.0 - max(dot(N, v_view), 0.0), 4.0);
 	vec3 R = reflect(-v_view, N);
 	vec2 sky_uv = vec2(atan(R.x, -R.z) / 6.2831853 + 0.5, R.y * 0.5 + 0.5);
 	vec3 sky = texture(sky_panorama, sky_uv).rgb;
-	sky = mix(vec3(0.72, 0.84, 0.95), sky, 0.6);   // 与天光混合，不过分
-	c = mix(c, sky, fres * 0.25 * (0.15 + 0.6 * near));
+	sky = mix(vec3(0.72, 0.84, 0.95), sky, 0.8);   // 朝阳反射更明显（金色）
+	c = mix(c, sky, fres * 0.5 * (0.15 + 0.6 * near));
 
 	ALBEDO = c;
-	ROUGHNESS = 0.12;
+	ROUGHNESS = 0.05;   // 更镜面 → 更反光
 	METALLIC = 0.0;
 }
