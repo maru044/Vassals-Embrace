@@ -102,8 +102,8 @@ void fragment() {
 		vec2 warp = vec2(
 			fbm(v_world * 0.12 + flow),
 			fbm(v_world * 0.12 + flow + vec2(7.3, 3.1))
-		) * 0.6;   // 空间低频噪声 → 湍流偏移（不同区域不同）
-		vec2 nuv = v_world / normal_tile + warp + flow * 0.25;
+		) * 0.2;   // 空间低频噪声 → 轻微湍流偏移（减弱，不喧宾夺主）
+		vec2 nuv = v_world / normal_tile + warp + flow * 0.15;
 		vec3 nrm = texture(water_normal, nuv).rgb * 2.0 - 1.0;
 		float ns = normal_strength * near;
 		N = normalize(vec3(N.x + nrm.x * ns, 1.0, N.z + nrm.y * ns));
