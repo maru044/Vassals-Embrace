@@ -74,11 +74,11 @@ void fragment() {
 	float near = terrain_blend * smoothstep(0.25, 0.8, zoom);
 
 	// ① 海洋色带：近海浅色（浅蓝青）紧贴海岸线 → 远海深色（深蓝）。
-	// 向内（远离岸方向）逐渐变深：浅色带宽度适中，不铺开使整片海发白。
+	// 向内（远离岸方向）平缓渐变：范围宽，无突兀过渡。
 	vec3 near_col = vec3(0.42, 0.56, 0.60);  // 近海浅色（浅蓝青）
 	vec3 far_col  = vec3(0.07, 0.18, 0.32);  // 远海深色（深蓝）
-	// 近岸权重：适中范围平滑渐变（0.2~1.8m 过渡到深色）
-	float shallow_w = 1.0 - smoothstep(0.2, 1.8, dist_m);
+	// 近岸权重：宽范围 smoothstep 平缓渐变（0.3~3.5m）
+	float shallow_w = 1.0 - smoothstep(0.3, 3.5, dist_m);
 	vec3 c = mix(far_col, near_col, shallow_w);
 
 	// ② fbm 波动：时间流动噪声 → 微调明暗 + 扰动法线（波浪反光）
