@@ -89,17 +89,17 @@ void fragment() {
 	vec3 N = normalize(vec3(wave * 0.05, 1.0, wave * 0.04));
 
 	// ③ 近海白浪（foam）：范围适中（0.05~0.6m），自然渐消融入深海。
-	// 近景白浪不可过强（防"自发光"刺眼）：整体强度受近景系数抑制。
+	// 近景白浪进一步抑制（防"自发光"闪眼）：强度随近景系数明显衰减。
 	float foam_mask = 1.0 - smoothstep(0.05, 0.6, dist_m);  // 岸线 1.0 → 0.6m 处 0.0
 	float brk = smoothstep(0.12, 0.6, fbm(uv * 6.0 + vec2(t * 0.6, t * 0.5)));
-	float foam_strength = foam_mask * mix(0.3, 0.8, brk) * (0.25 + 0.75 * near);
-	vec3 foam = mix(c, vec3(0.93, 0.95, 0.98), 0.8);   // 泡沫略柔、不过纯白
+	float foam_strength = foam_mask * mix(0.25, 0.7, brk) * (0.15 + 0.6 * near);
+	vec3 foam = mix(c, vec3(0.90, 0.93, 0.97), 0.75);  // 泡沫更柔、更不明显
 	c = mix(c, foam, clamp(foam_strength, 0.0, 1.0));
 
-	// ④ Fresnel 反光：掠射角提亮（水面反光感），近景强度受限防刺眼
+	// ④ Fresnel 反光：掠射角提亮（水面反光感），近景强度进一步降低防刺眼
 	float fres = pow(1.0 - max(dot(N, v_view), 0.0), 4.0);
 	vec3 sky = vec3(0.72, 0.84, 0.95);
-	c = mix(c, sky, fres * 0.35 * (0.25 + 0.75 * near));
+	c = mix(c, sky, fres * 0.25 * (0.15 + 0.6 * near));
 
 	ALBEDO = c;
 	ROUGHNESS = 0.12;
