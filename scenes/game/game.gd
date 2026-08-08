@@ -23,7 +23,8 @@ var _selected: int = -1             # 当前选中国家下标
 var _select_root: Control = null
 var _grid: GridContainer = null
 var _info_title: Label = null
-var _info_desc: Label = null
+var _info_stats: Label = null    # 政体/文化/首都/地位 资料栏（独立标签）
+var _info_desc: Label = null     # 性格简介（独立标签）
 var _confirm: Button = null
 var _shield_buttons: Dictionary = {} # id -> TextureButton
 
@@ -112,6 +113,7 @@ func _build_select_layer() -> void:
 	var info := CountryDetailScene.instantiate()
 	root.add_child(info)
 	_info_title = info.get_node("Margin/VBox/Title")
+	_info_stats = info.get_node("Margin/VBox/Stats")
 	_info_desc = info.get_node("Margin/VBox/Desc")
 	_confirm = info.get_node("Margin/VBox/Confirm")
 	_confirm.pressed.connect(_on_confirm_pressed)
@@ -158,7 +160,8 @@ func _select_country(id: String) -> void:
 	_selected = _country_index[id]
 	var c: Dictionary = _countries[_selected]
 	_info_title.text = "1400 年的 %s" % c.get("name", id)
-	_info_desc.text = _format_country_profile(c)
+	_info_stats.text = _format_country_stats(c)
+	_info_desc.text = c.get("bio", "")
 	_confirm.disabled = false
 	# 高亮：复位所有盾徽 → 选中描边（用 modulate 区分）
 	for sid in _shield_buttons:
@@ -167,8 +170,9 @@ func _select_country(id: String) -> void:
 		_shield_buttons[id].modulate = Color.WHITE
 
 
-## 详情栏文本：统治者（称号）/ 政体 / 文化种族 / 首都 / 宗附庸地位 / 性格简介
-func _format_country_profile(c: Dictionary) -> String:
+## 详情栏「资料栏」文本：统治者（称号）/ 政体 / 文化种族 / 首都 / 宗附庸地位
+## 独立标签（country_detail.tscn 的 Stats），供 Master 单独调整位置；性格简介单独在 Desc 标签。
+func _format_country_stats(c: Dictionary) -> String:
 	var lines: Array[String] = []
 	var ruler: String = c.get("ruler", "")
 	var title: String = c.get("title", "")
@@ -184,10 +188,6 @@ func _format_country_profile(c: Dictionary) -> String:
 		lines.append("地位：%s的附庸" % liege_name)
 	else:
 		lines.append("地位：独立政权")
-	var bio: String = c.get("bio", "")
-	if bio:
-		lines.append("")
-		lines.append(bio)
 	return "\n".join(lines)
 
 
