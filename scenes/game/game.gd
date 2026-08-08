@@ -70,12 +70,15 @@ func _build_select_layer() -> void:
 	root.add_child(title)
 
 	# 左侧：盾徽滚动网格（27 国），透明浮在地图上。
-	# PASS：空白区域穿透 → 地图仍可点击选国；盾徽按钮自身 STOP 可点。
+	# 用明确 anchor 百分比（避免 LEFT_WIDE+offset 产生负宽度），PASS 穿透让地图可点。
 	var scroll := ScrollContainer.new()
-	scroll.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	scroll.anchor_left = 0.0
+	scroll.anchor_right = 0.62
+	scroll.anchor_top = 0.0
+	scroll.anchor_bottom = 1.0
 	scroll.offset_left = 40
 	scroll.offset_top = 100
-	scroll.offset_right = -520
+	scroll.offset_right = -20
 	scroll.offset_bottom = -90
 	scroll.mouse_filter = Control.MOUSE_FILTER_PASS
 	root.add_child(scroll)
@@ -92,10 +95,13 @@ func _build_select_layer() -> void:
 		var id: String = c.get("id", "")
 		_shield_buttons[id] = _make_shield_button(id)
 
-	# 右侧：简介面板（可交互，接收点击）
+	# 右侧：简介面板（可交互，接收点击）——明确 anchor，避免负宽
 	var info := PanelContainer.new()
-	info.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
-	info.offset_left = 40
+	info.anchor_left = 0.66
+	info.anchor_right = 1.0
+	info.anchor_top = 0.0
+	info.anchor_bottom = 1.0
+	info.offset_left = 20
 	info.offset_right = -40
 	info.offset_top = 110
 	info.offset_bottom = -150
