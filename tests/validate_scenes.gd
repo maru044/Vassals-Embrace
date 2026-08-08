@@ -8,7 +8,6 @@ func _initialize() -> void:
 	var out: Array[String] = []
 	var scenes := [
 		"res://scenes/main_menu/main_menu.tscn",
-		"res://scenes/country_select/country_select.tscn",
 		"res://scenes/game_ui/game_ui.tscn",
 		"res://scenes/chat/chat_dialog.tscn",
 		"res://scenes/map/map_view.tscn",
