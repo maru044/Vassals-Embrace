@@ -142,16 +142,14 @@ func _build_select_layer() -> void:
 	vbox.add_child(_confirm)
 
 
-func _make_shield_button(id: String) -> Button:
+func _make_shield_button(id: String) -> TextureButton:
 	var path := SHIELD_DIR + id + ".png"
 	var tex: Texture2D = load(path) if ResourceLoader.exists(path) else null
-	# 用 Button（含文字国家名），盾徽贴图作 icon——保证始终可见、可点击
-	var btn := Button.new()
-	btn.text = id
-	btn.icon = tex
-	btn.expand_icon = true
-	btn.custom_minimum_size = Vector2(130, 150)
-	btn.add_theme_font_size_override("font_size", 15)
+	# EU4 式：纯盾徽、无文字、无默认灰底、统一尺寸（名字只在右侧详情显示）
+	var btn := TextureButton.new()
+	btn.texture_normal = tex
+	btn.custom_minimum_size = Vector2(128, 160)
+	btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 	btn.pressed.connect(_on_shield_pressed.bind(id))
 	_grid.add_child(btn)
 	return btn
