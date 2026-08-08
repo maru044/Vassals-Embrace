@@ -9,7 +9,7 @@ roughness = 0.4
 metallic = 0.1
 
 [sub_resource type="PlaneMesh" id="Mesh_ocean"]
-size = Vector2(62, 72)
+size = Vector2(124, 144)
 material = SubResource("Mat_ocean")
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]

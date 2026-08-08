@@ -162,19 +162,22 @@ func _make_ground_quad(w: float, h: float) -> ArrayMesh:
 	return m
 
 
-## 海洋平面：覆盖地图范围 + 外扩的 XZ 大平面，y 略低于陆地基底（陆地遮挡海洋，防 z-fight）。
-## 用「海岸距离场」sea_distance.png 驱动深度渐变与近海白浪；无碰撞体（不参与省份拾取）。
-## 距离场纹理覆盖【整个海洋平面】（含 OCEAN_MARGIN 外扩），ocean_min/ocean_size 传 shader 采样，
-## 保证平面任何位置都有真实距离、无 clamp 硬交界。
+## 海洋平面：复用场景里已有的 Ocean 节点（PlaneMesh 124×144 大平面，中心在地图中心，
+## 覆盖镜头最远视野不露边界），给它换上海洋 shader 材质驱动深度渐变与近海白浪。
+## 距离场纹理覆盖地图范围 + OCEAN_MARGIN 外扩（ocean_min/ocean_size 采样），
+## 平面超出部分采样到距离场 clamp 边缘 = 深水（MAX_M），无硬交界。
 func _setup_ocean() -> void:
 	if _ocean:
 		return
-	var w := _hsize.x + OCEAN_MARGIN * 2.0
-	var h := _hsize.y + OCEAN_MARGIN * 2.0
 	var ocean_min := Vector2(_hmin.x - OCEAN_MARGIN, _hmin.y - OCEAN_MARGIN)
-	var ocean_size := Vector2(w, h)
-	var mi := MeshInstance3D.new()
-	mi.mesh = _make_ground_quad(w, h)
+	var ocean_size := Vector2(_hsize.x + OCEAN_MARGIN * 2.0, _hsize.y + OCEAN_MARGIN * 2.0)
+	var mi := get_node_or_null("Ocean") as MeshInstance3D
+	if mi == null:
+		# 兜底：场景无 Ocean 节点时新建（XZ 大平面，中心对齐地图中心）
+		mi = MeshInstance3D.new()
+		mi.name = "Ocean"
+		mi.position = Vector3(0.0, OCEAN_Y, -6.0)
+		add_child(mi)
 	var mat := ShaderMaterial.new()
 	mat.shader = load(OCEAN_SHADER_PATH) as Shader
 	if _heightmap:
@@ -186,12 +189,9 @@ func _setup_ocean() -> void:
 	mat.set_shader_parameter("terrain_blend", 0.0)
 	mat.set_shader_parameter("zoom", _zoom)
 	mi.material_override = mat
-	# 平面左下角对齐到 hmin 外扩 OCEAN_MARGIN
-	mi.position = Vector3(ocean_min.x, OCEAN_Y, ocean_min.y)
-	add_child(mi)
 	_ocean = mi
 	_ocean_mat = mat
-	print("map_view: 海洋平面已创建（深度渐变 + 近海白浪 + Fresnel + fbm 波动）")
+	print("map_view: 海洋平面已复用场景 Ocean 节点（深度渐变 + 近海白浪 + Fresnel + fbm 波动）")
 
 
 ## 叠加可见时：方向键平移 hmin，Q/E 缩放 hsize（Shift 细调），实时写回 shader。
