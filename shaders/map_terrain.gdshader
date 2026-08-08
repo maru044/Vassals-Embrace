@@ -145,12 +145,13 @@ void fragment() {
 	c = mix(c, c * vec3(0.78, 0.85, 0.96) + vec3(0.02, 0.05, 0.12), (1.0 - grass_mask) * cloud_strength * 0.3 * cloud);
 
 	// 羊皮纸质感（多级 fBm：低频大斑块水渍 + 中频凹凸 + 高频纤维极弱）——正片叠底，非白噪声
-	float pn = snoise(wuv * 4.0)
-	         + snoise(wuv * 12.0) * 0.5
-	         + snoise(wuv * 40.0) * 0.15;
-	float pmask = smoothstep(-1.2, 1.2, pn);
-	vec3 paper_dark  = vec3(0.83, 0.72, 0.53);   // 深褐水渍 #D4B886
-	vec3 paper_light = vec3(0.96, 0.89, 0.73);   // 暖黄纸底 #F4E2BB
+	// 做旧更强 + 密度更大
+	float pn = snoise(wuv * 6.0)
+	         + snoise(wuv * 18.0) * 0.5
+	         + snoise(wuv * 60.0) * 0.2;
+	float pmask = smoothstep(-1.4, 1.4, pn);
+	vec3 paper_dark  = vec3(0.72, 0.58, 0.38);   // 更深的褐水渍（做旧强）
+	vec3 paper_light = vec3(0.93, 0.85, 0.66);   // 暖黄纸底略暗
 	c *= mix(paper_dark, paper_light, pmask);
 
 	// 选中省份高亮闪烁：提亮 + 略泛白
