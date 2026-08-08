@@ -156,8 +156,9 @@ void fragment() {
 	vec3 papered = c * mix(paper_dark, paper_light, pmask);
 	c = mix(c, papered, paper_w);
 
-	// 选中省份高亮闪烁：提亮 + 略泛白
-	vec3 hl = c * 1.35 + vec3(0.15);
+	// 选中省份高亮：向「国家色」方向提亮（own_color 参与，保留颜色辨识度，非泛白）。
+	// own_color 是每省材质 uniform，apply_ownership 随领土变化刷新 → 高亮色自动动态跟随。
+	vec3 hl = c * 1.25 + own_color * 0.30;
 	c = mix(c, hl, highlight);
 
 	ALBEDO = c;
