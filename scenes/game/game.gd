@@ -82,7 +82,7 @@ func _build_select_layer() -> void:
 	_select_root = root
 
 	var title := Label.new()
-	title.text = "选择你的国家"
+	title.text = "公元 1400 年的世界"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 40)
 	title.set_anchors_preset(Control.PRESET_TOP_WIDE)
