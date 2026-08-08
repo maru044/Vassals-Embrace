@@ -150,8 +150,8 @@ void fragment() {
 	         + snoise(wuv * 18.0) * 0.5
 	         + snoise(wuv * 60.0) * 0.2;
 	float pmask = smoothstep(-1.4, 1.4, pn);
-	vec3 paper_dark  = vec3(0.72, 0.58, 0.38);   // 更深的褐水渍（做旧强）
-	vec3 paper_light = vec3(0.93, 0.85, 0.66);   // 暖黄纸底略暗
+	vec3 paper_dark  = vec3(0.82, 0.70, 0.50);   // 浅褐水渍（做旧减弱）
+	vec3 paper_light = vec3(0.96, 0.90, 0.75);   // 亮暖纸底
 	float paper_w = smoothstep(0.2, 0.9, zoom);  // 远=0 消失 / 中≈0.4 减淡 / 近=1 强烈
 	vec3 papered = c * mix(paper_dark, paper_light, pmask);
 	c = mix(c, papered, paper_w);
