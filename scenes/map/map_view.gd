@@ -212,18 +212,37 @@ func _setup_labels() -> void:
 	_build_labels()
 
 
-## 按当前 _owners / _country_data 重建所有标签（供领土变化后调用）。
-## 例：威尔士独立后传新的 province_owner / country_colors，英格兰的字号/范围/宗主名自动适配。
-func refresh_labels(new_owners: Dictionary = {}, new_country_data: Dictionary = {}) -> void:
+## 统一刷新入口：省份归属 / 颜色 / 标签全量更新（领土变化后调用一次）。
+## 例：威尔士独立后传新的 province_owner / country_colors，英格兰的色块、字号/范围/宗主名自动适配。
+func apply_ownership(new_owners: Dictionary = {}, new_country_data: Dictionary = {}) -> void:
 	if not new_owners.is_empty():
 		_owners = new_owners
 	if not new_country_data.is_empty():
 		_country_data = new_country_data
-		_update_liege_map()
+	_update_liege_map()
+	_apply_province_colors()
 	if _labels == null:
 		return
 	_labels.clear()
 	_build_labels()
+
+
+## 兼容入口：只重建标签（内部仍走 apply_ownership，颜色同步刷新）
+func refresh_labels(new_owners: Dictionary = {}, new_country_data: Dictionary = {}) -> void:
+	apply_ownership(new_owners, new_country_data)
+
+
+## 按最新 _owners / _country_data 刷新每个省份材质的本宗色 own_color 与宗主色 far_color。
+## （每省独立 ShaderMaterial，直接改 uniform 即可，无需重建材质。）
+func _apply_province_colors() -> void:
+	for province in _province_mesh:
+		var mi: MeshInstance3D = _province_mesh[province]
+		var mat: ShaderMaterial = mi.material_override as ShaderMaterial
+		if mat == null:
+			continue
+		var cdata: Dictionary = _country_data.get(_owners.get(province, ""), {})
+		mat.set_shader_parameter("own_color", cdata.get("color", Color.WHITE))
+		mat.set_shader_parameter("far_color", cdata.get("liege_color", cdata.get("color", Color.WHITE)))
 
 
 ## 从 _country_data 重算最上级宗主映射（附庸套附庸）
