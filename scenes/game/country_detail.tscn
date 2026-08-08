@@ -26,47 +26,37 @@ texture = ExtResource("1_bg")
 expand_mode = 1
 stretch_mode = 1
 
-[node name="Margin" type="MarginContainer" parent="." unique_id=644520161]
-layout_mode = 1
-anchors_preset = -1
-anchor_top = 0.19600001
-anchor_right = 1.0
-anchor_bottom = 1.1730001
-offset_left = 66.79993
-offset_top = 0.27999878
-offset_right = -51.0
-offset_bottom = 0.13989258
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_constants/margin_left = 26
-theme_override_constants/margin_top = 26
-theme_override_constants/margin_right = 26
-theme_override_constants/margin_bottom = 26
-
-[node name="VBox" type="VBoxContainer" parent="Margin" unique_id=1626878088]
-layout_mode = 2
-
-[node name="Title" type="Label" parent="Margin/VBox" unique_id=1963524723]
-layout_mode = 2
+[node name="Title" type="Label" parent="."]
+layout_mode = 0
+offset_left = 30.0
+offset_top = 26.0
+offset_right = 342.0
+offset_bottom = 66.0
 theme_override_font_sizes/font_size = 30
 text = "点击盾徽或地图上的国家"
 
-[node name="Stats" type="Label" parent="Margin/VBox"]
-layout_mode = 2
+[node name="Stats" type="Label" parent="."]
+layout_mode = 0
+offset_left = 30.0
+offset_top = 72.0
+offset_right = 342.0
+offset_bottom = 160.0
 theme_override_font_sizes/font_size = 20
 
-[node name="Desc" type="Label" parent="Margin/VBox" unique_id=1007865096]
-layout_mode = 2
-size_flags_vertical = 3
+[node name="Desc" type="Label" parent="."]
+layout_mode = 0
+offset_left = 30.0
+offset_top = 168.0
+offset_right = 342.0
+offset_bottom = 356.0
 autowrap_mode = 3
 
-[node name="Spacer" type="Control" parent="Margin/VBox" unique_id=498513121]
-custom_minimum_size = Vector2(0, 24)
-layout_mode = 2
-
-[node name="Confirm" type="Button" parent="Margin/VBox" unique_id=880493057]
-custom_minimum_size = Vector2(0, 52)
-layout_mode = 2
+[node name="Confirm" type="Button" parent="."]
+layout_mode = 0
+offset_left = 30.0
+offset_top = 368.0
+offset_right = 342.0
+offset_bottom = 432.0
 theme_override_font_sizes/font_size = 22
 disabled = true
 text = "以该国开始游戏"

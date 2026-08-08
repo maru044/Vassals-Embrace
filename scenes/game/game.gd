@@ -112,10 +112,10 @@ func _build_select_layer() -> void:
 	# 这里只实例化 + 接动态文本，尺寸调整不用再改代码。
 	var info := CountryDetailScene.instantiate()
 	root.add_child(info)
-	_info_title = info.get_node("Margin/VBox/Title")
-	_info_stats = info.get_node("Margin/VBox/Stats")
-	_info_desc = info.get_node("Margin/VBox/Desc")
-	_confirm = info.get_node("Margin/VBox/Confirm")
+	_info_title = info.get_node("Title")
+	_info_stats = info.get_node("Stats")
+	_info_desc = info.get_node("Desc")
+	_confirm = info.get_node("Confirm")
 	_confirm.pressed.connect(_on_confirm_pressed)
 
 
