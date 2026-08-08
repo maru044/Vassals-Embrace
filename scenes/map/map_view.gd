@@ -12,6 +12,8 @@ const HEIGHTMAP_PATH := "res://assets/map/height.png"
 const HEIGHT_OVERLAY_SHADER := "res://shaders/height_overlay.gdshader"
 const OCEAN_SHADER_PATH := "res://shaders/map_ocean.gdshader"
 const SEA_DISTANCE_PATH := "res://assets/map/sea_distance.png"
+const WATER_NORMAL_PATH := "res://assets/map/water_normal.png"
+const SKY_HDRI_PATH := "res://assets/sky/venice_sunset_2k.exr"
 const LABEL_FONT_PATH := "res://assets/fonts/TimesNewRoman-Bold.ttf"   # V3 古典衬线加粗
 const LAND_BASE_COLOR := Color(0.75, 0.72, 0.62)   # 陆地基底中性色
 const SUBDIVIDE_MAX_EDGE := 1.0                     # 网格细分最大边长（世界单位），越小地形越细腻
@@ -183,6 +185,12 @@ func _setup_ocean() -> void:
 	if _heightmap:
 		var sea_dist := load(SEA_DISTANCE_PATH) as Texture2D
 		mat.set_shader_parameter("sea_dist", sea_dist)
+		# 水面法线贴图（无缝平铺，近景波浪细节）
+		var water_normal := load(WATER_NORMAL_PATH) as Texture2D
+		mat.set_shader_parameter("water_normal", water_normal)
+		# 朝阳 HDRI：Fresnel 反射采样（金色反光）——用 load 走导入管线，导出后仍可加载
+		var sky_hdr := load(SKY_HDRI_PATH) as Texture2D
+		mat.set_shader_parameter("sky_panorama", sky_hdr)
 	mat.set_shader_parameter("ocean_min", ocean_min)
 	mat.set_shader_parameter("ocean_size", ocean_size)
 	mat.set_shader_parameter("max_dist", 8.0)
@@ -191,7 +199,7 @@ func _setup_ocean() -> void:
 	mi.material_override = mat
 	_ocean = mi
 	_ocean_mat = mat
-	print("map_view: 海洋平面已复用场景 Ocean 节点（深度渐变 + 近海白浪 + Fresnel + fbm 波动）")
+	print("map_view: 海洋平面已复用场景 Ocean 节点（深度渐变 + 近海白浪 + Fresnel + 法线贴图 + 朝阳反射）")
 
 
 ## 叠加可见时：方向键平移 hmin，Q/E 缩放 hsize（Shift 细调），实时写回 shader。

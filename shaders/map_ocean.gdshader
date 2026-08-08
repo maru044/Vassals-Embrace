@@ -13,6 +13,12 @@ uniform float max_dist = 8.0;     // 距离场 clamp 上限（米），与 gen_s
 uniform float zoom = 0.5;         // 0=远 1=近（联动白浪/波动强度）
 uniform float terrain_blend = 0.0; // 0=平面 1=立体（白浪/波动随近景增强）
 
+// ---- 水面细节（法线贴图 + 朝阳天空反射）----
+uniform sampler2D water_normal : source_color, filter_linear, repeat_enable;
+uniform float normal_tile = 0.45;   // 法线贴图世界尺度（米/格，越小越密）
+uniform float normal_strength = 0.5; // 法线扰动强度（近景为主）
+uniform sampler2D sky_panorama : source_color, filter_linear, repeat_disable; // 朝阳 HDRI 反射采样
+
 varying vec2 v_world;   // 世界 XZ
 varying vec3 v_view;    // 片元→相机（世界空间）
 
@@ -86,7 +92,15 @@ void fragment() {
 	float t = TIME * 0.4;
 	float wave = fbm(wp + vec2(t, t * 0.7));
 	c *= 1.0 + wave * 0.07 * near;
+
+	// 法线：fbm 基座 + 水面法线贴图 tile 叠加（近景强、远景弱），波浪细节更真实
 	vec3 N = normalize(vec3(wave * 0.05, 1.0, wave * 0.04));
+	if (near > 0.01) {
+		vec2 nuv = v_world / normal_tile + vec2(t * 0.03, t * 0.02);
+		vec3 nrm = texture(water_normal, nuv).rgb * 2.0 - 1.0;
+		float ns = normal_strength * near;
+		N = normalize(vec3(N.x + nrm.x * ns, 1.0, N.z + nrm.y * ns));
+	}
 
 	// ③ 近海白浪（foam）：范围收窄（0.03~0.4m），自然渐消融入深海。
 	// 白浪强度进一步减弱（近海只轻微提亮，不喧宾夺主）。
@@ -96,9 +110,12 @@ void fragment() {
 	vec3 foam = mix(c, vec3(0.90, 0.93, 0.97), 0.7);  // 泡沫柔和、低调
 	c = mix(c, foam, clamp(foam_strength, 0.0, 1.0));
 
-	// ④ Fresnel 反光：掠射角提亮（水面反光感），近景强度进一步降低防刺眼
+	// ④ Fresnel 反光：掠射角采样朝阳 HDRI（等距圆柱 → 反射方向），水面出现金色反光
 	float fres = pow(1.0 - max(dot(N, v_view), 0.0), 4.0);
-	vec3 sky = vec3(0.72, 0.84, 0.95);
+	vec3 R = reflect(-v_view, N);
+	vec2 sky_uv = vec2(atan(R.x, -R.z) / 6.2831853 + 0.5, R.y * 0.5 + 0.5);
+	vec3 sky = texture(sky_panorama, sky_uv).rgb;
+	sky = mix(vec3(0.72, 0.84, 0.95), sky, 0.6);   // 与天光混合，不过分
 	c = mix(c, sky, fres * 0.25 * (0.15 + 0.6 * near));
 
 	ALBEDO = c;
