@@ -1,5 +1,5 @@
 {
-  "comment": "国家数据全量库（27 国，id 为 string 且与 country_colors.json / 盾徽文件名对齐）。来源：游戏规则.md 第四章（统治者/性格）+ 历史环境.md（首都）。字段：id(标识)/name(中文名)/ruler(统治者中文全名)/ruler_en(英文全名)/government(政体)/title(称号)/culture_group(文化组)/race(种族)/capital(首都)/liege(宗主 id，空=独立)/recommended(推荐国)/bio(性格简介，供详情栏与 LLM 上下文)。排序：英格兰/苏格兰置顶（所有国家区前两位），推荐 5 国紧随（诺森伯兰/达勒姆/威尔士/群岛/蒂龙）",
+  "comment": "国家数据全量库（27 国，id 为 string 且与 country_colors.json / 盾徽文件名对齐）。来源：游戏规则.md 第四章（统治者/性格）+ 历史环境.md（首都）。字段：id(标识)/name(中文名)/ruler(统治者中文全名)/ruler_en(英文全名)/government(政体)/title(称号)/culture_group(文化组)/race(种族)/capital(首都)/liege(宗主 id，空=独立)/recommended(推荐国)/bio(性格简介，供详情栏与 LLM 上下文)。排序：英格兰/苏格兰置顶（所有国家区前两位），推荐 5 国紧随（威尔士/蒂龙/诺森伯兰/达勒姆/群岛）",
   "countries": [
     {
       "id": "England",
@@ -30,6 +30,34 @@
       "bio": "宠物主人：斯图亚特王朝的公主，温柔中带着掌控欲，喜欢把亲近的人当宠物宠爱。塞壬尤其喜欢她，把她当『饲主』，围着她蹭来蹭去。"
     },
     {
+      "id": "Wales",
+      "name": "威尔士",
+      "ruler": "欧文娜·格林杜尔",
+      "ruler_en": "Owena Glyndŵr",
+      "government": "monarchy",
+      "title": "公主",
+      "culture_group": "celtic",
+      "race": "犬娘",
+      "capital": "威尔士",
+      "liege": "England",
+      "recommended": true,
+      "bio": "犬娘叛军：犬娘旺盛的性欲驱动着叛乱——既是政治事业，也是情欲释放。垂涎高傲的人类公主罗莎蒙德，最想攻入伦敦『验收』这个闷骚痴女。开局即叛乱（1400.9）。"
+    },
+    {
+      "id": "Tyrone",
+      "name": "蒂龙",
+      "ruler": "内芙·奥尼尔",
+      "ruler_en": "Niamh O'Neill",
+      "government": "tribal",
+      "title": "犬姬",
+      "culture_group": "celtic",
+      "race": "犬娘",
+      "capital": "蒂龙",
+      "liege": "",
+      "recommended": true,
+      "bio": "众犬之首：奥尼尔家族的爱尔兰最强犬娘，阿尔斯特权力中心，最常出任至高王。犬耳最挺、吠声最响。喜欢打篮球。"
+    },
+    {
       "id": "Northumberland",
       "name": "诺森伯兰",
       "ruler": "玛蒂尔达·珀西",
@@ -58,20 +86,6 @@
       "bio": "淫堕圣女：表面虔诚圣洁的采邑圣女，内心暗慕堕落——越克制越渴望被玷污，享受『圣女堕落』的背德快感。"
     },
     {
-      "id": "Wales",
-      "name": "威尔士",
-      "ruler": "欧文娜·格林杜尔",
-      "ruler_en": "Owena Glyndŵr",
-      "government": "monarchy",
-      "title": "公主",
-      "culture_group": "celtic",
-      "race": "犬娘",
-      "capital": "威尔士",
-      "liege": "England",
-      "recommended": true,
-      "bio": "犬娘叛军：犬娘旺盛的性欲驱动着叛乱——既是政治事业，也是情欲释放。垂涎高傲的人类公主罗莎蒙德，最想攻入伦敦『验收』这个闷骚痴女。开局即叛乱（1400.9）。"
-    },
-    {
       "id": "The Isles",
       "name": "群岛领地",
       "ruler": "芙蕾雅",
@@ -84,20 +98,6 @@
       "liege": "",
       "recommended": true,
       "bio": "大姐头栖姬：北欧爱与美之神之名，性欲最强的大姐头。北欧-盖尔海盗政权，名义臣服苏格兰、实际高度自治，海盗联盟核心。"
-    },
-    {
-      "id": "Tyrone",
-      "name": "蒂龙",
-      "ruler": "内芙·奥尼尔",
-      "ruler_en": "Niamh O'Neill",
-      "government": "tribal",
-      "title": "犬姬",
-      "culture_group": "celtic",
-      "race": "犬娘",
-      "capital": "蒂龙",
-      "liege": "",
-      "recommended": true,
-      "bio": "众犬之首：奥尼尔家族的爱尔兰最强犬娘，阿尔斯特权力中心，最常出任至高王。犬耳最挺、吠声最响。喜欢打篮球。"
     },
     {
       "id": "Westmorland",
