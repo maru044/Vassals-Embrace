@@ -9,11 +9,11 @@ const HMAP_MIN := Vector2(-15.1, -26.65)
 const HMAP_SIZE := Vector2(29.9, 40.45)
 const PIXEL_SIZE := 0.015    # 文字像素→世界单位
 const SPACING_RATIO := 0.25  # 字距 = 字号的 25%（汉字留白，防过密）
-# 个别国家国名字号手动修正（Master 定：英格兰放大 / 苏格兰放大很多 / 群岛缩小）
+# 个别国家国名字号手动修正（Master 定：英格兰放大 / 苏格兰放大很多 / 群岛恢复默认）
 const COUNTRY_FS_SCALE := {
 	"England": 1.45,
 	"Scotland": 1.6,
-	"The Isles": 0.6,
+	"The Isles": 1.0,
 }
 
 var _font: Font
