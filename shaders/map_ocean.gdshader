@@ -73,11 +73,10 @@ void fragment() {
 	// 近景系数（白浪/波动随接近增强）
 	float near = terrain_blend * smoothstep(0.25, 0.8, zoom);
 
-	// ① 海洋色带：近海浅色（浅蓝青）紧贴海岸线 → 远海深色（深蓝）。
-	// 向内（远离岸方向）平缓渐变，范围上界 2.5m < 纹理外扩 4.0m，保证纹理内渐变完
-	// 成到深色、边缘像素即深色（clamp 无影响）。
-	vec3 near_col = vec3(0.42, 0.56, 0.60);  // 近海浅色（浅蓝青）
-	vec3 far_col  = vec3(0.07, 0.18, 0.32);  // 远海深色（深蓝）
+	// ① 海洋色带：近海较深蓝（深蓝青）→ 远海更深（深蓝）。
+	// 向内（远离岸方向）平缓渐变，范围上界 2.5m < 纹理外扩 4.0m，纹理内渐变完成。
+	vec3 near_col = vec3(0.16, 0.30, 0.44);  // 近海深蓝青（加深不少）
+	vec3 far_col  = vec3(0.05, 0.14, 0.26);  // 远海更深蓝
 	// 近岸权重：smoothstep 平缓渐变（0.3~2.5m，纹理内完成）
 	float shallow_w = 1.0 - smoothstep(0.3, 2.5, dist_m);
 	vec3 c = mix(far_col, near_col, shallow_w);
