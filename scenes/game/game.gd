@@ -87,6 +87,10 @@ func _build_select_layer() -> void:
 	title.text = "公元 1400 年的世界"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 40)
+	# 金字 + 深棕描边（贴合金边羊皮纸主题，地图上任何底色都可读）
+	title.add_theme_color_override("font_color", Color(0.96, 0.82, 0.45))
+	title.add_theme_color_override("font_outline_color", Color(0.2, 0.12, 0.04))
+	title.add_theme_constant_override("outline_size", 6)
 	title.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	title.offset_top = 24
 	title.offset_bottom = 80
@@ -115,6 +119,9 @@ func _build_select_layer() -> void:
 	var rec_label := Label.new()
 	rec_label.text = "推荐国家"
 	rec_label.add_theme_font_size_override("font_size", 22)
+	rec_label.add_theme_color_override("font_color", Color(0.96, 0.82, 0.45))
+	rec_label.add_theme_color_override("font_outline_color", Color(0.2, 0.12, 0.04))
+	rec_label.add_theme_constant_override("outline_size", 4)
 	rec_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(rec_label)
 
@@ -128,6 +135,9 @@ func _build_select_layer() -> void:
 	var all_label := Label.new()
 	all_label.text = "所有国家"
 	all_label.add_theme_font_size_override("font_size", 22)
+	all_label.add_theme_color_override("font_color", Color(0.96, 0.82, 0.45))
+	all_label.add_theme_color_override("font_outline_color", Color(0.2, 0.12, 0.04))
+	all_label.add_theme_constant_override("outline_size", 4)
 	all_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(all_label)
 
