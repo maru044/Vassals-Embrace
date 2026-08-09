@@ -10,6 +10,7 @@ const GAME_TRACKS: Array[String] = [
 	"res://assets/music/among_the_poor.mp3",
 	"res://assets/music/alba.mp3",
 	"res://assets/music/birthplace_renaissance.mp3",
+	"res://assets/music/eire.mp3",
 ]
 
 enum Mode { NONE, MENU, GAME }
