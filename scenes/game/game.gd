@@ -93,6 +93,8 @@ var _player_country_id: String = "" # 玩家所选国家 id（判断省份是否
 var _select_root: Control = null
 var _info_title: Label = null
 var _info_ruler: Label = null    # 统治者（称号）独立行
+var _court_portrait_mat: ShaderMaterial = null   # 宫廷统治者立绘视差材质（无立绘/未启用时为 null）
+var _court_parallax_smooth := Vector2.ZERO       # 宫廷统治者立绘视差平滑偏移
 var _info_stats: GridContainer = null   # 政体/文化/首都/地位 2×2 资料栏（GridContainer）
 var _info_desc: Label = null     # 性格简介（独立标签）
 var _confirm: Button = null
@@ -519,6 +521,7 @@ const INK := Color(0.36, 0.26, 0.14)         # 羊皮纸上墨色
 const PANEL_BG := Color(0.87, 0.76, 0.54, 0.92)  # 羊皮纸面板底
 const UI_ICON_DIR := "res://assets/ui/"
 const PORTRAIT_DIR := "res://assets/portraits/"   # 立绘资产库（rulers/<id>.png 384×720、harem/*.png 384×720）
+const PARALLAX_SHADER_PATH := "res://shaders/chat_ui_parallax.gdshader"   # 深度图视差 shader（聊天立绘同款）
 const ICON_ORDER := [
 	["economy", "经济"], ["court", "内政"], ["diplomacy", "外交"],
 	["vassal", "附庸"], ["mission", "任务"], ["situation", "局势"],
@@ -732,6 +735,7 @@ func _build_court_panel() -> void:
 	if ruler_title != "":
 		ruler_txt += "（%s）" % ruler_title
 	_left_body.add_child(_panel_label("统治者：%s" % ruler_txt))
+	_court_portrait_mat = null   # 重建面板时先清除旧视差引用
 	var portrait_path := PORTRAIT_DIR + "rulers/" + _player_country_id + ".png"
 	if ResourceLoader.exists(portrait_path):
 		var pr := TextureRect.new()
@@ -739,6 +743,19 @@ func _build_court_panel() -> void:
 		pr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		pr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		pr.custom_minimum_size = Vector2(384, 600)
+		# 统治者立绘同样应用深度图视差（与聊天立绘同款 shader + 深度图）
+		var depth_path := PORTRAIT_DIR + "depth/rulers/" + _player_country_id + "_depth.png"
+		if ResourceLoader.exists(depth_path) and ResourceLoader.exists(PARALLAX_SHADER_PATH):
+			var sh := load(PARALLAX_SHADER_PATH) as Shader
+			if sh:
+				var mat := ShaderMaterial.new()
+				mat.shader = sh
+				mat.set_shader_parameter("depth_map", load(depth_path))
+				mat.set_shader_parameter("depth_strength", 0.05)
+				mat.set_shader_parameter("scale", 1.05)
+				pr.material = mat
+				_court_portrait_mat = mat
+				_court_parallax_smooth = Vector2.ZERO
 		_left_body.add_child(pr)
 	else:
 		_left_body.add_child(_panel_label("　（立绘缺失）"))
@@ -761,6 +778,19 @@ func _build_court_panel() -> void:
 		_build_gold_button(btn_col, "【%s】%s（点击对话）" % [role, rname], func() -> void:
 			if _chat_ui:
 				_chat_ui.open_chat("harem", portrait, rname))
+
+
+## 宫廷统治者立绘视差：随鼠标平滑移动（复用聊天立绘 shader），无立绘材质时零开销
+func _process(delta: float) -> void:
+	if not _court_portrait_mat:
+		return
+	var vp := get_viewport().get_visible_rect().size
+	var center := vp / 2.0
+	var target := (get_viewport().get_mouse_position() - center) / center
+	target.x = clampf(target.x, -1.0, 1.0)
+	target.y = clampf(target.y, -1.0, 1.0)
+	_court_parallax_smooth = _court_parallax_smooth.lerp(target, delta * 5.0)
+	_court_portrait_mat.set_shader_parameter("mouse_offset", _court_parallax_smooth)
 
 
 ## 外交：二级结构——先点国家（列表），再在该国子面板显示 对话/联统/受保护国（#33 占位）
