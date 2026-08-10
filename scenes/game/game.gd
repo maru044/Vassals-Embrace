@@ -16,6 +16,11 @@ const UI_FADE_SECONDS := 0.4
 
 const _GOV_CN := {"monarchy": "君主制", "tribal": "部落制", "theocracy": "神权制", "piracy": "海盗制"}
 const _CULTURE_CN := {"english": "英格兰文化", "celtic": "凯尔特文化", "norse": "诺斯文化"}
+# 附庸类型中文名（countries.json vassal_type；protectorate=受保护国，附庸面板独立一栏）
+const VASSAL_TYPE_CN := {
+	"feudal": "封臣附庸", "autonomous": "自治藩属", "tributary": "进贡国",
+	"protectorate": "受保护国", "prince_bishopric": "采邑主教区",
+}
 # 省份英文 id → 中文名（依据 plan/历史环境.md；42 省全量）
 const _PROVINCE_CN := {
 	"Southwest": "英格兰西南", "Wessex": "韦塞克斯", "London": "伦敦",
@@ -712,6 +717,7 @@ func _build_diplomacy_panel() -> void:
 
 
 ## 进入某国外交子面板：显示该国 对话/联统/受保护国 按钮 + 返回（#33 占位）
+## 海盗（塞壬）国家可直接要求附庸他国（通用 CB），故按钮显示为「要求附庸」；其余国家为「要求成为受保护国」
 func _open_diplomacy_country(country: String) -> void:
 	_left_title.text = "外交 · %s" % _country_name(country)
 	for c in _left_body.get_children():
@@ -719,7 +725,10 @@ func _open_diplomacy_country(country: String) -> void:
 	_left_body.add_child(_panel_label("与「%s」的外交：" % _country_name(country)))
 	_build_gold_button(_left_body, "对话", _on_diplomacy_action.bind(country, "chat"))
 	_build_gold_button(_left_body, "提议联合统治", _on_diplomacy_action.bind(country, "union"))
-	_build_gold_button(_left_body, "要求成为受保护国", _on_diplomacy_action.bind(country, "protect"))
+	if _country_government(_player_country_id) == "piracy":
+		_build_gold_button(_left_body, "要求附庸", _on_diplomacy_action.bind(country, "make_vassal"))
+	else:
+		_build_gold_button(_left_body, "要求成为受保护国", _on_diplomacy_action.bind(country, "protect"))
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 10)
 	_left_body.add_child(spacer)
@@ -739,7 +748,8 @@ func _on_diplomacy_action(country: String, action: String) -> void:
 	print("外交: ", action, " → ", country, "（占位）")
 
 
-## 附庸/宗主：直接宗主 + 直接附庸（嵌套超一层不显示）+ 受保护国（#33 占位）
+## 附庸/宗主：直接宗主 + 【直接附庸】与【受保护国】分开展示（#33 占位；vassal_type 区分）
+## 嵌套超一层的附庸不显示；受保护国（vassal_type=protectorate）独立一栏，附「要求成为附庸」按钮
 func _build_vassal_panel() -> void:
 	var my_liege := ""
 	for c in _countries:
@@ -750,20 +760,45 @@ func _build_vassal_panel() -> void:
 		_left_body.add_child(_panel_label("直接宗主：%s" % _country_name(my_liege)))
 	else:
 		_left_body.add_child(_panel_label("直接宗主：无（独立政权）"))
-	_left_body.add_child(_panel_label("直接附庸 / 受保护国："))
-	var found := false
+
+	# —— 直接附庸（受保护国另列一栏）——
+	_left_body.add_child(_panel_label("直接附庸："))
+	var vassal_found := false
 	for c in _countries:
-		if c.get("liege", "") == _player_country_id:
-			found = true
-			var row := HBoxContainer.new()
-			row.add_theme_constant_override("separation", 8)
-			_left_body.add_child(row)
-			var name := _panel_label(c.get("name", c.get("id", "")))
-			name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			row.add_child(name)
-			_build_gold_button(row, "对话", _on_diplomacy_action.bind(c.get("id", ""), "vassal_chat"))
-	if not found:
-		_left_body.add_child(_panel_label("　（无直接附庸 / 受保护国）"))
+		if c.get("liege", "") != _player_country_id:
+			continue
+		if _vassal_type(c.get("id", "")) == "protectorate":
+			continue
+		vassal_found = true
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		_left_body.add_child(row)
+		var name := _panel_label("%s（%s）" % [c.get("name", c.get("id", "")), _vassal_type_cn(c.get("id", ""))])
+		name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(name)
+		_build_gold_button(row, "对话", _on_diplomacy_action.bind(c.get("id", ""), "vassal_chat"))
+	if not vassal_found:
+		_left_body.add_child(_panel_label("　（无直接附庸）"))
+
+	# —— 受保护国（独立一栏 + 要求成为附庸按钮）——
+	_left_body.add_child(_panel_label("受保护国："))
+	var prot_found := false
+	for c in _countries:
+		if c.get("liege", "") != _player_country_id:
+			continue
+		if _vassal_type(c.get("id", "")) != "protectorate":
+			continue
+		prot_found = true
+		var prows := HBoxContainer.new()
+		prows.add_theme_constant_override("separation", 8)
+		_left_body.add_child(prows)
+		var pname := _panel_label(c.get("name", c.get("id", "")))
+		pname.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		prows.add_child(pname)
+		_build_gold_button(prows, "对话", _on_diplomacy_action.bind(c.get("id", ""), "vassal_chat"))
+		_build_gold_button(prows, "要求成为附庸", _on_diplomacy_action.bind(c.get("id", ""), "make_vassal"))
+	if not prot_found:
+		_left_body.add_child(_panel_label("　（无受保护国）"))
 
 
 ## 任务：占位（#33；引擎⑦任务树接入）
@@ -1038,6 +1073,27 @@ func _country_name(id: String) -> String:
 	if idx >= 0:
 		return _countries[idx].get("name", id)
 	return id
+
+
+## 附庸类型：countries.json vassal_type（无字段时默认 "feudal" 封臣附庸）
+func _vassal_type(cid: String) -> String:
+	var idx: int = _country_index.get(cid, -1)
+	if idx >= 0:
+		return str(_countries[idx].get("vassal_type", "feudal"))
+	return "feudal"
+
+
+## 附庸类型中文名
+func _vassal_type_cn(cid: String) -> String:
+	return VASSAL_TYPE_CN.get(_vassal_type(cid), _vassal_type(cid))
+
+
+## 政体：countries.json government（"piracy" = 海盗/塞壬，可直接要求附庸他国）
+func _country_government(cid: String) -> String:
+	var idx: int = _country_index.get(cid, -1)
+	if idx >= 0:
+		return str(_countries[idx].get("government", ""))
+	return ""
 
 
 func _on_chat_pressed() -> void:
