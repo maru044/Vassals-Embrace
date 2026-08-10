@@ -41,6 +41,33 @@ const _PROVINCE_CN := {
 	"Offaly": "奥法利", "Mayo": "梅奥", "Desmond": "德斯蒙德", "Thomond": "托蒙德",
 }
 
+# 三文化五役后宫模板（容量固定 5；role=役名，name=职业名，portrait=harem 资产文件名，不带 .png）
+# A 人类宫廷（英格兰/苏格兰 english） / B 凯尔特犬娘（爱尔兰/威尔士 celtic） / C 诺斯塞壬（群岛/奥克尼/设得兰 norse）
+# 对应资产：assets/portraits/harem/<portrait>.png + depth/harem/<portrait>_depth.png（已生成，见 refer/img/README.md）
+const _HAREM_ROLES := {
+	"english": [
+		{"role": "武", "name": "重装骑士", "portrait": "A_knight"},
+		{"role": "侍", "name": "宫廷女仆", "portrait": "A_maid"},
+		{"role": "圣", "name": "修女", "portrait": "A_nun"},
+		{"role": "艺", "name": "宫廷舞娘", "portrait": "A_dancer"},
+		{"role": "秘", "name": "草药女巫", "portrait": "A_witch"},
+	],
+	"celtic": [
+		{"role": "武", "name": "猎犬武士", "portrait": "B_hound_warrior"},
+		{"role": "侍", "name": "犬仆", "portrait": "B_hound_maid"},
+		{"role": "圣", "name": "德鲁伊修女", "portrait": "B_druid"},
+		{"role": "艺", "name": "火舞娘", "portrait": "B_fire_dancer"},
+		{"role": "秘", "name": "凯尔特巫女", "portrait": "B_celtic_witch"},
+	],
+	"norse": [
+		{"role": "武", "name": "盾女", "portrait": "C_shieldmaiden"},
+		{"role": "侍", "name": "船舱女仆", "portrait": "C_cabin_maid"},
+		{"role": "圣", "name": "祭坛歌姬", "portrait": "C_altar_singer"},
+		{"role": "艺", "name": "歌姬", "portrait": "C_singer"},
+		{"role": "秘", "name": "符文海巫", "portrait": "C_rune_witch"},
+	],
+}
+
 # ===== 羊皮纸噪声按钮参数（复用主菜单同款：运行时烘焙斑驳贴图） =====
 const _PARCHMENT_BASE := Color(0.86, 0.72, 0.46)      # 羊皮纸暖金基色
 const _PARCHMENT_HOVER := Color(0.98, 0.85, 0.6)      # hover 亮金
@@ -725,11 +752,15 @@ func _build_court_panel() -> void:
 	btn_col.add_theme_constant_override("separation", 8)
 	btn_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(btn_col)
-	for i in 5:
-		var member_name := "后宫成员 %d" % (i + 1)
-		_build_gold_button(btn_col, member_name + "（点击对话）", func() -> void:
+	# 按玩家国家文化组取五役（english/celtic/norse），职业名 + 对应立绘资产文件名
+	var roles: Array = _HAREM_ROLES.get(_country_culture_group(_player_country_id), _HAREM_ROLES["english"])
+	for r in roles:
+		var role: String = r["role"]
+		var rname: String = r["name"]
+		var portrait: String = r["portrait"]
+		_build_gold_button(btn_col, "【%s】%s（点击对话）" % [role, rname], func() -> void:
 			if _chat_ui:
-				_chat_ui.open_chat("harem", member_name, member_name))
+				_chat_ui.open_chat("harem", portrait, rname))
 
 
 ## 外交：二级结构——先点国家（列表），再在该国子面板显示 对话/联统/受保护国（#33 占位）
@@ -1351,6 +1382,14 @@ func _country_title(cid: String) -> String:
 	if idx >= 0:
 		return str(_countries[idx].get("title", ""))
 	return ""
+
+
+## 文化组：countries.json culture_group（english/celtic/norse，决定后宫五役模板）
+func _country_culture_group(cid: String) -> String:
+	var idx: int = _country_index.get(cid, -1)
+	if idx >= 0:
+		return str(_countries[idx].get("culture_group", "english"))
+	return "english"
 
 
 func _on_chat_pressed() -> void:
