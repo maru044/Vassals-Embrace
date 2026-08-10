@@ -119,6 +119,7 @@ var _bottom_open: bool = false
 var _active_bottom: String = ""
 var _bottom_title: Label = null
 var _bottom_body: Control = null
+var _bottom_notice: Label = null   # 下栏弹窗内占位按钮的反馈文本
 var _bottom_hbox: HBoxContainer = null   # 下栏图标容器（选国后重建，因为 _player_country_id 此时才确定）
 var _chat_ui: ChatUI = null   # 全局聊天面板（羊皮纸 + 立绘视差；Miku 无立绘）
 
@@ -1287,13 +1288,65 @@ func _close_bottom_slide() -> void:
 	tw.tween_property(_bottom_slide, "modulate:a", 0.0, 0.18)
 
 
+## 下栏弹窗内容（#34 占位：国际组织 / 外交博弈 / 战争，战争内放和平条约按钮；引擎③④⑥⑧接真实数值）
 func _build_bottom_content(icon_id: String) -> void:
-	# 国际组织/外交博弈/战争界面内容 #34 起实现；当前占位
-	var lbl := Label.new()
-	lbl.text = "「%s」界面建设中…" % STATUS_CN.get(icon_id, BOTTOM_CN.get(icon_id, icon_id))
-	lbl.add_theme_font_size_override("font_size", 16)
-	lbl.add_theme_color_override("font_color", INK)
-	_bottom_body.add_child(lbl)
+	var vbox := VBoxContainer.new()
+	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vbox.add_theme_constant_override("separation", 10)
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bottom_body.add_child(vbox)
+	match icon_id:
+		"org_pirate_league":
+			_build_org_content(vbox, "海盗联盟", ["群岛领地", "奥克尼", "设得兰"],
+				"塞壬三栖姬 · 按功勋分赃的战利品共享（引擎⑧）")
+		"org_high_kingdom":
+			_build_org_content(vbox, "爱尔兰至高王国", [],
+				"犬娘诸部 · 至高王选举 + 凝聚力，联盟之仪 / 淫乱火节提升（引擎⑧）")
+		"org_union":
+			_build_org_content(vbox, "联合统治", [],
+				"多成员共享后宫 · 主导国可变更，关系松散（引擎⑧）")
+		"diplomacy_play":
+			_build_diplomacy_play_content(vbox)
+		"war":
+			_build_war_content(vbox)
+		_:
+			vbox.add_child(_panel_label("「%s」建设中…" % STATUS_CN.get(icon_id, BOTTOM_CN.get(icon_id, icon_id))))
+
+
+## 国际组织通用占位：标题 + 成员列表 + 说明（引擎⑧接入凝聚力/成员/主导国）
+func _build_org_content(vbox: VBoxContainer, title: String, members: Array, note: String) -> void:
+	vbox.add_child(_panel_label(title))
+	for m in members:
+		vbox.add_child(_panel_label("· %s" % m))
+	if members.is_empty():
+		vbox.add_child(_panel_label("　（成员生成中，引擎⑧接入）"))
+	vbox.add_child(_panel_label(note))
+	vbox.add_child(_panel_label("—— 引擎⑧接入凝聚力 / 成员管理 ——"))
+
+
+## 外交博弈占位（引擎④状态机：宣战前五步流程）
+func _build_diplomacy_play_content(vbox: VBoxContainer) -> void:
+	vbox.add_child(_panel_label("外交博弈（五步流程 · 引擎④接入）"))
+	vbox.add_child(_panel_label("当前博弈：无"))
+	vbox.add_child(_panel_label("说明：宣战前需先发起外交博弈；谈崩即开战"))
+	vbox.add_child(_panel_label("—— 引擎④接入博弈状态机 ——"))
+
+
+## 战争占位（引擎③④）：内放「和平条约」按钮
+func _build_war_content(vbox: VBoxContainer) -> void:
+	vbox.add_child(_panel_label("战争（Battle Fuck · 引擎③④接入）"))
+	vbox.add_child(_panel_label("当前战争：无"))
+	vbox.add_child(_panel_label("战争分数：—（引擎③月结）"))
+	_build_gold_button(vbox, "缔结和平条约", _on_peace_treaty_pressed)
+	_bottom_notice = _panel_label("")
+	vbox.add_child(_bottom_notice)
+	vbox.add_child(_panel_label("—— 引擎③④接入战斗 / 和约条款 ——"))
+
+
+## 和平条约占位：引擎④接入真实条款
+func _on_peace_treaty_pressed() -> void:
+	if _bottom_notice:
+		_bottom_notice.text = "当前无战争可议和（引擎④接入战争与和约条款）"
 
 
 ## ===== 主题样式 =====
