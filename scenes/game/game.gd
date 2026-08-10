@@ -95,6 +95,7 @@ var _info_title: Label = null
 var _info_ruler: Label = null    # 统治者（称号）独立行
 var _court_portrait_mat: ShaderMaterial = null   # 宫廷统治者立绘视差材质（无立绘/未启用时为 null）
 var _court_parallax_smooth := Vector2.ZERO       # 宫廷统治者立绘视差平滑偏移
+var _paper_mat: ShaderMaterial = null            # 面板纸张材质（共享实例，惰性加载）
 var _info_stats: GridContainer = null   # 政体/文化/首都/地位 2×2 资料栏（GridContainer）
 var _info_desc: Label = null     # 性格简介（独立标签）
 var _confirm: Button = null
@@ -522,6 +523,8 @@ const PANEL_BG := Color(0.87, 0.76, 0.54, 0.92)  # 羊皮纸面板底
 const UI_ICON_DIR := "res://assets/ui/"
 const PORTRAIT_DIR := "res://assets/portraits/"   # 立绘资产库（rulers/<id>.png 384×720、harem/*.png 384×720）
 const PARALLAX_SHADER_PATH := "res://shaders/chat_ui_parallax.gdshader"   # 深度图视差 shader（聊天立绘同款）
+const PAPER_TEX_PATH := "res://assets/ui/paper_texture.jpg"   # 纸张材质（Texturelabs 纸面，正片叠底用）
+const PAPER_SHADER_PATH := "res://shaders/paper_panel.gdshader"   # 面板纸张材质 shader
 const ICON_ORDER := [
 	["economy", "经济"], ["court", "内政"], ["diplomacy", "外交"],
 	["vassal", "附庸"], ["mission", "任务"], ["situation", "局势"],
@@ -567,6 +570,7 @@ func _build_top_bar(parent: Control) -> void:
 	top.offset_bottom = TOP_BAR_H
 	parent.add_child(top)
 	top.add_theme_stylebox_override("panel", _make_panel_stylebox())
+	top.material = _paper_material()   # 纸张材质（正片叠底）
 
 	var hbox := HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 16)
@@ -631,6 +635,7 @@ func _build_left_slide(parent: Control) -> void:
 	var panel := PanelContainer.new()
 	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	panel.add_theme_stylebox_override("panel", _make_panel_stylebox())
+	panel.material = _paper_material()   # 纸张材质（正片叠底）
 	wrap.add_child(panel)
 
 	var vbox := VBoxContainer.new()
@@ -1157,6 +1162,7 @@ func _build_bottom_slide(parent: Control) -> void:
 	panel.offset_right = 360
 	panel.offset_bottom = 230
 	panel.add_theme_stylebox_override("panel", _make_panel_stylebox())
+	panel.material = _paper_material()   # 纸张材质（正片叠底）
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE   # 默认隐藏：穿透
 	wrap.add_child(panel)
 	_bottom_panel = panel
@@ -1286,6 +1292,23 @@ func _build_bottom_content(icon_id: String) -> void:
 
 
 ## ===== 主题样式 =====
+## 面板纸张材质（共享实例缓存）：羊皮纸底色 × 纸纹亮度 = 正片叠底；UV 放大使纸纹更细密
+func _paper_material() -> ShaderMaterial:
+	if _paper_mat != null:
+		return _paper_mat
+	if not ResourceLoader.exists(PAPER_SHADER_PATH) or not ResourceLoader.exists(PAPER_TEX_PATH):
+		return null
+	var sh := load(PAPER_SHADER_PATH) as Shader
+	if sh == null:
+		return null
+	_paper_mat = ShaderMaterial.new()
+	_paper_mat.shader = sh
+	_paper_mat.set_shader_parameter("paper_tex", load(PAPER_TEX_PATH))
+	_paper_mat.set_shader_parameter("paper_scale", 1.6)
+	_paper_mat.set_shader_parameter("paper_strength", 1.0)
+	return _paper_mat
+
+
 func _make_panel_stylebox(hover: bool = false) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = PANEL_BG.lightened(0.06) if hover else PANEL_BG
