@@ -688,7 +688,14 @@ func _build_economy_panel() -> void:
 ## 立绘与按钮容器分开：立绘不滚，按钮区用 ScrollContainer（与外交列表同款结构）滚动（#33 占位；对话 #35）
 func _build_court_panel() -> void:
 	# 顶部：统治者立绘固定显示（不滚动，显示高 500，资产 720 清晰度足够）
-	_left_body.add_child(_panel_label("统治者：%s" % _country_name(_player_country_id)))
+	# 标题显示统治者公主名字（ruler）+ 称号，缺失回退国家名
+	var ruler_txt := _country_ruler(_player_country_id)
+	if ruler_txt == "":
+		ruler_txt = _country_name(_player_country_id)
+	var ruler_title := _country_title(_player_country_id)
+	if ruler_title != "":
+		ruler_txt += "（%s）" % ruler_title
+	_left_body.add_child(_panel_label("统治者：%s" % ruler_txt))
 	var portrait_path := PORTRAIT_DIR + "rulers/" + _player_country_id + ".png"
 	if ResourceLoader.exists(portrait_path):
 		var pr := TextureRect.new()
@@ -1123,6 +1130,22 @@ func _country_government(cid: String) -> String:
 	var idx: int = _country_index.get(cid, -1)
 	if idx >= 0:
 		return str(_countries[idx].get("government", ""))
+	return ""
+
+
+## 统治者姓名：countries.json ruler（中文名，如内芙·奥尼尔）
+func _country_ruler(cid: String) -> String:
+	var idx: int = _country_index.get(cid, -1)
+	if idx >= 0:
+		return str(_countries[idx].get("ruler", ""))
+	return ""
+
+
+## 统治者称号：countries.json title（如公主/犬姬）
+func _country_title(cid: String) -> String:
+	var idx: int = _country_index.get(cid, -1)
+	if idx >= 0:
+		return str(_countries[idx].get("title", ""))
 	return ""
 
 
