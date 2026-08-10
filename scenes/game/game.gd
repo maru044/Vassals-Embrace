@@ -1292,7 +1292,7 @@ func _build_bottom_content(icon_id: String) -> void:
 
 
 ## ===== 主题样式 =====
-## 面板纸张材质（共享实例缓存）：羊皮纸底色 × 纸纹亮度 = 正片叠底；UV 放大使纸纹更细密
+## 面板纸张材质（共享实例缓存）：世界坐标无缝平铺纸纹 + 羊皮纸色染色（颜色混合）
 func _paper_material() -> ShaderMaterial:
 	if _paper_mat != null:
 		return _paper_mat
@@ -1304,8 +1304,9 @@ func _paper_material() -> ShaderMaterial:
 	_paper_mat = ShaderMaterial.new()
 	_paper_mat.shader = sh
 	_paper_mat.set_shader_parameter("paper_tex", load(PAPER_TEX_PATH))
-	_paper_mat.set_shader_parameter("paper_scale", 1.6)
-	_paper_mat.set_shader_parameter("paper_strength", 1.0)
+	_paper_mat.set_shader_parameter("tile_size", 512.0)          # 纸纹世界坐标平铺尺寸（像素）
+	_paper_mat.set_shader_parameter("paper_tint", Color(0.92, 0.84, 0.65))   # 羊皮纸染色
+	_paper_mat.set_shader_parameter("paper_strength", 0.85)      # 颜色混合强度
 	return _paper_mat
 
 

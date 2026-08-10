@@ -1,24 +1,38 @@
 shader_type canvas_item;
-// 面板纸张材质 shader：面板底色（stylebox 羊皮纸）× 纸张纹理亮度 = 正片叠底，
-// 产生真实的纸张纤维/纹理质感。UV 可放大使纸纹更细密（消除单张纹理的边界感）。
+// 面板纸张材质 shader（标准 2D 美术做法）：
+// 1. 世界坐标平铺 —— 用 CANVAS_MATRIX 把本地像素坐标转到 canvas 世界坐标，
+//    以固定像素尺寸 tile_size 平铺纸纹；所有面板共享同一世界坐标 → 无缝、不拉伸、跨面板连续。
+// 2. 颜色混合 —— 面板底色（stylebox 羊皮纸底/描边结构）与「染色纸」线性混合（mix），
+//    纸纹染色成羊皮纸色（paper_tint），而非正片叠底叠加花纹。
+// 3. 无缝拼贴 —— fract() 保证周期重复，纸纹在任意大小面板上均匀平铺。
 
-// 纸张纹理（灰度/米色纸面，r 通道亮度参与正片叠底）
+// 纸张纹理
 uniform sampler2D paper_tex;
 
-// UV 放大倍数：>1 时纸纹在面板上平铺更多次，更细密（「稍微大一点」用 1.6）
-uniform float paper_scale : hint_range(0.5, 6.0) = 1.6;
+// 纸纹 tile 尺寸（世界坐标像素）：纸纹以该尺寸无缝平铺，与面板大小无关
+uniform float tile_size : hint_range(64.0, 1024.0) = 512.0;
 
-// 叠加强度：0=不叠加，1=完全正片叠底
-uniform float paper_strength : hint_range(0.0, 1.0) = 1.0;
+// 纸张染色（羊皮纸色）：纸纹 × tint 得到面板本色
+uniform vec3 paper_tint : source_color = vec3(0.92, 0.84, 0.65);
+
+// 颜色混合强度：0 = 纯面板底色，1 = 纯染色纸
+uniform float paper_strength : hint_range(0.0, 1.0) = 0.85;
+
+// 纸纹偏移（可选，微调接缝/对齐）
+uniform vec2 paper_offset = vec2(0.0, 0.0);
 
 void fragment() {
-	// 1. 面板自身内容（stylebox 羊皮纸底色 + 圆角/描边）
+	// 面板自身结构：stylebox 的羊皮纸底 + 圆角/描边/阴影（含 alpha）
 	vec4 base = texture(TEXTURE, UV);
 
-	// 2. 采样纸张纹理（UV 放大 → 更细密的纸纹）
-	vec4 paper = texture(paper_tex, UV * paper_scale);
+	// 世界坐标：CANVAS_MATRIX 将本地像素坐标变换到 canvas（世界）像素坐标
+	vec2 world = (CANVAS_MATRIX * vec4(VERTEX.xy, 0.0, 1.0)).xy;
 
-	// 3. 正片叠底：final = base * lerp(白, 纸纹, 强度)
-	vec3 tint = mix(vec3(1.0), paper.rgb, paper_strength);
-	COLOR = vec4(base.rgb * tint, base.a);
+	// 无缝平铺：世界坐标 / tile_size，fract 周期重复
+	vec2 tile = fract(world / tile_size + paper_offset);
+	vec4 paper = texture(paper_tex, tile);
+
+	// 颜色混合：base（结构）与染色纸（paper × tint）线性混合
+	vec3 mixed = mix(base.rgb, paper.rgb * paper_tint, paper_strength);
+	COLOR = vec4(mixed, base.a);
 }
