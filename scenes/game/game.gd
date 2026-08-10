@@ -899,7 +899,18 @@ func _build_bottom_slide(parent: Control) -> void:
 
 
 ## ===== 下栏（EU5 式：居中大图标，有状态就显示、无则隐藏）=====
-## 占位阶段：全部显示（外交博弈显示 2 个示意多个；引擎接入后按实际状态增删）
+## 业务逻辑：按玩家国家实际状态显示下栏图标（国际组织成员 / 战争 / 博弈 / 联统）
+func _bottom_icon_slots() -> Array:
+	var slots: Array = []
+	var gov := _country_government(_player_country_id)
+	if gov == "piracy":
+		slots.append("org_pirate_league")   # 塞壬三栖姬（群岛/奥克尼/设得兰）→ 海盗联盟
+	elif gov == "tribal":
+		slots.append("org_high_kingdom")    # 爱尔兰犬娘诸部（蒂龙等）→ 爱尔兰至高王国
+	# 战争 / 外交博弈 / 联合统治：引擎③④⑧接入后按运行态增补
+	return slots
+
+
 func _build_bottom_bar(parent: Control) -> void:
 	var bar := Control.new()
 	bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
@@ -915,13 +926,8 @@ func _build_bottom_bar(parent: Control) -> void:
 	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE   # 容器穿透，内部按钮默认 STOP 仍可点
 	bar.add_child(hbox)
 
-	# 占位：依次显示 战争 / 外交博弈×2（示意可同时多个）/ 海盗联盟 / 爱尔兰至高王国 / 联合统治
-	# 图标文件名 = 英文 id（归一化输出），引擎接入后改按实际状态动态增删
-	var slots := [
-		"war", "diplomacy_play", "diplomacy_play",
-		"org_pirate_league", "org_high_kingdom", "org_union",
-	]
-	for s in slots:
+	# 业务逻辑：实际有什么状态才显示对应图标
+	for s in _bottom_icon_slots():
 		hbox.add_child(_make_bottom_status_icon(s, STATUS_CN.get(s, s)))
 
 
