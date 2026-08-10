@@ -245,12 +245,24 @@ static func _plaque_pixel(base: Color, strength: float, noise: FastNoiseLite, x:
 	return Color(base.r * f, base.g * f, base.b * f, 1.0)
 
 
-## ===== 制作人员（暂未实现） =====
+## ===== 制作人员 =====
+
+const CREDITS_URL := "https://discord.com/channels/1134557553011998840/1498025328423997510"
 
 func _on_credits_pressed() -> void:
-	# TODO: 打开制作人员名单弹窗（内容待定）
-	EventBus.open_panel.emit("credits")
-	push_warning("主界面: 制作人员弹窗待实现")
+	var dlg := AcceptDialog.new()
+	dlg.title = "制作人员"
+	dlg.ok_button_text = "关闭"
+	add_child(dlg)
+	var rtl := RichTextLabel.new()
+	rtl.bbcode_enabled = true
+	rtl.fit_content = true
+	rtl.scroll_active = false
+	rtl.custom_minimum_size = Vector2(460, 180)
+	rtl.text = "[center][b]《欧陆百合风云》[/b]\n\n[b]制作：[/b]Archaea Studio\n[url=%s]→ Archaea Studio 主页[/url][/center]" % CREDITS_URL
+	rtl.meta_clicked.connect(func(meta: Variant) -> void: OS.shell_open(str(meta)))
+	dlg.add_child(rtl)
+	dlg.popup_centered()
 
 
 func _on_quit_pressed() -> void:
