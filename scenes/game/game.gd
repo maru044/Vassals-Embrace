@@ -1305,7 +1305,7 @@ func _apply_paper_layer(panel: PanelContainer) -> void:
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bg.offset_left = 10; bg.offset_top = 10; bg.offset_right = -10; bg.offset_bottom = -10   # 避开金边/圆角
 	panel.add_child(bg)
-	bg.move_to_back()   # 置于内容之下、stylebox 之上
+	panel.move_child(bg, 0)   # 置于内容之下、stylebox 之上
 
 
 func _make_panel_stylebox(hover: bool = false) -> StyleBoxFlat:
