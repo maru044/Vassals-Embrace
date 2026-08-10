@@ -864,12 +864,14 @@ func _build_bottom_bar(parent: Control) -> void:
 	bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	bar.offset_top = -132
 	bar.offset_bottom = 0
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE   # 底栏空白区穿透：不挡左栏/地图，仅图标按钮可点
 	parent.add_child(bar)
 
 	var hbox := HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 14)
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER   # EU5 式：居中排布大图标
 	hbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE   # 容器穿透，内部按钮默认 STOP 仍可点
 	bar.add_child(hbox)
 
 	# 占位：依次显示 战争 / 外交博弈×2（示意可同时多个）/ 海盗联盟 / 爱尔兰至高王国 / 联合统治
