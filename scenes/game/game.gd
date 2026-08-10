@@ -1306,7 +1306,8 @@ func _paper_material() -> ShaderMaterial:
 	_paper_mat.set_shader_parameter("paper_tex", load(PAPER_TEX_PATH))
 	_paper_mat.set_shader_parameter("tile_size", 512.0)          # 纸纹世界坐标平铺尺寸（像素）
 	_paper_mat.set_shader_parameter("paper_tint", Color(0.92, 0.84, 0.65))   # 羊皮纸染色
-	_paper_mat.set_shader_parameter("paper_strength", 0.85)      # 颜色混合强度
+	_paper_mat.set_shader_parameter("paper_strength", 0.55)      # 颜色混合强度（弱化纸纹）
+	_paper_mat.set_shader_parameter("body_color", Color(PANEL_BG.r, PANEL_BG.g, PANEL_BG.b))   # 主体底色（用于排除描边/阴影）
 	return _paper_mat
 
 
