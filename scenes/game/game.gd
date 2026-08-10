@@ -523,6 +523,7 @@ const UI_ICON_DIR := "res://assets/ui/"
 const PORTRAIT_DIR := "res://assets/portraits/"   # 立绘资产库（rulers/<id>.png 384×720、harem/*.png 384×720）
 const PARALLAX_SHADER_PATH := "res://shaders/chat_ui_parallax.gdshader"   # 深度图视差 shader（聊天立绘同款）
 const PAPER_TEX_PATH := "res://assets/ui/paper_texture.jpg"   # 纸张材质（Texturelabs 纸面，弱纸纹层用）
+const PAPER_SHADER_PATH := "res://shaders/paper_layer.gdshader"   # 纸纹层平铺 shader（屏幕坐标无缝平铺）
 const ICON_ORDER := [
 	["economy", "经济"], ["court", "内政"], ["diplomacy", "外交"],
 	["vassal", "附庸"], ["mission", "任务"], ["situation", "局势"],
@@ -1290,18 +1291,21 @@ func _build_bottom_content(icon_id: String) -> void:
 
 
 ## ===== 主题样式 =====
-## 面板弱纸纹层（标准做法）：PanelContainer 保留纯色 StyleBoxFlat（羊皮纸底+金边+圆角+阴影），
-## 叠加一个 TextureRect 无缝平铺纸纹（原始像素尺寸、不拉伸；self_modulate 极淡），内缩避开边框圆角。
+## 面板弱纸纹层：纯色 StyleBoxFlat 主体（羊皮纸底+金边+圆角+阴影）保留原样，
+## 叠加 TextureRect + 纸纹 shader（屏幕坐标固定像素密度无缝平铺、只压暗纹路保持底色），内缩避开边框圆角。
 func _apply_paper_layer(panel: PanelContainer) -> void:
-	if not ResourceLoader.exists(PAPER_TEX_PATH):
+	if not ResourceLoader.exists(PAPER_TEX_PATH) or not ResourceLoader.exists(PAPER_SHADER_PATH):
 		return
 	var bg := TextureRect.new()
 	bg.texture = load(PAPER_TEX_PATH)
-	bg.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED   # 无缝平铺
 	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	bg.stretch_mode = TextureRect.STRETCH_SCALE
-	bg.self_modulate = Color(1, 1, 1, 0.10)   # 极淡纸纹（几乎纯色主体）
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var mat := ShaderMaterial.new()
+	mat.shader = load(PAPER_SHADER_PATH)
+	mat.set_shader_parameter("tile_px", 320.0)      # 纸纹固定像素密度（不随面板长宽比）
+	mat.set_shader_parameter("strength", 0.25)      # 纸纹强度（材质强弱）
+	bg.material = mat
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bg.offset_left = 10; bg.offset_top = 10; bg.offset_right = -10; bg.offset_bottom = -10   # 避开金边/圆角
 	panel.add_child(bg)
