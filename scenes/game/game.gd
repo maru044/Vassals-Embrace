@@ -1332,21 +1332,22 @@ func _build_diplomacy_play_content(vbox: VBoxContainer) -> void:
 	vbox.add_child(_panel_label("—— 引擎④接入博弈状态机 ——"))
 
 
-## 战争占位（引擎③④）：内放「和平条约」按钮
+## 战争占位（引擎③④）：攻破首都=无条件投降；其余议和走 LLM 聊天（提条件·同意即和平）
 func _build_war_content(vbox: VBoxContainer) -> void:
 	vbox.add_child(_panel_label("战争（Battle Fuck · 引擎③④接入）"))
 	vbox.add_child(_panel_label("当前战争：无"))
-	vbox.add_child(_panel_label("战争分数：—（引擎③月结）"))
-	_build_gold_button(vbox, "缔结和平条约", _on_peace_treaty_pressed)
+	vbox.add_child(_panel_label("议和规则：攻破对方首都 → 无条件投降"))
+	vbox.add_child(_panel_label("其余情况 → 与敌国公主聊天，随意提出条件，同意即和平"))
+	_build_gold_button(vbox, "与敌国公主议和", _on_peace_treaty_pressed)
 	_bottom_notice = _panel_label("")
 	vbox.add_child(_bottom_notice)
-	vbox.add_child(_panel_label("—— 引擎③④接入战斗 / 和约条款 ——"))
+	vbox.add_child(_panel_label("—— 引擎③④接入战斗；议和走聊天 ——"))
 
 
-## 和平条约占位：引擎④接入真实条款
+## 议和：引擎④接入后打开与当前敌国公主的聊天（LLM 谈条件，同意即和平）
 func _on_peace_treaty_pressed() -> void:
 	if _bottom_notice:
-		_bottom_notice.text = "当前无战争可议和（引擎④接入战争与和约条款）"
+		_bottom_notice.text = "当前无战争可议和（有战争时从这里找对方公主聊天提条件）"
 
 
 ## ===== 主题样式 =====
