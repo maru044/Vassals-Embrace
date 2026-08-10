@@ -97,6 +97,13 @@ func _ready() -> void:
 	_map_view.province_picked.connect(_on_map_province_picked)
 	# 国家选择阶段：主旋律 BGM
 	AudioManager.play_menu_music()
+	# 下栏图标动态刷新：引擎状态变化（宣战/博弈/联统/组织成员）时随时重建
+	EventBus.war_started.connect(func(_w: int) -> void: _refresh_bottom_bar())
+	EventBus.war_ended.connect(func(_w: int) -> void: _refresh_bottom_bar())
+	EventBus.diplomatic_play_started.connect(func(_p: int) -> void: _refresh_bottom_bar())
+	EventBus.diplomatic_play_resolved.connect(func(_p: int) -> void: _refresh_bottom_bar())
+	EventBus.union_changed.connect(func(_l: int, _m: int, _a: bool) -> void: _refresh_bottom_bar())
+	EventBus.organization_changed.connect(func(_o: int) -> void: _refresh_bottom_bar())
 
 
 func _load_countries() -> void:
