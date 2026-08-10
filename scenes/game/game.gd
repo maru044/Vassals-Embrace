@@ -860,7 +860,13 @@ func _build_vassal_panel() -> void:
 			my_liege = c.get("liege", "")
 			break
 	if my_liege != "" and _country_index.has(my_liege):
-		_left_body.add_child(_panel_label("直接宗主：%s" % _country_name(my_liege)))
+		var lrow := HBoxContainer.new()
+		lrow.add_theme_constant_override("separation", 8)
+		_left_body.add_child(lrow)
+		var lname := _panel_label("直接宗主：%s" % _country_name(my_liege))
+		lname.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		lrow.add_child(lname)
+		_build_gold_button(lrow, "对话", _on_diplomacy_action.bind(my_liege, "chat"))
 	else:
 		_left_body.add_child(_panel_label("直接宗主：无（独立政权）"))
 
