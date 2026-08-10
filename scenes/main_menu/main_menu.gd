@@ -250,19 +250,68 @@ static func _plaque_pixel(base: Color, strength: float, noise: FastNoiseLite, x:
 const CREDITS_URL := "https://discord.com/channels/1134557553011998840/1498025328423997510"
 
 func _on_credits_pressed() -> void:
-	var dlg := AcceptDialog.new()
-	dlg.title = "制作人员"
-	dlg.ok_button_text = "关闭"
-	add_child(dlg)
+	# 全屏遮罩（点击任意处关闭）
+	var overlay := Control.new()
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	var shade := ColorRect.new()
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade.color = Color(0, 0, 0, 0.55)
+	overlay.add_child(shade)
+	overlay.gui_input.connect(func(ev: InputEvent) -> void:
+		if ev is InputEventMouseButton and ev.pressed:
+			overlay.queue_free())
+	add_child(overlay)
+
+	# 羊皮纸面板（标题界面主题同款：金棕描边 + 软阴影）
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.custom_minimum_size = Vector2(540, 300)
+	var tex := _make_plaque_texture(PARCHMENT_BASE, PARCHMENT_STRENGTH)
+	panel.add_theme_stylebox_override("panel", _make_plaque_stylebox(tex))
+	overlay.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 28)
+	margin.add_theme_constant_override("margin_right", 28)
+	margin.add_theme_constant_override("margin_top", 20)
+	margin.add_theme_constant_override("margin_bottom", 20)
+	panel.add_child(margin)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 14)
+	margin.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "制作人员"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_color_override("font_color", BORDER_COLOR)
+	vbox.add_child(title)
+
 	var rtl := RichTextLabel.new()
 	rtl.bbcode_enabled = true
 	rtl.fit_content = true
 	rtl.scroll_active = false
-	rtl.custom_minimum_size = Vector2(460, 180)
+	rtl.custom_minimum_size = Vector2(460, 150)
+	rtl.add_theme_font_size_override("normal_font_size", 18)
+	rtl.add_theme_color_override("default_color", BORDER_COLOR)
 	rtl.text = "[center][b]《欧陆百合风云》[/b]\n\n[b]制作：[/b]Archaea Studio\n[url=%s]→ Archaea Studio 主页[/url][/center]" % CREDITS_URL
 	rtl.meta_clicked.connect(func(meta: Variant) -> void: OS.shell_open(str(meta)))
-	dlg.add_child(rtl)
-	dlg.popup_centered()
+	vbox.add_child(rtl)
+
+	# 羊皮纸关闭按钮（与主菜单按钮同款）
+	var close := Button.new()
+	close.text = "关闭"
+	close.custom_minimum_size = Vector2(180, 44)
+	close.add_theme_font_size_override("font_size", 18)
+	close.add_theme_color_override("font_color", BORDER_COLOR)
+	close.add_theme_stylebox_override("normal", _make_plaque_stylebox(tex))
+	var hover_tex := _make_plaque_texture(PARCHMENT_HOVER, PARCHMENT_STRENGTH)
+	close.add_theme_stylebox_override("hover", _make_plaque_stylebox(hover_tex))
+	close.add_theme_stylebox_override("pressed", _make_plaque_stylebox(hover_tex))
+	close.pressed.connect(func() -> void: overlay.queue_free())
+	vbox.add_child(close)
 
 
 func _on_quit_pressed() -> void:
