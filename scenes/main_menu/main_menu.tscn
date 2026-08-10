@@ -392,3 +392,61 @@ theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBox_btn_normal")
 theme_override_styles/hover = SubResource("StyleBox_btn_hover_quit")
 text = "取消"
+
+[node name="CreditsDialog" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -220.0
+offset_right = 300.0
+offset_bottom = 220.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBox_panel")
+
+[node name="Margin" type="MarginContainer" parent="CreditsDialog"]
+layout_mode = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 24
+
+[node name="VBox" type="VBoxContainer" parent="CreditsDialog/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="CreditsDialog/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.4, 0.12, 1)
+theme_override_font_sizes/font_size = 24
+text = "制作人员"
+horizontal_alignment = 1
+
+[node name="CreditsText" type="RichTextLabel" parent="CreditsDialog/Margin/VBox"]
+custom_minimum_size = Vector2(480, 180)
+layout_mode = 2
+theme_override_colors/default_color = Color(0.42, 0.31, 0.16, 1)
+theme_override_font_sizes/normal_font_size = 16
+bbcode_enabled = true
+scroll_active = false
+fit_content = true
+text = "[center][b]《欧陆百合风云》[/b]\n\n[b]制作：[/b]Archaea Studio\n[url=https://discord.com/channels/1134557553011998840/1498025328423997510]→ Archaea Studio 主页[/url][/center]"
+
+[node name="Buttons" type="HBoxContainer" parent="CreditsDialog/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="Close" type="Button" parent="CreditsDialog/Margin/VBox/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(0.32, 0.22, 0.1, 1)
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBox_btn_normal")
+theme_override_styles/hover = SubResource("StyleBox_btn_hover_credits")
+text = "关闭"

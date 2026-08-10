@@ -48,6 +48,10 @@ const TEXTURE_SIZE := 256                           # 噪声贴图边长
 @onready var _settings_save: Button = $SettingsDialog/Margin/VBox/Buttons/Save
 @onready var _settings_cancel: Button = $SettingsDialog/Margin/VBox/Buttons/Cancel
 
+@onready var _credits_dialog: PanelContainer = $CreditsDialog
+@onready var _credits_text: RichTextLabel = $CreditsDialog/Margin/VBox/CreditsText
+@onready var _credits_close: Button = $CreditsDialog/Margin/VBox/Buttons/Close
+
 
 func _ready() -> void:
 	_start_button.pressed.connect(_on_start_pressed)
@@ -60,6 +64,8 @@ func _ready() -> void:
 	_cancel_button.pressed.connect(_on_cancel_config_pressed)
 	_settings_save.pressed.connect(_on_settings_save_pressed)
 	_settings_cancel.pressed.connect(_on_settings_cancel_pressed)
+	_credits_close.pressed.connect(_on_credits_close_pressed)
+	_credits_text.meta_clicked.connect(_on_credits_meta_clicked)
 	_volume_slider.value_changed.connect(_on_volume_changed)
 	_apply_startup_resolution()
 	_apply_parchment_buttons()
@@ -189,6 +195,7 @@ func _apply_parchment_buttons() -> void:
 		_settings_button, _credits_button, _quit_button,
 		_save_button, _cancel_button,
 		_settings_save, _settings_cancel,
+		_credits_close,
 	]
 	for b in buttons:
 		b.add_theme_stylebox_override("normal", _make_plaque_stylebox(normal_tex))
@@ -247,114 +254,19 @@ static func _plaque_pixel(base: Color, strength: float, noise: FastNoiseLite, x:
 
 ## ===== 制作人员 =====
 
-const CREDITS_URL := "https://discord.com/channels/1134557553011998840/1498025328423997510"
-
-## 设置对话框同款面板样式（main_menu.tscn 的 StyleBox_panel：亮羊皮纸 + 1px 金边 + 圆角20 + 大阴影）
-static func _make_panel_stylebox() -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.94, 0.82, 0.58, 0.95)
-	sb.border_width_left = 1
-	sb.border_width_top = 1
-	sb.border_width_right = 1
-	sb.border_width_bottom = 1
-	sb.border_color = Color(0.75, 0.58, 0.3, 0.5)
-	sb.corner_radius_top_left = 20
-	sb.corner_radius_top_right = 20
-	sb.corner_radius_bottom_right = 20
-	sb.corner_radius_bottom_left = 20
-	sb.shadow_color = Color(0.4, 0.28, 0.12, 0.3)
-	sb.shadow_size = 24
-	return sb
-
-
-## 设置对话框同款按钮样式（StyleBox_btn_normal / StyleBox_btn_hover_credits）
-static func _make_btn_stylebox(hover: bool) -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(1, 0.88, 0.6, 0.95) if hover else Color(0.86, 0.72, 0.46, 0.9)
-	sb.border_width_left = 2
-	sb.border_width_top = 2
-	sb.border_width_right = 2
-	sb.border_width_bottom = 2
-	sb.border_color = Color(0.85, 0.55, 0.5, 0.7) if hover else Color(0.55, 0.38, 0.15, 0.85)
-	sb.corner_radius_top_left = 12
-	sb.corner_radius_top_right = 12
-	sb.corner_radius_bottom_right = 12
-	sb.corner_radius_bottom_left = 12
-	sb.shadow_color = Color(0.85, 0.55, 0.5, 0.3) if hover else Color(0.4, 0.28, 0.12, 0.25)
-	sb.shadow_size = 12 if hover else 8
-	return sb
-
-
+## 制作人员对话框（CreditsDialog 预置于 main_menu.tscn，与设置对话框同款结构/样式）：
+## 点击「制作人员」→ 直接显示；关闭/超链接由信号回调处理
 func _on_credits_pressed() -> void:
-	# 全屏遮罩（点击任意处关闭）
-	var overlay := Control.new()
-	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	var shade := ColorRect.new()
-	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	shade.color = Color(0, 0, 0, 0.55)
-	overlay.add_child(shade)
-	overlay.gui_input.connect(func(ev: InputEvent) -> void:
-		if ev is InputEventMouseButton and ev.pressed:
-			overlay.queue_free())
-	add_child(overlay)
+	_credits_dialog.visible = true
 
-	# 面板：应用设置对话框同款 StyleBox_panel（anchors 全 0.5 + 显式对称 offsets 居中）
-	var panel := PanelContainer.new()
-	panel.anchor_left = 0.5
-	panel.anchor_top = 0.5
-	panel.anchor_right = 0.5
-	panel.anchor_bottom = 0.5
-	panel.offset_left = -270
-	panel.offset_top = -160
-	panel.offset_right = 270
-	panel.offset_bottom = 160
-	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	panel.add_theme_stylebox_override("panel", _make_panel_stylebox())
-	overlay.add_child(panel)
 
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 28)
-	margin.add_theme_constant_override("margin_right", 28)
-	margin.add_theme_constant_override("margin_top", 24)
-	margin.add_theme_constant_override("margin_bottom", 24)
-	panel.add_child(margin)
+func _on_credits_close_pressed() -> void:
+	_credits_dialog.visible = false
 
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 12)
-	margin.add_child(vbox)
 
-	# 标题：与设置对话框 Title 同款配色/字号
-	var title := Label.new()
-	title.text = "制作人员"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 24)
-	title.add_theme_color_override("font_color", Color(0.6, 0.4, 0.12, 1))
-	vbox.add_child(title)
-
-	var rtl := RichTextLabel.new()
-	rtl.bbcode_enabled = true
-	rtl.fit_content = true
-	rtl.scroll_active = false
-	rtl.custom_minimum_size = Vector2(460, 150)
-	rtl.add_theme_font_size_override("normal_font_size", 16)
-	rtl.add_theme_color_override("default_color", Color(0.42, 0.31, 0.16, 1))
-	rtl.text = "[center][b]《欧陆百合风云》[/b]\n\n[b]制作：[/b]Archaea Studio\n[url=%s]→ Archaea Studio 主页[/url][/center]" % CREDITS_URL
-	rtl.meta_clicked.connect(func(meta: Variant) -> void: OS.shell_open(str(meta)))
-	vbox.add_child(rtl)
-
-	# 关闭按钮：与设置对话框按钮同款（StyleBox_btn_normal / hover）
-	var close := Button.new()
-	close.text = "关闭"
-	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	close.add_theme_font_size_override("font_size", 15)
-	close.add_theme_color_override("font_color", Color(0.32, 0.22, 0.1, 1))
-	close.add_theme_stylebox_override("normal", _make_btn_stylebox(false))
-	close.add_theme_stylebox_override("hover", _make_btn_stylebox(true))
-	close.add_theme_stylebox_override("pressed", _make_btn_stylebox(true))
-	close.pressed.connect(func() -> void: overlay.queue_free())
-	vbox.add_child(close)
+## 制作人员里的超链接（Archaea Studio 主页）→ 用系统浏览器打开
+func _on_credits_meta_clicked(meta: Variant) -> void:
+	OS.shell_open(str(meta))
 
 
 func _on_quit_pressed() -> void:
