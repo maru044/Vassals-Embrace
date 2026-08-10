@@ -1,25 +1,6 @@
 {
-  "comment": "任务表（仅玩家生效）：程序判定 + LLM flag 兜底。字段：id/country/name/pos[画布坐标]/parents[前置]/desc/requirements/reward。当前先实现苏格兰任务树（见 plan/任务树.md v3）。",
+  "comment": "任务表（仅玩家生效）：程序判定 + LLM flag 兜底。字段：id/country/name/pos[画布坐标]/parents[前置]/desc/requirements/reward。当前只实现苏格兰任务树（plan/任务树.md v3：两线汇合成「成立大不列颠」终局）。",
   "missions": [
-    {
-      "id": "scotland_claim_england",
-      "country": "Scotland",
-      "name": "宣称英格兰",
-      "requirements": {
-        "all": [
-          {"mission_completed": "hundred_years_war_victory"},
-          {"provinces_owned_by": ["Scotland", "The Isles"], "subject_type_excluded": ["protectorate"]}
-        ],
-        "any": [
-          {"army_greater_than": "England"},
-          {"favor_of_england_greater_than": 80}
-        ],
-        "not": [
-          {"country_exists": "England"}
-        ]
-      },
-      "reward": "联合统治英格兰（包括直接从现有联合统治中 NTR）"
-    },
     {
       "id": "scotland_recover_isles",
       "country": "Scotland",
@@ -121,17 +102,31 @@
       "reward": "英格兰虚弱"
     },
     {
+      "id": "scotland_union_with_england",
+      "country": "Scotland",
+      "name": "联合统治英格兰",
+      "pos": [540, 730],
+      "parents": ["scotland_hundred_years_victory"],
+      "desc": "百年战争法国胜利后，英格兰公主罗莎蒙德向苏格兰臣服，直接联合统治英格兰。",
+      "requirements": {
+        "all": [
+          {"mission_completed": "scotland_hundred_years_victory"}
+        ]
+      },
+      "reward": "联合统治英格兰（罗莎蒙德入苏格兰后宫）"
+    },
+    {
       "id": "scotland_great_britain",
       "country": "Scotland",
       "name": "成立大不列颠",
-      "pos": [330, 770],
-      "parents": ["scotland_isles_guard", "scotland_conquer_ireland", "scotland_hundred_years_victory"],
+      "pos": [330, 930],
+      "parents": ["scotland_isles_guard", "scotland_conquer_ireland", "scotland_union_with_england"],
       "desc": "群岛、爱尔兰与英格兰尽入怀中，成立大不列颠，全体公主汇入同一后宫。",
       "requirements": {
         "all": [
           {"mission_completed": "scotland_isles_guard"},
           {"mission_completed": "scotland_conquer_ireland"},
-          {"mission_completed": "scotland_hundred_years_victory"}
+          {"mission_completed": "scotland_union_with_england"}
         ]
       },
       "reward": "终局：成立大不列颠"
