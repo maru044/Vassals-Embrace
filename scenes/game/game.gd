@@ -678,7 +678,7 @@ func _build_economy_panel() -> void:
 ## 宫廷：统治者立绘（固定显示）+ 下方后宫按钮容器（独立可滚动）
 ## 立绘与按钮容器分开：立绘不滚，按钮区用 ScrollContainer（与外交列表同款结构）滚动（#33 占位；对话 #35）
 func _build_court_panel() -> void:
-	# 顶部：统治者立绘固定显示（不滚动）
+	# 顶部：统治者立绘固定显示（不滚动，显示高 500，资产 720 清晰度足够）
 	_left_body.add_child(_panel_label("统治者：%s" % _country_name(_player_country_id)))
 	var portrait_path := PORTRAIT_DIR + "rulers/" + _player_country_id + ".png"
 	if ResourceLoader.exists(portrait_path):
@@ -686,15 +686,15 @@ func _build_court_panel() -> void:
 		pr.texture = load(portrait_path)
 		pr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		pr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		pr.custom_minimum_size = Vector2(384, 720)
+		pr.custom_minimum_size = Vector2(384, 500)
 		_left_body.add_child(pr)
 	else:
 		_left_body.add_child(_panel_label("　（立绘缺失）"))
 
-	# 下方：后宫按钮独立容器（可滚动）
+	# 下方：后宫按钮独立容器，固定高 200（非 EXPAND，勿吃满剩余空间）→ 5 按钮内容超出必出滚动条
 	_left_body.add_child(_panel_label("后宫（容量 5 / 五役）："))
 	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = Vector2(0, 200)   # 固定按钮区高度，内容超出即可滚动
 	_left_body.add_child(scroll)
 	var btn_col := VBoxContainer.new()
 	btn_col.add_theme_constant_override("separation", 8)
