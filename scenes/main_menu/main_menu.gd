@@ -249,6 +249,42 @@ static func _plaque_pixel(base: Color, strength: float, noise: FastNoiseLite, x:
 
 const CREDITS_URL := "https://discord.com/channels/1134557553011998840/1498025328423997510"
 
+## 设置对话框同款面板样式（main_menu.tscn 的 StyleBox_panel：亮羊皮纸 + 1px 金边 + 圆角20 + 大阴影）
+static func _make_panel_stylebox() -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.94, 0.82, 0.58, 0.95)
+	sb.border_width_left = 1
+	sb.border_width_top = 1
+	sb.border_width_right = 1
+	sb.border_width_bottom = 1
+	sb.border_color = Color(0.75, 0.58, 0.3, 0.5)
+	sb.corner_radius_top_left = 20
+	sb.corner_radius_top_right = 20
+	sb.corner_radius_bottom_right = 20
+	sb.corner_radius_bottom_left = 20
+	sb.shadow_color = Color(0.4, 0.28, 0.12, 0.3)
+	sb.shadow_size = 24
+	return sb
+
+
+## 设置对话框同款按钮样式（StyleBox_btn_normal / StyleBox_btn_hover_credits）
+static func _make_btn_stylebox(hover: bool) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(1, 0.88, 0.6, 0.95) if hover else Color(0.86, 0.72, 0.46, 0.9)
+	sb.border_width_left = 2
+	sb.border_width_top = 2
+	sb.border_width_right = 2
+	sb.border_width_bottom = 2
+	sb.border_color = Color(0.85, 0.55, 0.5, 0.7) if hover else Color(0.55, 0.38, 0.15, 0.85)
+	sb.corner_radius_top_left = 12
+	sb.corner_radius_top_right = 12
+	sb.corner_radius_bottom_right = 12
+	sb.corner_radius_bottom_left = 12
+	sb.shadow_color = Color(0.85, 0.55, 0.5, 0.3) if hover else Color(0.4, 0.28, 0.12, 0.25)
+	sb.shadow_size = 12 if hover else 8
+	return sb
+
+
 func _on_credits_pressed() -> void:
 	# 全屏遮罩（点击任意处关闭）
 	var overlay := Control.new()
@@ -263,7 +299,7 @@ func _on_credits_pressed() -> void:
 			overlay.queue_free())
 	add_child(overlay)
 
-	# 羊皮纸面板（标题界面主题同款；anchors 全 0.5 + 显式对称 offsets 居中，参照 SettingsDialog 布局）
+	# 面板：应用设置对话框同款 StyleBox_panel（anchors 全 0.5 + 显式对称 offsets 居中）
 	var panel := PanelContainer.new()
 	panel.anchor_left = 0.5
 	panel.anchor_top = 0.5
@@ -275,26 +311,26 @@ func _on_credits_pressed() -> void:
 	panel.offset_bottom = 160
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	var tex := _make_plaque_texture(PARCHMENT_BASE, PARCHMENT_STRENGTH)
-	panel.add_theme_stylebox_override("panel", _make_plaque_stylebox(tex))
+	panel.add_theme_stylebox_override("panel", _make_panel_stylebox())
 	overlay.add_child(panel)
 
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 28)
 	margin.add_theme_constant_override("margin_right", 28)
-	margin.add_theme_constant_override("margin_top", 20)
-	margin.add_theme_constant_override("margin_bottom", 20)
+	margin.add_theme_constant_override("margin_top", 24)
+	margin.add_theme_constant_override("margin_bottom", 24)
 	panel.add_child(margin)
 
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 14)
+	vbox.add_theme_constant_override("separation", 12)
 	margin.add_child(vbox)
 
+	# 标题：与设置对话框 Title 同款配色/字号
 	var title := Label.new()
 	title.text = "制作人员"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 28)
-	title.add_theme_color_override("font_color", BORDER_COLOR)
+	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_color_override("font_color", Color(0.6, 0.4, 0.12, 1))
 	vbox.add_child(title)
 
 	var rtl := RichTextLabel.new()
@@ -302,22 +338,21 @@ func _on_credits_pressed() -> void:
 	rtl.fit_content = true
 	rtl.scroll_active = false
 	rtl.custom_minimum_size = Vector2(460, 150)
-	rtl.add_theme_font_size_override("normal_font_size", 18)
-	rtl.add_theme_color_override("default_color", BORDER_COLOR)
+	rtl.add_theme_font_size_override("normal_font_size", 16)
+	rtl.add_theme_color_override("default_color", Color(0.42, 0.31, 0.16, 1))
 	rtl.text = "[center][b]《欧陆百合风云》[/b]\n\n[b]制作：[/b]Archaea Studio\n[url=%s]→ Archaea Studio 主页[/url][/center]" % CREDITS_URL
 	rtl.meta_clicked.connect(func(meta: Variant) -> void: OS.shell_open(str(meta)))
 	vbox.add_child(rtl)
 
-	# 羊皮纸关闭按钮（与主菜单按钮同款）
+	# 关闭按钮：与设置对话框按钮同款（StyleBox_btn_normal / hover）
 	var close := Button.new()
 	close.text = "关闭"
-	close.custom_minimum_size = Vector2(180, 44)
-	close.add_theme_font_size_override("font_size", 18)
-	close.add_theme_color_override("font_color", BORDER_COLOR)
-	close.add_theme_stylebox_override("normal", _make_plaque_stylebox(tex))
-	var hover_tex := _make_plaque_texture(PARCHMENT_HOVER, PARCHMENT_STRENGTH)
-	close.add_theme_stylebox_override("hover", _make_plaque_stylebox(hover_tex))
-	close.add_theme_stylebox_override("pressed", _make_plaque_stylebox(hover_tex))
+	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	close.add_theme_font_size_override("font_size", 15)
+	close.add_theme_color_override("font_color", Color(0.32, 0.22, 0.1, 1))
+	close.add_theme_stylebox_override("normal", _make_btn_stylebox(false))
+	close.add_theme_stylebox_override("hover", _make_btn_stylebox(true))
+	close.add_theme_stylebox_override("pressed", _make_btn_stylebox(true))
 	close.pressed.connect(func() -> void: overlay.queue_free())
 	vbox.add_child(close)
 
