@@ -95,7 +95,6 @@ var _info_title: Label = null
 var _info_ruler: Label = null    # 统治者（称号）独立行
 var _court_portrait_mat: ShaderMaterial = null   # 宫廷统治者立绘视差材质（无立绘/未启用时为 null）
 var _court_parallax_smooth := Vector2.ZERO       # 宫廷统治者立绘视差平滑偏移
-var _paper_mat: ShaderMaterial = null            # 面板纸张材质（共享实例，惰性加载）
 var _info_stats: GridContainer = null   # 政体/文化/首都/地位 2×2 资料栏（GridContainer）
 var _info_desc: Label = null     # 性格简介（独立标签）
 var _confirm: Button = null
@@ -523,8 +522,7 @@ const PANEL_BG := Color(0.87, 0.76, 0.54, 0.92)  # 羊皮纸面板底
 const UI_ICON_DIR := "res://assets/ui/"
 const PORTRAIT_DIR := "res://assets/portraits/"   # 立绘资产库（rulers/<id>.png 384×720、harem/*.png 384×720）
 const PARALLAX_SHADER_PATH := "res://shaders/chat_ui_parallax.gdshader"   # 深度图视差 shader（聊天立绘同款）
-const PAPER_TEX_PATH := "res://assets/ui/paper_texture.jpg"   # 纸张材质（Texturelabs 纸面，正片叠底用）
-const PAPER_SHADER_PATH := "res://shaders/paper_panel.gdshader"   # 面板纸张材质 shader
+const PAPER_TEX_PATH := "res://assets/ui/paper_texture.jpg"   # 纸张材质（Texturelabs 纸面，弱纸纹层用）
 const ICON_ORDER := [
 	["economy", "经济"], ["court", "内政"], ["diplomacy", "外交"],
 	["vassal", "附庸"], ["mission", "任务"], ["situation", "局势"],
@@ -570,7 +568,7 @@ func _build_top_bar(parent: Control) -> void:
 	top.offset_bottom = TOP_BAR_H
 	parent.add_child(top)
 	top.add_theme_stylebox_override("panel", _make_panel_stylebox())
-	top.material = _paper_material()   # 纸张材质（正片叠底）
+	_apply_paper_layer(top)   # 弱纸纹层（保留纯色主体与金边）
 
 	var hbox := HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 16)
@@ -635,8 +633,8 @@ func _build_left_slide(parent: Control) -> void:
 	var panel := PanelContainer.new()
 	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	panel.add_theme_stylebox_override("panel", _make_panel_stylebox())
-	panel.material = _paper_material()   # 纸张材质（正片叠底）
 	wrap.add_child(panel)
+	_apply_paper_layer(panel)   # 弱纸纹层（保留纯色主体与金边）
 
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 8)
@@ -1162,9 +1160,9 @@ func _build_bottom_slide(parent: Control) -> void:
 	panel.offset_right = 360
 	panel.offset_bottom = 230
 	panel.add_theme_stylebox_override("panel", _make_panel_stylebox())
-	panel.material = _paper_material()   # 纸张材质（正片叠底）
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE   # 默认隐藏：穿透
 	wrap.add_child(panel)
+	_apply_paper_layer(panel)   # 弱纸纹层（保留纯色主体与金边）
 	_bottom_panel = panel
 
 	var vbox := VBoxContainer.new()
@@ -1292,23 +1290,22 @@ func _build_bottom_content(icon_id: String) -> void:
 
 
 ## ===== 主题样式 =====
-## 面板纸张材质（共享实例缓存）：世界坐标无缝平铺纸纹 + 羊皮纸色染色（颜色混合）
-func _paper_material() -> ShaderMaterial:
-	if _paper_mat != null:
-		return _paper_mat
-	if not ResourceLoader.exists(PAPER_SHADER_PATH) or not ResourceLoader.exists(PAPER_TEX_PATH):
-		return null
-	var sh := load(PAPER_SHADER_PATH) as Shader
-	if sh == null:
-		return null
-	_paper_mat = ShaderMaterial.new()
-	_paper_mat.shader = sh
-	_paper_mat.set_shader_parameter("paper_tex", load(PAPER_TEX_PATH))
-	_paper_mat.set_shader_parameter("tile_size", 512.0)          # 纸纹世界坐标平铺尺寸（像素）
-	_paper_mat.set_shader_parameter("paper_tint", Color(0.92, 0.84, 0.65))   # 羊皮纸染色
-	_paper_mat.set_shader_parameter("paper_strength", 0.55)      # 颜色混合强度（弱化纸纹）
-	_paper_mat.set_shader_parameter("body_color", Color(PANEL_BG.r, PANEL_BG.g, PANEL_BG.b))   # 主体底色（用于排除描边/阴影）
-	return _paper_mat
+## 面板弱纸纹层（标准做法）：PanelContainer 保留纯色 StyleBoxFlat（羊皮纸底+金边+圆角+阴影），
+## 叠加一个 TextureRect 无缝平铺纸纹（原始像素尺寸、不拉伸；self_modulate 极淡），内缩避开边框圆角。
+func _apply_paper_layer(panel: PanelContainer) -> void:
+	if not ResourceLoader.exists(PAPER_TEX_PATH):
+		return
+	var bg := TextureRect.new()
+	bg.texture = load(PAPER_TEX_PATH)
+	bg.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED   # 无缝平铺
+	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bg.stretch_mode = TextureRect.STRETCH_SCALE
+	bg.self_modulate = Color(1, 1, 1, 0.10)   # 极淡纸纹（几乎纯色主体）
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.offset_left = 10; bg.offset_top = 10; bg.offset_right = -10; bg.offset_bottom = -10   # 避开金边/圆角
+	panel.add_child(bg)
+	bg.move_to_back()   # 置于内容之下、stylebox 之上
 
 
 func _make_panel_stylebox(hover: bool = false) -> StyleBoxFlat:
