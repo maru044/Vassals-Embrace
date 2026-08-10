@@ -91,6 +91,7 @@ var _active_bottom: String = ""
 var _bottom_title: Label = null
 var _bottom_body: Control = null
 var _bottom_hbox: HBoxContainer = null   # 下栏图标容器（选国后重建，因为 _player_country_id 此时才确定）
+var _chat_ui: ChatUI = null   # 全局聊天面板（羊皮纸 + 立绘视差；Miku 无立绘）
 
 
 func _ready() -> void:
@@ -108,6 +109,9 @@ func _ready() -> void:
 	EventBus.diplomatic_play_resolved.connect(func(_p: int) -> void: _refresh_bottom_bar())
 	EventBus.union_changed.connect(func(_l: int, _m: int, _a: bool) -> void: _refresh_bottom_bar())
 	EventBus.organization_changed.connect(func(_o: int) -> void: _refresh_bottom_bar())
+	# 聊天界面（参考 ChatUI 案例：左立绘+深度图视差，右对话区）
+	_chat_ui = ChatUI.new()
+	add_child(_chat_ui)
 
 
 func _load_countries() -> void:
@@ -722,7 +726,10 @@ func _build_court_panel() -> void:
 	btn_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(btn_col)
 	for i in 5:
-		_build_gold_button(btn_col, "后宫成员 %d（点击对话）" % (i + 1), func() -> void: print("宫廷: 对话成员 ", i + 1, "（占位 #35）"))
+		var member_name := "后宫成员 %d" % (i + 1)
+		_build_gold_button(btn_col, member_name + "（点击对话）", func() -> void:
+			if _chat_ui:
+				_chat_ui.open_chat("harem", member_name, member_name))
 
 
 ## 外交：二级结构——先点国家（列表），再在该国子面板显示 对话/联统/受保护国（#33 占位）
@@ -770,8 +777,12 @@ func _back_to_diplomacy_list() -> void:
 	_build_diplomacy_panel()
 
 
-## 外交动作占位（#34 起接真实博弈 / CB）
+## 外交动作（#34 起接真实博弈 / CB；chat/vassal_chat 打开聊天）
 func _on_diplomacy_action(country: String, action: String) -> void:
+	if action == "chat" or action == "vassal_chat":
+		if _chat_ui:
+			_chat_ui.open_chat("country", country, _country_name(country))
+		return
 	print("外交: ", action, " → ", country, "（占位）")
 
 
@@ -1343,8 +1354,8 @@ func _country_title(cid: String) -> String:
 
 
 func _on_chat_pressed() -> void:
-	# #35 接入 chat_dialog + LLMClient；当前占位
-	print("Chat pressed (placeholder)")
+	if _chat_ui:
+		_chat_ui.open_chat("miku", "", "Miku")
 
 
 func _on_save_pressed() -> void:

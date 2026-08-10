@@ -1,4 +1,5 @@
 extends Node
+class_name ResponseParser
 ## 响应解析：把 LLM 返回拆成 思考(CoT) / 正文 / 工具调用，带容错。
 
 static func parse_response(data: Dictionary) -> Dictionary:
