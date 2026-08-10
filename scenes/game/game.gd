@@ -473,6 +473,7 @@ const GOLD_OUTLINE := Color(0.32, 0.2, 0.07)  # 金棕描边
 const INK := Color(0.36, 0.26, 0.14)         # 羊皮纸上墨色
 const PANEL_BG := Color(0.87, 0.76, 0.54, 0.92)  # 羊皮纸面板底
 const UI_ICON_DIR := "res://assets/ui/"
+const PORTRAIT_DIR := "res://assets/portraits/"   # 立绘资产库（rulers/<id>.png 384×720、harem/*.png 384×720）
 const ICON_ORDER := [
 	["economy", "经济"], ["court", "内政"], ["diplomacy", "外交"],
 	["vassal", "附庸"], ["mission", "任务"], ["situation", "局势"],
@@ -674,28 +675,35 @@ func _build_economy_panel() -> void:
 	_build_gold_button(_left_body, "偿还贷款", func() -> void: print("经济: 还贷（占位）"))
 
 
-## 宫廷：5 个后宫角色占位图（容量 5 / 五役），点击进入聊天（#33 占位）
+## 宫廷：本国统治者立绘（assets/portraits/rulers/<id>.png，720 高等比）+ 5 个后宫成员按钮
+## 立绘下是 5 个后宫按钮，点击进入对话（#33 占位；对话界面 #35 接入）
 func _build_court_panel() -> void:
-	_left_body.add_child(_panel_label("后宫（容量 5 / 五役）："))
+	# 720 高立绘 + 5 按钮超出左栏高度 → 包 ScrollContainer 可滚动
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_left_body.add_child(scroll)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 8)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(col)
+
+	# 统治者立绘（384×720 资产，等比居中显示）
+	col.add_child(_panel_label("统治者：%s" % _country_name(_player_country_id)))
+	var portrait_path := PORTRAIT_DIR + "rulers/" + _player_country_id + ".png"
+	if ResourceLoader.exists(portrait_path):
+		var pr := TextureRect.new()
+		pr.texture = load(portrait_path)
+		pr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		pr.custom_minimum_size = Vector2(384, 720)
+		col.add_child(pr)
+	else:
+		col.add_child(_panel_label("　（立绘缺失）"))
+
+	# 5 个后宫成员按钮（五役；点击进对话，当前占位）
+	col.add_child(_panel_label("后宫（容量 5 / 五役）："))
 	for i in 5:
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 10)
-		_left_body.add_child(row)
-		var portrait := PanelContainer.new()
-		portrait.custom_minimum_size = Vector2(64, 64)
-		portrait.add_theme_stylebox_override("panel", _make_panel_stylebox())
-		var idx := Label.new()
-		idx.text = str(i + 1)
-		idx.add_theme_font_size_override("font_size", 22)
-		idx.add_theme_color_override("font_color", GOLD_OUTLINE)
-		idx.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		idx.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		portrait.add_child(idx)
-		row.add_child(portrait)
-		var name := _panel_label("后宫成员 %d（点击对话）" % (i + 1))
-		name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(name)
-		_build_gold_button(row, "对话", func() -> void: print("宫廷: 对话成员 ", i + 1, "（占位）"))
+		_build_gold_button(col, "后宫成员 %d（点击对话）" % (i + 1), func() -> void: print("宫廷: 对话成员 ", i + 1, "（占位 #35）"))
 
 
 ## 外交：二级结构——先点国家（列表），再在该国子面板显示 对话/联统/受保护国（#33 占位）
