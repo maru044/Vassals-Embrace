@@ -15,6 +15,7 @@ const _OTHER_BUBBLE := Color(0.85, 0.73, 0.52, 0.95)
 const PORTRAIT_DIR := "res://assets/portraits/"
 const PARALLAX_SHADER := "res://shaders/chat_ui_parallax.gdshader"
 const LLM_CLIENT_SCRIPT := "res://scripts/llm/llm_client.gd"
+const RESPONSE_PARSER_SCRIPT := "res://scripts/llm/response_parser.gd"
 
 var _target_kind := ""          # "country" / "harem" / "miku"
 var _target_id := ""            # 国家 id / 后宫名
@@ -31,6 +32,7 @@ var _vbox: VBoxContainer
 var _input: LineEdit
 var _send: Button
 var _llm = null
+var _parser_script: GDScript = null
 var _waiting := false
 var _parallax_smooth := Vector2.ZERO
 
@@ -46,6 +48,7 @@ func _ready() -> void:
 	_llm.set_script(script)
 	add_child(_llm)
 	_llm.request_finished.connect(_on_llm_finished)
+	_parser_script = load(RESPONSE_PARSER_SCRIPT)
 
 
 func _build_ui() -> void:
@@ -237,7 +240,7 @@ func _on_llm_finished(success: bool, data: Dictionary) -> void:
 	if not success:
 		_add_system_msg("（网络/解析错误，请检查 API 配置）")
 		return
-	var parsed: Dictionary = ResponseParser.parse_response(data)
+	var parsed: Dictionary = _parser_script.parse_response(data)
 	var content: String = parsed.get("content", "")
 	if parsed.get("cot", "") != "":
 		_add_bubble(_display_name, "[i][color=#8a6d3b]" + str(parsed["cot"]) + "[/color][/i]\n" + content, false)
