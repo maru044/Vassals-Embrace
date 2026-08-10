@@ -21,6 +21,10 @@ var _last_game_track: String = ""
 
 
 func _ready() -> void:
+	# headless 模式（命令行校验/无音频驱动）不建播放器、不播音频，
+	# 否则 MP3 流式解码在 --quit 时泄漏（ObjectDB leaked / resources still in use）
+	if DisplayServer.get_name() == "headless":
+		return
 	_player = AudioStreamPlayer.new()
 	_player.bus = "Master"
 	add_child(_player)
@@ -28,8 +32,17 @@ func _ready() -> void:
 	apply_volume()
 
 
+## 退出时停止播放并释放 stream 引用（正常游戏窗口关闭时的常规清理）
+func _exit_tree() -> void:
+	if _player:
+		_player.stop()
+		_player.stream = null
+
+
 ## 标题 / 选国：主旋律循环
 func play_menu_music() -> void:
+	if _player == null:
+		return
 	if _mode == Mode.MENU and _player.playing:
 		return
 	_mode = Mode.MENU
@@ -38,6 +51,8 @@ func play_menu_music() -> void:
 
 ## 进入游戏：随机一首游戏曲目（排除刚播过的那首）
 func play_game_music() -> void:
+	if _player == null:
+		return
 	if _mode == Mode.GAME and _player.playing:
 		return
 	_mode = Mode.GAME
