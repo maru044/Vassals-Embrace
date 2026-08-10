@@ -86,6 +86,7 @@ var _bottom_open: bool = false
 var _active_bottom: String = ""
 var _bottom_title: Label = null
 var _bottom_body: Control = null
+var _bottom_hbox: HBoxContainer = null   # 下栏图标容器（选国后重建，因为 _player_country_id 此时才确定）
 
 
 func _ready() -> void:
@@ -452,6 +453,7 @@ func _transition_to_game(id: String) -> void:
 	_select_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_in_game = true   # 此后点省份 → 左栏省份详情，不再走选国
 	_player_country_id = id   # 记录玩家国家，仅本国省份可升级建筑
+	_refresh_bottom_bar()     # 玩家确定后重建下栏图标（业务逻辑依赖玩家国家）
 	var tw := create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(_select_root, "modulate:a", 0.0, UI_FADE_SECONDS)
@@ -925,10 +927,19 @@ func _build_bottom_bar(parent: Control) -> void:
 	hbox.set_anchors_preset(Control.PRESET_FULL_RECT)
 	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE   # 容器穿透，内部按钮默认 STOP 仍可点
 	bar.add_child(hbox)
+	_bottom_hbox = hbox
+	# 此时 _player_country_id 未定（UI 一次性构建），图标由选国后 _refresh_bottom_bar 填充
+	_refresh_bottom_bar()
 
-	# 业务逻辑：实际有什么状态才显示对应图标
+
+## 重建下栏图标：按玩家国家实际状态显示（选国/状态变化时调用）
+func _refresh_bottom_bar() -> void:
+	if _bottom_hbox == null:
+		return
+	for c in _bottom_hbox.get_children():
+		c.queue_free()
 	for s in _bottom_icon_slots():
-		hbox.add_child(_make_bottom_status_icon(s, STATUS_CN.get(s, s)))
+		_bottom_hbox.add_child(_make_bottom_status_icon(s, STATUS_CN.get(s, s)))
 
 
 ## 下栏状态大图标：透明无背景，128×128 归一化大图，悬停注明名称。
