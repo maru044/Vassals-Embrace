@@ -7,6 +7,9 @@ const COUNTRIES_PATH := "res://data/countries.json"     # 国家档案主数据�
 const COUNTRY_COLORS_PATH := "res://data/country_colors.json"   # 补充颜色/宗主色
 const MAP_DATA_PATH := "res://data/map_data.json"       # 省份→国家映射
 const BUILDINGS_PATH := "res://data/buildings.json"     # 建筑表（农场/市场/妓院/要塞 等级→产出）
+const MISSIONS_PATH := "res://data/missions.json"       # 任务树（仅玩家生效；数据驱动渲染壳）
+const MISSION_NODE_W := 120                             # 任务节点宽
+const MISSION_NODE_H := 60                              # 任务节点高
 const SHIELD_DIR := "res://assets/shields/"
 const BUILDING_ORDER := ["farm", "market", "brothel", "fort"]   # 省份面板建筑展示顺序
 const BUILDING_CN := {"farm": "农场", "market": "市场", "brothel": "妓院", "fort": "要塞"}
@@ -50,6 +53,7 @@ const _TEXTURE_SIZE := 256                             # 噪声贴图边长
 @onready var _map_view: Node = $MapView
 
 var _countries: Array = []          # {id, name, color}
+var _missions: Array = []           # missions.json 任务树（id/pos/parents/requirements…）
 var _country_index := {}            # id -> 数组下标（GameManager 用 int）
 var _province_owner := {}           # province -> country（map_data.json）
 var _province_buildings := {}       # province -> {farm, market, brothel, fort} 等级（初始 lv.1/lv.1/lv.1/lv.0）
@@ -121,6 +125,7 @@ func _load_countries() -> void:
 		_country_index[id] = i
 	# 省份→国家映射（游戏内点省份 → 左栏省份详情）
 	_province_owner = _load_json(MAP_DATA_PATH).get("province_owner", {})
+	_missions = _load_json(MISSIONS_PATH).get("missions", [])
 	_init_province_buildings()
 
 
@@ -823,9 +828,197 @@ func _build_vassal_panel() -> void:
 		_left_body.add_child(_panel_label("　（无受保护国）"))
 
 
-## 任务：占位（#33；引擎⑦任务树接入）
+## 任务：任务树渲染壳（数据驱动）。当前只实现苏格兰任务树（plan/任务树.md v3）；
+## 引擎⑦接入前：节点全部「可接」占位，可点击弹详情，画布可滚轮滚动。
 func _build_mission_panel() -> void:
-	_left_body.add_child(_panel_label("任务树建设中…（引擎⑦接入）"))
+	if _player_country_id != "Scotland":
+		_left_body.add_child(_panel_label("任务树建设中…（引擎⑦接入）"))
+		return
+	var missions := _missions_for_country(_player_country_id)
+	if missions.is_empty():
+		_left_body.add_child(_panel_label("该国家暂无任务树"))
+		return
+
+	# 可滚动画布（纵向/横向均可用滚轮）
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_left_body.add_child(scroll)
+
+	var canvas := MissionTreeCanvas.new()
+	canvas.custom_minimum_size = _mission_canvas_size(missions)
+	scroll.add_child(canvas)
+
+	# 分组标题（对齐蓝图的两条线）
+	_add_mission_group_label(canvas, "群岛线", Vector2(25, 50))
+	_add_mission_group_label(canvas, "征服与百年战争线", Vector2(285, 50))
+
+	# 连线：父节点中心 → 子节点中心（画在按钮下层）
+	var by_id := {}
+	for m in missions:
+		by_id[m.get("id", "")] = m
+	for m in missions:
+		var pos: Array = m.get("pos", [0, 0])
+		for p in m.get("parents", []):
+			var pp: Dictionary = by_id.get(p, {})
+			if pp.is_empty():
+				continue
+			var pp_pos: Array = pp.get("pos", [0, 0])
+			canvas.edges.append([float(pp_pos[0]), float(pp_pos[1]), float(pos[0]), float(pos[1])])
+	canvas.queue_redraw()
+
+	# 任务节点（可点击，图标先占位 = 任务名文字）
+	for m in missions:
+		var pos: Array = m.get("pos", [0, 0])
+		var b := _build_mission_node(m)
+		b.position = Vector2(float(pos[0]) - MISSION_NODE_W / 2.0, float(pos[1]) - MISSION_NODE_H / 2.0)
+		canvas.add_child(b)
+
+
+## 任务树连线画布：在节点之间画连线
+class MissionTreeCanvas:
+	extends Control
+	var edges: Array = []   # [[x1,y1,x2,y2], ...]
+	func _draw() -> void:
+		for e in edges:
+			draw_line(Vector2(e[0], e[1]), Vector2(e[2], e[3]), Color(0.55, 0.38, 0.15, 0.75), 3.0)
+
+
+## 本国家任务列表
+func _missions_for_country(cid: String) -> Array:
+	var out: Array = []
+	for m in _missions:
+		if m.get("country", "") == cid:
+			out.append(m)
+	return out
+
+
+## 画布尺寸：按任务坐标 + 底部留白（保证滚轮可滚动）
+func _mission_canvas_size(missions: Array) -> Vector2:
+	var max_x := 0.0
+	var max_y := 0.0
+	for m in missions:
+		var pos: Array = m.get("pos", [0, 0])
+		max_x = maxf(max_x, float(pos[0]))
+		max_y = maxf(max_y, float(pos[1]))
+	return Vector2(max_x + MISSION_NODE_W / 2.0 + 30.0, max_y + MISSION_NODE_H / 2.0 + 260.0)
+
+
+## 分组标题 Label
+func _add_mission_group_label(canvas: Control, text: String, pos: Vector2) -> void:
+	var l := Label.new()
+	l.text = text
+	l.position = pos
+	l.add_theme_font_size_override("font_size", 15)
+	l.add_theme_color_override("font_color", GOLD)
+	l.add_theme_color_override("font_outline_color", GOLD_OUTLINE)
+	l.add_theme_constant_override("outline_size", 2)
+	canvas.add_child(l)
+
+
+## 任务节点按钮（图标占位 = 任务名；点击弹详情）
+func _build_mission_node(m: Dictionary) -> Button:
+	var b := Button.new()
+	b.text = str(m.get("name", m.get("id", "")))
+	b.custom_minimum_size = Vector2(MISSION_NODE_W, MISSION_NODE_H)
+	b.add_theme_font_size_override("font_size", 13)
+	b.add_theme_color_override("font_color", INK)
+	b.add_theme_stylebox_override("normal", _make_panel_stylebox())
+	b.add_theme_stylebox_override("hover", _make_panel_stylebox(true))
+	b.add_theme_stylebox_override("pressed", _make_panel_stylebox(true))
+	b.tooltip_text = str(m.get("desc", ""))
+	b.pressed.connect(_open_mission_detail.bind(m))
+	return b
+
+
+## 点击任务节点 → 居中弹详情（名称/描述/条件/奖励 + 关闭）
+func _open_mission_detail(m: Dictionary) -> void:
+	var overlay := Control.new()
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	var shade := ColorRect.new()
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade.color = Color(0, 0, 0, 0.5)
+	overlay.add_child(shade)
+	overlay.gui_input.connect(func(ev: InputEvent) -> void:
+		if ev is InputEventMouseButton and ev.pressed:
+			overlay.queue_free())
+	add_child(overlay)
+
+	var panel := PanelContainer.new()
+	panel.anchor_left = 0.5
+	panel.anchor_top = 0.5
+	panel.anchor_right = 0.5
+	panel.anchor_bottom = 0.5
+	panel.offset_left = -300
+	panel.offset_top = -180
+	panel.offset_right = 300
+	panel.offset_bottom = 180
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	panel.add_theme_stylebox_override("panel", _make_panel_stylebox())
+	overlay.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 26)
+	margin.add_theme_constant_override("margin_right", 26)
+	margin.add_theme_constant_override("margin_top", 18)
+	margin.add_theme_constant_override("margin_bottom", 18)
+	panel.add_child(margin)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	margin.add_child(vbox)
+
+	var title := Label.new()
+	title.text = str(m.get("name", "任务"))
+	title.add_theme_font_size_override("font_size", 22)
+	title.add_theme_color_override("font_color", GOLD)
+	title.add_theme_color_override("font_outline_color", GOLD_OUTLINE)
+	title.add_theme_constant_override("outline_size", 2)
+	vbox.add_child(title)
+
+	vbox.add_child(_mission_detail_line("描述", str(m.get("desc", "—"))))
+	vbox.add_child(_mission_detail_line("完成条件", _mission_req_text(m)))
+	vbox.add_child(_mission_detail_line("奖励", str(m.get("reward", "—"))))
+
+	var close := Button.new()
+	close.text = "关闭"
+	close.custom_minimum_size = Vector2(140, 40)
+	close.add_theme_font_size_override("font_size", 16)
+	close.add_theme_color_override("font_color", INK)
+	close.add_theme_stylebox_override("normal", _make_panel_stylebox())
+	close.add_theme_stylebox_override("hover", _make_panel_stylebox(true))
+	close.add_theme_stylebox_override("pressed", _make_panel_stylebox(true))
+	close.pressed.connect(func() -> void: overlay.queue_free())
+	vbox.add_child(close)
+
+
+## 详情行 Label（换行，普通字体）
+func _mission_detail_line(name: String, text: String) -> Label:
+	var l := Label.new()
+	l.text = "%s：%s" % [name, text]
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.add_theme_font_size_override("font_size", 15)
+	l.add_theme_color_override("font_color", INK)
+	return l
+
+
+## 完成条件文本（引擎⑦接入前：直接展示原始条件 JSON）
+func _mission_req_text(m: Dictionary) -> String:
+	var reqs: Variant = m.get("requirements", {})
+	if not reqs is Dictionary:
+		return "—"
+	var parts: Array = []
+	if reqs.has("all"):
+		parts.append("全部满足：" + str(reqs["all"]))
+	if reqs.has("any"):
+		parts.append("任一满足：" + str(reqs["any"]))
+	if reqs.has("not"):
+		parts.append("不可满足：" + str(reqs["not"]))
+	if parts.is_empty():
+		return "—"
+	return "\n".join(parts)
 
 
 ## 局势：占位（#33；引擎⑥局势进度条接入）
