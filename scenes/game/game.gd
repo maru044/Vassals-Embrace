@@ -681,10 +681,12 @@ func _build_court_panel() -> void:
 	# 720 高立绘 + 5 按钮超出左栏高度 → 包 ScrollContainer 可滚动
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED   # 仅垂直滚动
 	_left_body.add_child(scroll)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 8)
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.size_flags_vertical = Control.SIZE_SHRINK_BEGIN   # 内容按自身高度，超出部分滚动（关键：勿 FILL 拉伸挤压）
 	scroll.add_child(col)
 
 	# 统治者立绘（384×720 资产，等比居中显示）
@@ -710,10 +712,12 @@ func _build_court_panel() -> void:
 func _build_diplomacy_panel() -> void:
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED   # 仅垂直滚动
 	_left_body.add_child(scroll)
 	var list := VBoxContainer.new()
 	list.add_theme_constant_override("separation", 6)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.size_flags_vertical = Control.SIZE_SHRINK_BEGIN   # 内容按自身高度，超出部分滚动
 	scroll.add_child(list)
 	list.add_child(_panel_label("选择国家："))
 	for c in _countries:
