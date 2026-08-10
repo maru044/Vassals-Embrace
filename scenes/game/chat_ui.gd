@@ -189,8 +189,10 @@ func _load_tachie(kind: String, id: String) -> void:
 	_tachie_rect.visible = false
 	if kind == "miku" or id == "":
 		return
-	var base := PORTRAIT_DIR + kind + "/" + id + ".png"
-	var depth := PORTRAIT_DIR + "depth/" + kind + "/" + id + "_depth.png"
+	# 目录映射：kind "country" → 资产目录 "rulers"
+	var dir := "rulers" if kind == "country" else "harem"
+	var base := PORTRAIT_DIR + dir + "/" + id + ".png"
+	var depth := PORTRAIT_DIR + "depth/" + dir + "/" + id + "_depth.png"
 	if not ResourceLoader.exists(base):
 		return
 	_tachie_rect.texture = load(base)
