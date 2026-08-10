@@ -263,10 +263,18 @@ func _on_credits_pressed() -> void:
 			overlay.queue_free())
 	add_child(overlay)
 
-	# 羊皮纸面板（标题界面主题同款：金棕描边 + 软阴影）
+	# 羊皮纸面板（标题界面主题同款；anchors 全 0.5 + 显式对称 offsets 居中，参照 SettingsDialog 布局）
 	var panel := PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.custom_minimum_size = Vector2(540, 300)
+	panel.anchor_left = 0.5
+	panel.anchor_top = 0.5
+	panel.anchor_right = 0.5
+	panel.anchor_bottom = 0.5
+	panel.offset_left = -270
+	panel.offset_top = -160
+	panel.offset_right = 270
+	panel.offset_bottom = 160
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	var tex := _make_plaque_texture(PARCHMENT_BASE, PARCHMENT_STRENGTH)
 	panel.add_theme_stylebox_override("panel", _make_plaque_stylebox(tex))
 	overlay.add_child(panel)
