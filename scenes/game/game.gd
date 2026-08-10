@@ -1324,11 +1324,12 @@ func _build_org_content(vbox: VBoxContainer, title: String, members: Array, note
 	vbox.add_child(_panel_label("—— 引擎⑧接入凝聚力 / 成员管理 ——"))
 
 
-## 外交博弈占位（引擎④状态机：宣战前五步流程）
+## 外交博弈占位（引擎④：单阶段持续 2 个月，期间可随意调整目标/条件）
 func _build_diplomacy_play_content(vbox: VBoxContainer) -> void:
-	vbox.add_child(_panel_label("外交博弈（五步流程 · 引擎④接入）"))
+	vbox.add_child(_panel_label("外交博弈（单阶段 · 引擎④接入）"))
 	vbox.add_child(_panel_label("当前博弈：无"))
-	vbox.add_child(_panel_label("说明：宣战前需先发起外交博弈；谈崩即开战"))
+	vbox.add_child(_panel_label("规则：博弈持续 2 个月，期间可随意调整目标与条件"))
+	vbox.add_child(_panel_label("时间到仍谈不拢 → 开战；一方退让 → 对方不战而获"))
 	vbox.add_child(_panel_label("—— 引擎④接入博弈状态机 ——"))
 
 
