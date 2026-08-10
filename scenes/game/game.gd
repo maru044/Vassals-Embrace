@@ -675,22 +675,11 @@ func _build_economy_panel() -> void:
 	_build_gold_button(_left_body, "偿还贷款", func() -> void: print("经济: 还贷（占位）"))
 
 
-## 宫廷：本国统治者立绘（assets/portraits/rulers/<id>.png，720 高等比）+ 5 个后宫成员按钮
-## 立绘下是 5 个后宫按钮，点击进入对话（#33 占位；对话界面 #35 接入）
+## 宫廷：统治者立绘（固定显示）+ 下方后宫按钮容器（独立可滚动）
+## 立绘与按钮容器分开：立绘不滚，按钮区用 ScrollContainer（与外交列表同款结构）滚动（#33 占位；对话 #35）
 func _build_court_panel() -> void:
-	# 720 高立绘 + 5 按钮超出左栏高度 → 包 ScrollContainer 可滚动
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED   # 仅垂直滚动
-	_left_body.add_child(scroll)
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 8)
-	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col.size_flags_vertical = Control.SIZE_SHRINK_BEGIN   # 内容按自身高度，超出部分滚动（关键：勿 FILL 拉伸挤压）
-	scroll.add_child(col)
-
-	# 统治者立绘（384×720 资产，等比居中显示）
-	col.add_child(_panel_label("统治者：%s" % _country_name(_player_country_id)))
+	# 顶部：统治者立绘固定显示（不滚动）
+	_left_body.add_child(_panel_label("统治者：%s" % _country_name(_player_country_id)))
 	var portrait_path := PORTRAIT_DIR + "rulers/" + _player_country_id + ".png"
 	if ResourceLoader.exists(portrait_path):
 		var pr := TextureRect.new()
@@ -698,26 +687,31 @@ func _build_court_panel() -> void:
 		pr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		pr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		pr.custom_minimum_size = Vector2(384, 720)
-		col.add_child(pr)
+		_left_body.add_child(pr)
 	else:
-		col.add_child(_panel_label("　（立绘缺失）"))
+		_left_body.add_child(_panel_label("　（立绘缺失）"))
 
-	# 5 个后宫成员按钮（五役；点击进对话，当前占位）
-	col.add_child(_panel_label("后宫（容量 5 / 五役）："))
+	# 下方：后宫按钮独立容器（可滚动）
+	_left_body.add_child(_panel_label("后宫（容量 5 / 五役）："))
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_left_body.add_child(scroll)
+	var btn_col := VBoxContainer.new()
+	btn_col.add_theme_constant_override("separation", 8)
+	btn_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(btn_col)
 	for i in 5:
-		_build_gold_button(col, "后宫成员 %d（点击对话）" % (i + 1), func() -> void: print("宫廷: 对话成员 ", i + 1, "（占位 #35）"))
+		_build_gold_button(btn_col, "后宫成员 %d（点击对话）" % (i + 1), func() -> void: print("宫廷: 对话成员 ", i + 1, "（占位 #35）"))
 
 
 ## 外交：二级结构——先点国家（列表），再在该国子面板显示 对话/联统/受保护国（#33 占位）
 func _build_diplomacy_panel() -> void:
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED   # 仅垂直滚动
 	_left_body.add_child(scroll)
 	var list := VBoxContainer.new()
 	list.add_theme_constant_override("separation", 6)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	list.size_flags_vertical = Control.SIZE_SHRINK_BEGIN   # 内容按自身高度，超出部分滚动
 	scroll.add_child(list)
 	list.add_child(_panel_label("选择国家："))
 	for c in _countries:
