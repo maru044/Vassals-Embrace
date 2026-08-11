@@ -26,6 +26,7 @@ const FORT_ICON_LIFT := 0.35                        # 要塞图标浮起高度�
 const SHIELD_DIR := "res://assets/shields/"
 const ARMY_BANNER_LIFT := 1.1          # 兵牌浮起高度（相对省份地表，高于要塞图标）
 const ARMY_BANNER_ALPHA := 0.75        # 军队盾徽透明度（Master：半透明；数字保持不透明）
+const ARMY_BANNER_STACK_GAP := 0.85    # 同省多军队兵牌垂直堆叠间距（Master：上下放置）
 const ICON_SHOW_ZOOM := 0.35           # 镜头远景（zoom 低于此）隐藏要塞/军队图标（Master：远景更美观）
 
 # ---- 引擎②-B3-2c 兵牌交互 ----
@@ -426,41 +427,50 @@ func refresh_army(positions: Dictionary, counts: Dictionary) -> void:
 		_army_banners[cid].queue_free()
 	_army_banners.clear()
 	var font: Font = load(LABEL_FONT_PATH)
+	# 按省份分组：同省多支军队沿 Y 上下堆叠（billboard Y = 屏幕上下），避免完全重叠
+	var by_province := {}
 	for cid in positions:
 		var province: String = positions[cid]
+		if not by_province.has(province):
+			by_province[province] = []
+		by_province[province].append(cid)
+	for province in by_province:
 		var mi: MeshInstance3D = _province_mesh.get(province, null)
 		if mi == null:
 			continue
 		var anchor := _province_anchor(mi)
-		var root := Node3D.new()
-		root.name = "Army_" + str(cid)
-		root.position = Vector3(anchor.x, anchor.y + ARMY_BANNER_LIFT, anchor.z)
-		# 盾徽（居中）
-		var shield_path := SHIELD_DIR + str(cid) + ".png"
-		if ResourceLoader.exists(shield_path):
-			var shield_tex: Texture2D = load(shield_path)
-			var sh := Sprite3D.new()
-			sh.texture = shield_tex
-			sh.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-			sh.pixel_size = 0.42 / maxf(shield_tex.get_size().x, 1.0)
-			sh.modulate = Color(1.0, 1.0, 1.0, ARMY_BANNER_ALPHA)   # 盾徽半透明（Master）
-			root.add_child(sh)
-		# 数字（k 单位，盾徽右下方，小字号避免重叠）
-		var lbl := Label3D.new()
-		lbl.text = "%0.1fk" % (float(counts.get(cid, 0)) * 0.1)
-		lbl.font = font
-		lbl.font_size = 32
-		lbl.pixel_size = 0.009
-		lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		lbl.modulate = Color(0.97, 0.93, 0.8)
-		lbl.outline_modulate = Color(0.1, 0.08, 0.06)
-		lbl.outline_size = 6
-		lbl.position = Vector3(0.48, -0.06, 0.0)
-		root.add_child(lbl)
-		add_child(root)
-		_army_banners[cid] = root
+		var stack: Array = by_province[province]
+		for i in stack.size():
+			var cid: String = stack[i]
+			var root := Node3D.new()
+			root.name = "Army_" + str(cid)
+			root.position = Vector3(anchor.x, anchor.y + ARMY_BANNER_LIFT + float(i) * ARMY_BANNER_STACK_GAP, anchor.z)
+			# 盾徽（居中）
+			var shield_path := SHIELD_DIR + str(cid) + ".png"
+			if ResourceLoader.exists(shield_path):
+				var shield_tex: Texture2D = load(shield_path)
+				var sh := Sprite3D.new()
+				sh.texture = shield_tex
+				sh.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+				sh.pixel_size = 0.42 / maxf(shield_tex.get_size().x, 1.0)
+				sh.modulate = Color(1.0, 1.0, 1.0, ARMY_BANNER_ALPHA)   # 盾徽半透明（Master）
+				root.add_child(sh)
+			# 数字（k 单位，盾徽右下方，小字号避免重叠）
+			var lbl := Label3D.new()
+			lbl.text = "%0.1fk" % (float(counts.get(cid, 0)) * 0.1)
+			lbl.font = font
+			lbl.font_size = 32
+			lbl.pixel_size = 0.009
+			lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			lbl.modulate = Color(0.97, 0.93, 0.8)
+			lbl.outline_modulate = Color(0.1, 0.08, 0.06)
+			lbl.outline_size = 6
+			lbl.position = Vector3(0.48, -0.06, 0.0)
+			root.add_child(lbl)
+			add_child(root)
+			_army_banners[cid] = root
 	# 兵牌重建后重绘选中/命令指示（月末军队移动后跟随）
 	_refresh_selection_gfx()
 	_refresh_order_gfx()
