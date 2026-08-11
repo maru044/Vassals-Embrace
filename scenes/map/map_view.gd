@@ -420,7 +420,7 @@ func refresh_army(positions: Dictionary, counts: Dictionary) -> void:
 			var sh := Sprite3D.new()
 			sh.texture = shield_tex
 			sh.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-			sh.pixel_size = 0.5 / maxf(shield_tex.get_size().x, 1.0)
+			sh.pixel_size = 0.42 / maxf(shield_tex.get_size().x, 1.0)
 			root.add_child(sh)
 		# 数字（k 单位，盾徽右下方，小字号避免重叠）
 		var lbl := Label3D.new()
@@ -434,7 +434,7 @@ func refresh_army(positions: Dictionary, counts: Dictionary) -> void:
 		lbl.modulate = Color(0.97, 0.93, 0.8)
 		lbl.outline_modulate = Color(0.1, 0.08, 0.06)
 		lbl.outline_size = 6
-		lbl.position = Vector3(0.44, -0.06, 0.0)
+		lbl.position = Vector3(0.48, -0.06, 0.0)
 		root.add_child(lbl)
 		add_child(root)
 		_army_banners[cid] = root
