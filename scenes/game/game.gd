@@ -13,6 +13,13 @@ const MISSION_NODE_H := 60                              # 任务节点高
 const SHIELD_DIR := "res://assets/shields/"
 const BUILDING_ORDER := ["farm", "market", "brothel", "fort"]   # 省份面板建筑展示顺序
 const BUILDING_CN := {"farm": "农场", "market": "市场", "brothel": "妓院", "fort": "要塞"}
+# 省份风景图（测试：爱尔兰1.png 赋给爱尔兰 17 省；接入引擎③或壳层后按类别查表）
+const LANDSCAPE_IRELAND_PATH := "res://assets/province_landscape/ireland_01.png"
+const _IRELAND_PROVINCES := [
+	"Ulster", "Tyrone", "Tyrconnell", "Breifne", "Westmeath", "Sligo", "Mayo",
+	"Offaly", "Clanricarde", "Thomond", "Wexford", "Pale", "Kildare", "Leinster",
+	"Ormond", "Desmond", "Munster",
+]
 const CountryDetailScene := preload("res://scenes/game/country_detail.tscn")   # 详情栏子场景（编辑器里手动对齐）
 const UI_SLIDE_SECONDS := 0.6
 const UI_FADE_SECONDS := 0.4
@@ -463,6 +470,19 @@ func _build_province_content(province: String, country: String) -> void:
 			up.disabled = lv >= 4   # 建筑上限 lv.4（初始 lv.1，可升 3 次；buildings.json levels 定义）
 			up.pressed.connect(_on_upgrade_building.bind(province, b))
 			row.add_child(up)
+
+	# 省份风景图（测试：爱尔兰 17 省显示 爱尔兰1.png；容器内底部对齐——spacer 吃掉顶部空间，图贴底）
+	if _IRELAND_PROVINCES.has(province) and ResourceLoader.exists(LANDSCAPE_IRELAND_PATH):
+		var spacer := Control.new()
+		spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_left_body.add_child(spacer)
+		var tr := TextureRect.new()
+		tr.texture = load(LANDSCAPE_IRELAND_PATH)
+		tr.custom_minimum_size = Vector2(0, 320)
+		tr.expand_mode = TextureRect.EXPAND_FIT_HEIGHT_PROPORTIONAL   # 高 320、宽按纹理比例（3:4 竖版）等比
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.size_flags_horizontal = Control.SIZE_SHRINK_CENTER          # 水平居中
+		_left_body.add_child(tr)
 
 
 ## 升级建筑：扣款 + 等级+1（引擎①真实逻辑）
