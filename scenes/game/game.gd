@@ -471,18 +471,19 @@ func _build_province_content(province: String, country: String) -> void:
 			up.pressed.connect(_on_upgrade_building.bind(province, b))
 			row.add_child(up)
 
-	# 省份风景图（测试：爱尔兰 17 省显示 爱尔兰1.png；容器内底部对齐——spacer 吃掉顶部空间，图贴底）
+	# 省份风景图（测试：爱尔兰 17 省显示 爱尔兰1.png；宽度≈面板内容宽、3:4 等比、底部避让未来边框）
 	if _IRELAND_PROVINCES.has(province) and ResourceLoader.exists(LANDSCAPE_IRELAND_PATH):
-		var spacer := Control.new()
-		spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		_left_body.add_child(spacer)
+		var tex: Texture2D = load(LANDSCAPE_IRELAND_PATH)
+		var tw := 600.0   # 接近左栏内容宽（640 - 两侧边框预留）
+		var th := tw * float(tex.get_size().y) / float(tex.get_size().x)   # 按纹理比例（3:4）
 		var tr := TextureRect.new()
-		tr.texture = load(LANDSCAPE_IRELAND_PATH)
-		tr.custom_minimum_size = Vector2(240, 320)                     # 固定 3:4 框
+		tr.texture = tex
+		tr.custom_minimum_size = Vector2(tw, th)
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED     # 纹理等比居中，不变形
-		tr.size_flags_horizontal = Control.SIZE_SHRINK_CENTER          # 水平居中
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		tr.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		tr.margin_bottom = -16   # 底部避让一点
 		_left_body.add_child(tr)
 
 
