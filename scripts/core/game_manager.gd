@@ -12,6 +12,15 @@ const ARMY_MAINTENANCE := 0.1   # 军队每队每月维护
 const LOAN_RATE := 0.05         # 贷款年利率
 const PRESTIGE_DECAY := 0.99    # 威望每月衰减 1%
 const FAVOR_DECAY := 0.95       # 好感度每月衰减 5%
+const START_GOLD := 20.0        # 初始金币
+const START_PRESTIGE := 50.0    # 初始威望
+
+const COUNTRIES_PATH := "res://data/countries.json"
+
+# 特例初始好感：宗主视角对特定附庸（威尔士=叛乱低、曼岛=乖受保护国高）
+const _SPECIAL_FAVOR := {
+	"England": {"Wales": 10.0, "Isle of Man": 80.0},
+}
 
 var current_country_id: int = -1
 var player_country_id := ""     # 玩家国家（string id，与 game.gd / countries.json 一致）
@@ -29,6 +38,8 @@ var army_count := {}            # id -> int（军队队数，引擎②完善）
 var province_owner := {}
 var province_buildings := {}
 
+var _country_list: Array = []   # countries.json（读 liege 关系，用于初始好感）
+
 
 func _ready() -> void:
 	EventBus.end_month.connect(_on_end_month)
@@ -40,14 +51,16 @@ func start_new_game(country_id: String) -> void:
 	month = 9
 	year = 1400
 	is_running = true
-	# 初始化所有国家运行态数据（T2 统一默认值；T5 按国力区分）
+	_load_countries()
+	# 初始化所有国家运行态数据（Master 2026-08-11 定：初始金币 20 / 威望 50）
 	country_gold.clear()
 	country_prestige.clear()
 	player_favor.clear()
 	for cid in _all_country_ids():
-		country_gold[cid] = 100.0
-		country_prestige[cid] = 100.0
-		player_favor[cid] = 50.0   # 玩家对各国初始好感（引擎⑨聊天互动增减）
+		country_gold[cid] = START_GOLD
+		country_prestige[cid] = START_PRESTIGE
+		if cid != player_country_id:
+			player_favor[cid] = _initial_favor(cid)
 	EventBus.start_game.emit()
 
 
@@ -59,6 +72,39 @@ func _all_country_ids() -> Array:
 		if cid != "":
 			ids[cid] = true
 	return ids.keys()
+
+
+## 加载 countries.json（读 liege 关系）
+func _load_countries() -> void:
+	if not _country_list.is_empty():
+		return
+	var f := FileAccess.open(COUNTRIES_PATH, FileAccess.READ)
+	if f == null:
+		return
+	var data: Variant = JSON.parse_string(f.get_as_text())
+	if data is Dictionary:
+		_country_list = data.get("countries", [])
+
+
+## 国家宗主（countries.json liege）
+func _country_liege(cid: String) -> String:
+	for c in _country_list:
+		if c.get("id", "") == cid:
+			return str(c.get("liege", ""))
+	return ""
+
+
+## 玩家对某国初始好感：默认 20；直接附庸/宗主 +40（60）；特例覆盖（英格兰视角：威尔士 10 / 曼岛 80）
+func _initial_favor(cid: String) -> float:
+	var base := 20.0
+	if _country_liege(cid) == player_country_id:
+		base += 40.0   # 玩家是宗主 → 对附庸好感高
+	elif _country_liege(player_country_id) == cid:
+		base += 40.0   # 玩家是附庸 → 对宗主好感高
+	var special: Dictionary = _SPECIAL_FAVOR.get(player_country_id, {})
+	if special.has(cid):
+		base = special[cid]
+	return base
 
 
 func _on_end_month() -> void:
