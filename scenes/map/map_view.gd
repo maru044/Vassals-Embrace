@@ -25,6 +25,7 @@ const FORT_ICON_ALPHA := 0.65                       # 图标主体透明度（Ma
 const FORT_ICON_LIFT := 0.35                        # 要塞图标浮起高度（相对省份地表）
 const SHIELD_DIR := "res://assets/shields/"
 const ARMY_BANNER_LIFT := 1.1          # 兵牌浮起高度（相对省份地表，高于要塞图标）
+const ICON_SHOW_ZOOM := 0.35           # 镜头远景（zoom 低于此）隐藏要塞/军队图标（Master：远景更美观）
 
 # ---- 引擎②-B3-2c 兵牌交互 ----
 const SEL_RING_RADIUS := 0.4           # 选中兵牌脚下金色圆环半径
@@ -95,6 +96,7 @@ func _process(delta: float) -> void:
 	_update_flash(delta)
 	_update_labels()
 	_update_feedback(delta)
+	_update_icon_visibility()
 
 
 ## ===== 相机控制 =====
@@ -518,7 +520,7 @@ func _hit_banner(screen_pos: Vector2) -> String:
 	var best_d := BANNER_HIT_PIXELS
 	for cid in _army_banners:
 		var root: Node3D = _army_banners[cid]
-		if root == null or not is_instance_valid(root):
+		if root == null or not is_instance_valid(root) or not root.visible:
 			continue
 		var sp := _camera.unproject_position(root.global_position)
 		var d := screen_pos.distance_to(sp)
@@ -697,6 +699,20 @@ func _hide_feedback() -> void:
 	if _feedback != null and is_instance_valid(_feedback):
 		_feedback.visible = false
 	_feedback_timer = 0.0
+
+
+## 镜头远近：远景（zoom < ICON_SHOW_ZOOM）隐藏要塞/军队图标（及选中/命令指示），避免远景杂乱。
+## 每帧统一修正，任何重建/新创建图标都会在下一帧被校正，保证可见性与 zoom 一致。
+func _update_icon_visibility() -> void:
+	var show := _zoom >= ICON_SHOW_ZOOM
+	for prov in _fort_icons:
+		_fort_icons[prov].visible = show
+	for cid in _army_banners:
+		_army_banners[cid].visible = show
+	if _sel_root != null and is_instance_valid(_sel_root):
+		_sel_root.visible = show
+	if _order_root != null and is_instance_valid(_order_root):
+		_order_root.visible = show
 
 
 ## ===== 着色 =====
