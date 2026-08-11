@@ -71,7 +71,7 @@ func _on_end_month() -> void:
 func _settle_month() -> void:
 	for cid in country_gold:
 		# 金币：收入 - 军队维护 - 贷款利息
-			var income := get_country_income(cid)
+		var income := get_country_income(cid)
 		var maint: float = ARMY_MAINTENANCE * float(army_count.get(cid, 0))
 		var interest: float = loans.get(cid, 0.0) * LOAN_RATE / 12.0
 		country_gold[cid] += income - maint - interest
