@@ -421,7 +421,7 @@ func _build_province_content(province: String, country: String) -> void:
 			up.add_theme_stylebox_override("normal", _make_panel_stylebox())
 			up.add_theme_stylebox_override("hover", _make_panel_stylebox(true))
 			up.add_theme_stylebox_override("pressed", _make_panel_stylebox(true))
-			up.disabled = lv >= 3   # 建筑上限 lv.3（buildings.json levels 定义）
+			up.disabled = lv >= 4   # 建筑上限 lv.4（初始 lv.1，可升 3 次；buildings.json levels 定义）
 			up.pressed.connect(_on_upgrade_building.bind(province, b))
 			row.add_child(up)
 
