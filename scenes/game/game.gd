@@ -546,6 +546,7 @@ func _transition_to_game(id: String) -> void:
 		_top_shield.texture = load(shield_path)
 	_refresh_top_bar()   # 引擎①：进入游戏即显示真实金币/威望/日期/军队
 	_map_view.refresh_forts(GameManager.province_buildings)   # 引擎②-B3-2：要塞图标仅游戏内显示（fort≥2）
+	_map_view.refresh_army(GameManager.army_position, GameManager.army_count)   # 引擎②-B3-2b：军队兵牌（盾徽+方框+数字k）
 
 
 ## 顶栏接真值（引擎①）：日期 / 金币 / 威望 / 军队 从 GameManager 读取
