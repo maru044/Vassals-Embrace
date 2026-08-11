@@ -21,6 +21,7 @@ const BUILDING_MAX_LEVEL := 4   # 建筑等级上限（初始 lv.1 可升 3 次�
 const BASE_ARMY_CAP := 5          # 军队基础上限（队）
 const ARMY_PER_PROVINCE := 2      # 每直接统治地块 +2 队
 const VASSAL_ARMY_PENALTY := 3    # 附庸税：附庸国上限 -3 队（受保护国不算）
+const RECRUIT_COST := 20.0        # 招募一队军队 20 金
 
 const COUNTRIES_PATH := "res://data/countries.json"
 
@@ -131,6 +132,20 @@ func get_army_cap(cid: String) -> int:
 	if _is_vassal(cid):
 		cap -= VASSAL_ARMY_PENALTY
 	return maxi(cap, 1)
+
+
+## 招募一队军队（引擎②-B2）：20 金/队；上限拦截；扣款 + 军队 +1
+func recruit_army() -> Dictionary:
+	var pid := player_country_id
+	var cur: int = army_count.get(pid, 0)
+	var cap := get_army_cap(pid)
+	if cur >= cap:
+		return {"ok": false, "error": "已达军队上限（%d/%d）" % [cur, cap]}
+	if country_gold.get(pid, 0.0) < RECRUIT_COST:
+		return {"ok": false, "error": "金币不足（需要 %d 金）" % int(RECRUIT_COST)}
+	country_gold[pid] -= RECRUIT_COST
+	army_count[pid] = cur + 1
+	return {"ok": true, "army": cur + 1, "cap": cap, "gold": country_gold[pid]}
 
 
 ## 玩家对某国初始好感：默认 20；直接附庸/宗主 +40（60）；特例覆盖（英格兰视角：威尔士 10 / 曼岛 80）

@@ -762,14 +762,24 @@ func _build_economy_panel() -> void:
 	_left_body.add_child(_panel_label("收入：%.1f（基础 5 + 建筑 %.1f）" % [income, income - GameManager.BASE_INCOME]))
 	_left_body.add_child(_panel_label("支出：%.1f（军队维护 %.1f + 贷款利息 %.1f）" % [spend, maint, interest]))
 	_left_body.add_child(_panel_label("结余：%.1f / 金币 %d" % [income - spend, int(GameManager.country_gold.get(pid, 0.0))]))
-	_left_body.add_child(_panel_label("军队维护费：0.1 金币/队/月"))
+	# 引擎②-B2：军队 当前/上限 + 维护/招募费用
+	_left_body.add_child(_panel_label("军队：%d/%d（维护 0.1 金/队/月）" % [GameManager.army_count.get(pid, 0), GameManager.get_army_cap(pid)]))
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 8)
 	_left_body.add_child(spacer)
 	_left_body.add_child(_panel_label("贷款总额：%.0f 金币（年利率 5%%）" % GameManager.loans.get(pid, 0.0)))
-	_build_gold_button(_left_body, "招募一队军队", func() -> void: print("经济: 招募（引擎②接入）"))
+	_build_gold_button(_left_body, "招募一队军队（20 金）", _on_recruit_pressed)
 	_build_gold_button(_left_body, "贷款一笔（+10 金币）", _on_loan_pressed)
 	_build_gold_button(_left_body, "偿还一笔贷款（-10 金币）", _on_repay_pressed)
+
+
+## 招募一队军队（GameManager.recruit_army；成功刷新，失败警告到控制台）
+func _on_recruit_pressed() -> void:
+	var res: Dictionary = GameManager.recruit_army()
+	if not res.get("ok", false):
+		push_warning("招募失败: %s" % res.get("error", ""))
+	_refresh_left_panel()
+	_refresh_top_bar()
 
 
 ## 贷款一笔（GameManager.take_loan；刷新经济面板 + 顶栏）
