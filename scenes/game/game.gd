@@ -816,6 +816,9 @@ func _on_recruit_pressed() -> void:
 		push_warning("招募失败: %s" % res.get("error", ""))
 	_refresh_left_panel()
 	_refresh_top_bar()
+	# 招募成功 → 地图兵牌数字立即更新（如 0.2k → 0.3k），无需等过月
+	if res.get("ok", false):
+		_map_view.refresh_army(GameManager.army_position, GameManager.army_count)
 
 
 ## 贷款一笔（GameManager.take_loan；刷新经济面板 + 顶栏）
