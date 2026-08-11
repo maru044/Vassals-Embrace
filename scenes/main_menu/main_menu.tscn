@@ -277,7 +277,6 @@ text = "API 密钥"
 [node name="ApiKeyInput" type="LineEdit" parent="ConfigDialog/Margin/VBox" unique_id=136889377]
 layout_mode = 2
 placeholder_text = "输入 API Key"
-secret = true
 
 [node name="ModelLabel" type="Label" parent="ConfigDialog/Margin/VBox" unique_id=950508745]
 layout_mode = 2
