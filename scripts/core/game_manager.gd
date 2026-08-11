@@ -212,8 +212,46 @@ func _settle_month() -> void:
 		player_favor[target] = player_favor[target] * FAVOR_DECAY
 	# 招募次数每月重置（每月限 1 队）
 	recruited_this_month.clear()
+	# 引擎①-AI经营：AI 主动花钱（优先补兵到上限，然后升级经济建筑）
+	_ai_economy()
 	# 行军推进（每月最多 2 格，沿命令 BFS 最短路径；非战时无 ZoC）
 	_advance_army()
+
+
+## 引擎①-AI经营（Master 定：AI 也花钱）：对每个 AI 国家——
+## 1) 优先补兵到军队上限（每队 20 金；AI 不受「每月限 1 队」按钮限制）
+## 2) 补满后，把剩余金币用于升级经济建筑（farm/market/brothel，上限 LV4）
+## 自限：补满即停、建筑满级即停、金币不足即停 → AI 不会无限膨胀
+func _ai_economy() -> void:
+	for cid in army_count:
+		if cid == player_country_id:
+			continue
+		var gold: float = country_gold.get(cid, 0.0)
+		# 1) 优先补兵到军队上限
+		var cap := get_army_cap(cid)
+		var cur: int = army_count.get(cid, 0)
+		while cur < cap and gold >= RECRUIT_COST:
+			gold -= RECRUIT_COST
+			cur += 1
+		army_count[cid] = cur
+		# 2) 升级经济建筑（遍历本国省份，farm/market/brothel 逐个升到 LV4 或金币不足）
+		for province in province_owner:
+			if province_owner[province] != cid:
+				continue
+			var b: Dictionary = province_buildings.get(province, {})
+			if not province_buildings.has(province):
+				province_buildings[province] = b   # 写回新建字典（引用传递）
+			for bname in ["farm", "market", "brothel"]:
+				while true:
+					var lv: int = int(b.get(bname, 0))
+					if lv >= BUILDING_MAX_LEVEL:
+						break
+					var cost := building_upgrade_cost(bname, lv)
+					if gold < cost:
+						break
+					gold -= cost
+					b[bname] = lv + 1
+		country_gold[cid] = gold
 
 
 ## 建筑升级费用：初始 100，每级 ×1.5（lv1→2 100 / 2→3 150 / 3→4 225）
