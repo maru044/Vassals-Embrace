@@ -174,7 +174,7 @@ func _load_countries() -> void:
 	# 引擎①：省份数据注入 GameManager（GDScript 字典按引用共享 → 单一数据源，建筑升级实时反映到结算）
 	GameManager.province_owner = _province_owner
 	GameManager.province_buildings = _province_buildings
-	_map_view.refresh_forts(_province_buildings)   # 引擎②-B3-2：要塞图标（仅 fort≥2 显示，置于省份点上方）
+	# 要塞图标不在 _ready 显示（选国界面不显示），进入游戏时再 refresh_forts
 
 
 func _build_select_layer() -> void:
@@ -530,6 +530,7 @@ func _transition_to_game(id: String) -> void:
 	if ResourceLoader.exists(shield_path):
 		_top_shield.texture = load(shield_path)
 	_refresh_top_bar()   # 引擎①：进入游戏即显示真实金币/威望/日期/军队
+	_map_view.refresh_forts(GameManager.province_buildings)   # 引擎②-B3-2：要塞图标仅游戏内显示（fort≥2）
 
 
 ## 顶栏接真值（引擎①）：日期 / 金币 / 威望 / 军队 从 GameManager 读取
