@@ -14,6 +14,8 @@ const PRESTIGE_DECAY := 0.99    # 威望每月衰减 1%
 const FAVOR_DECAY := 0.95       # 好感度每月衰减 5%
 const START_GOLD := 20.0        # 初始金币
 const START_PRESTIGE := 50.0    # 初始威望
+const LOAN_AMOUNT := 10.0       # 每笔贷款金额（偿还也是一笔）
+const BUILDING_MAX_LEVEL := 4   # 建筑等级上限（初始 lv.1 可升 3 次）
 
 const COUNTRIES_PATH := "res://data/countries.json"
 
@@ -134,6 +136,46 @@ func _settle_month() -> void:
 	# 玩家好感度（玩家 → 各国）衰减 5%
 	for target in player_favor:
 		player_favor[target] = player_favor[target] * FAVOR_DECAY
+
+
+## 建筑升级费用：初始 100，每级 ×1.5（lv1→2 100 / 2→3 150 / 3→4 225）
+func building_upgrade_cost(building: String, current_level: int) -> float:
+	return 100.0 * pow(1.5, float(maxi(current_level, 1) - 1))
+
+
+## 尝试升级玩家国家某省建筑：扣款 + 等级+1（上限 LV4）
+func upgrade_building(province: String, building: String) -> Dictionary:
+	if province_owner.get(province, "") != player_country_id:
+		return {"ok": false, "error": "非本国省份"}
+	var b: Dictionary = province_buildings.get(province, {})
+	var lv: int = int(b.get(building, 0))
+	if lv >= BUILDING_MAX_LEVEL:
+		return {"ok": false, "error": "已达最高等级"}
+	var cost := building_upgrade_cost(building, lv)
+	if country_gold[player_country_id] < cost:
+		return {"ok": false, "error": "金币不足（需要 %d）" % int(cost)}
+	country_gold[player_country_id] -= cost
+	b[building] = lv + 1
+	return {"ok": true, "cost": cost, "level": lv + 1}
+
+
+## 贷款一笔（+10 金，贷款总额 +10；保留到主动偿还）
+func take_loan() -> Dictionary:
+	country_gold[player_country_id] += LOAN_AMOUNT
+	loans[player_country_id] = loans.get(player_country_id, 0.0) + LOAN_AMOUNT
+	return {"ok": true, "loan": loans[player_country_id], "gold": country_gold[player_country_id]}
+
+
+## 偿还一笔贷款（-10 金，贷款总额 -10）
+func repay_loan() -> Dictionary:
+	var cur: float = loans.get(player_country_id, 0.0)
+	if cur < LOAN_AMOUNT:
+		return {"ok": false, "error": "无贷款可还"}
+	if country_gold[player_country_id] < LOAN_AMOUNT:
+		return {"ok": false, "error": "金币不足"}
+	country_gold[player_country_id] -= LOAN_AMOUNT
+	loans[player_country_id] = cur - LOAN_AMOUNT
+	return {"ok": true, "loan": loans[player_country_id], "gold": country_gold[player_country_id]}
 
 
 ## 国家月收入：基础 5 + 该国所有省份经济建筑（farm/market/brothel）每级 0.3（经济面板展示用）

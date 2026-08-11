@@ -422,8 +422,9 @@ func _build_province_content(province: String, country: String) -> void:
 		row.add_child(lbl)
 
 		if is_own:
+			var up_cost := int(GameManager.building_upgrade_cost(b, lv))
 			var up := Button.new()
-			up.text = "升级"
+			up.text = "升级(%dg)" % up_cost
 			up.custom_minimum_size = Vector2(64, 32)
 			up.add_theme_font_size_override("font_size", 14)
 			up.add_theme_color_override("font_color", INK)
@@ -435,21 +436,15 @@ func _build_province_content(province: String, country: String) -> void:
 			row.add_child(up)
 
 
-## 升级建筑：等级 +1，刷新省份面板（真实花费/EventBus 引擎①接入）
+## 升级建筑：扣款 + 等级+1（引擎①真实逻辑）
 func _on_upgrade_building(province: String, building: String) -> void:
-	# 仅玩家本国省份可升级
-	if _province_owner.get(province, "") != _player_country_id:
-		return
-	var blds: Dictionary = _province_buildings.get(province, {})
-	var lv: int = blds.get(building, 0)
-	if lv >= 3:
-		return
-	blds[building] = lv + 1
-	# 引擎①接入前：仅本地更新 + 面板刷新（EventBus.building_changed 待信号类型与 province id 对齐后 emit）
-	# 刷新当前省份面板
+	var res: Dictionary = GameManager.upgrade_building(province, building)
+	# 刷新当前省份面板（显示新等级/新费用）
 	for c in _left_body.get_children():
 		c.queue_free()
 	_build_province_content(province, _province_owner.get(province, ""))
+	if res.get("ok", false):
+		_refresh_top_bar()
 
 
 func _select_country(id: String) -> void:
@@ -770,9 +765,24 @@ func _build_economy_panel() -> void:
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 8)
 	_left_body.add_child(spacer)
-	_build_gold_button(_left_body, "招募一队军队", func() -> void: print("经济: 招募（占位）"))
-	_build_gold_button(_left_body, "贷款（10 金币，年利率 5%）", func() -> void: print("经济: 贷款（占位）"))
-	_build_gold_button(_left_body, "偿还贷款", func() -> void: print("经济: 还贷（占位）"))
+	_left_body.add_child(_panel_label("贷款总额：%.0f 金币（年利率 5%%）" % GameManager.loans.get(pid, 0.0)))
+	_build_gold_button(_left_body, "招募一队军队", func() -> void: print("经济: 招募（引擎②接入）"))
+	_build_gold_button(_left_body, "贷款一笔（+10 金币）", _on_loan_pressed)
+	_build_gold_button(_left_body, "偿还一笔贷款（-10 金币）", _on_repay_pressed)
+
+
+## 贷款一笔（GameManager.take_loan；刷新经济面板 + 顶栏）
+func _on_loan_pressed() -> void:
+	var res: Dictionary = GameManager.take_loan()
+	_refresh_left_panel()
+	_refresh_top_bar()
+
+
+## 偿还一笔贷款（GameManager.repay_loan）
+func _on_repay_pressed() -> void:
+	var res: Dictionary = GameManager.repay_loan()
+	_refresh_left_panel()
+	_refresh_top_bar()
 
 
 ## 宫廷：统治者立绘（固定显示）+ 下方后宫按钮容器（独立可滚动）
