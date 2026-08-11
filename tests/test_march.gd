@@ -24,6 +24,29 @@ func _initialize() -> void:
 			miss.append(str(e))
 	out.append("missing from reachable: %s" % ("none" if miss.is_empty() else ", ".join(miss)))
 
+	# B3-2c：可达树（{子省: 父省}）——键集应与可达集合一致，且每条边父省是子省的陆地邻接
+	var tree: Dictionary = gm.call("get_reachable_tree", "England")
+	var keys: Array = tree.keys()
+	keys.sort()
+	var reach_sorted: Array = reach.duplicate()
+	reach_sorted.sort()
+	out.append("tree keys == reachable: %s (tree=%d reach=%d)" % [str(keys) == str(reach_sorted), keys.size(), reach_sorted.size()])
+	var adj: Dictionary = gm.get("_adjacency")
+	if adj.is_empty():
+		adj = {}
+	# 直接验证：每个父省 ∈ 邻接图且为 land 边
+	var bad_edges: Array[String] = []
+	for child in tree:
+		var parent: String = tree[child]
+		if not adj.has(parent) or adj[parent].get(child, "") != "land":
+			bad_edges.append(str(child) + "<-" + parent)
+	out.append("tree invalid land edges: %s" % ("none" if bad_edges.is_empty() else ", ".join(bad_edges)))
+
+	# B3-2c：公开路径查询 get_army_path（London -> Midlands）
+	var path: Array = gm.call("get_army_path", "England", "Midlands")
+	out.append("path London->Midlands: %s" % ", ".join(path))
+	out.append("path head/tail ok: %s" % (path.size() >= 2 and path[0] == "London" and path[path.size() - 1] == "Midlands"))
+
 	# 超范围拦截：Wales 距 London 3 步 > 2
 	var r_far: Dictionary = gm.call("issue_order", "England", "Wales")
 	out.append("order Wales (3 steps) -> ok=%s error=%s" % [r_far.get("ok"), r_far.get("error", "")])

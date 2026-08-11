@@ -26,6 +26,17 @@ const FORT_ICON_LIFT := 0.35                        # 要塞图标浮起高度�
 const SHIELD_DIR := "res://assets/shields/"
 const ARMY_BANNER_LIFT := 1.1          # 兵牌浮起高度（相对省份地表，高于要塞图标）
 
+# ---- 引擎②-B3-2c 兵牌交互 ----
+const SEL_RING_RADIUS := 0.4           # 选中兵牌脚下金色圆环半径
+const SEL_RING_LIFT := 0.12            # 选中圆环浮起高度（贴近地表）
+const REACH_LINE_RADIUS := 0.035       # 合法移动线半径（细圆柱）
+const REACH_LINE_COLOR := Color(0.45, 1.0, 0.55, 0.9)   # 合法目标线（亮绿）
+const ORDER_LINE_COLOR := Color(1.0, 0.8, 0.3, 1.0)     # 命令路线线（金黄）
+const ORDER_MARK_RADIUS := 0.3         # 命令目标省标记半径
+const BANNER_HIT_PIXELS := 40.0        # 兵牌点击命中像素半径（屏幕空间）
+const FEEDBACK_LIFT := 1.9             # 浮空操作提示高度（相对兵牌地表）
+const FEEDBACK_SECONDS := 2.2          # 浮空提示持续/淡出秒数
+
 # 相机（EU4 式）：俯角随缩放变化，yaw 固定从南看北（南在屏幕下，北退远）
 const PITCH_FAR := deg_to_rad(85.0)
 const PITCH_NEAR := deg_to_rad(45.0)
@@ -60,6 +71,11 @@ var _ocean_mat: ShaderMaterial = null
 var _fort_texture: Texture2D = null   # 要塞图标纹理
 var _fort_icons := {}                 # province -> Sprite3D（fort≥2 才创建）
 var _army_banners := {}               # cid -> Node3D（军队兵牌容器，显示盾徽+方框+数字k）
+var _selected_army := ""              # 当前选中军队国家 id（""=未选中）
+var _sel_root: Node3D = null          # 选中指示容器（金色圆环 + 合法移动线）
+var _order_root: Node3D = null        # 命令指示容器（目标省标记 + 命令路线）
+var _feedback: Label3D = null         # 浮空操作提示（成功/非法）
+var _feedback_timer := 0.0            # 剩余显示秒数
 
 
 func _ready() -> void:
@@ -78,6 +94,7 @@ func _process(delta: float) -> void:
 	_update_shader_uniforms()
 	_update_flash(delta)
 	_update_labels()
+	_update_feedback(delta)
 
 
 ## ===== 相机控制 =====
@@ -104,7 +121,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				_zoom = clampf(_zoom - 0.12, ZOOM_MIN, 1.0)
 				_update_camera()
 			MOUSE_BUTTON_LEFT:
-				_pick(event.position)
+				_handle_left_click(event.position)
+			MOUSE_BUTTON_RIGHT:
+				_handle_right_click(event.position)
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F9:
 		_toggle_spines()
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F10:
@@ -438,6 +457,235 @@ func refresh_army(positions: Dictionary, counts: Dictionary) -> void:
 		root.add_child(lbl)
 		add_child(root)
 		_army_banners[cid] = root
+	# 兵牌重建后重绘选中/命令指示（月末军队移动后跟随）
+	_refresh_selection_gfx()
+	_refresh_order_gfx()
+
+
+## ===== 引擎②-B3-2c 兵牌交互 =====
+
+## 左键：先测兵牌命中 → 自己军队选中/取消（点别国兵牌无反应，Master 定）；未命中则回落省份拾取。
+func _handle_left_click(screen_pos: Vector2) -> void:
+	var hit := _hit_banner(screen_pos)
+	if not hit.is_empty():
+		if hit == GameManager.player_country_id:
+			if _selected_army == hit:
+				_deselect_army()
+			else:
+				_select_army(hit)
+		# 点别国兵牌 → 无反应（保持当前选中不变）
+		return
+	_pick(screen_pos)
+
+
+## 右键：有选中军队时，把点击解析为省份并下达移动令（合法/非法提示）
+func _handle_right_click(screen_pos: Vector2) -> void:
+	if _selected_army.is_empty():
+		return
+	var target := _pick_province(screen_pos)
+	if target.is_empty():
+		_show_feedback("未命中省份", false)
+		return
+	if target == GameManager.army_position.get(_selected_army, ""):
+		_show_feedback("军队已在该省驻守", true)
+		return
+	var res := GameManager.issue_order(_selected_army, target)
+	if res.get("ok", false):
+		_refresh_order_gfx()
+		_show_feedback("已下令 → %s" % target, true)
+	else:
+		_show_feedback(str(res.get("error", "无法移动")), false)
+
+
+## 屏幕坐标 → 省份（纯射线拾取，不闪不广播）
+func _pick_province(screen_pos: Vector2) -> String:
+	var from := _camera.project_ray_origin(screen_pos)
+	var to := from + _camera.project_ray_normal(screen_pos) * 2000.0
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	var result := get_world_3d().direct_space_state.intersect_ray(query)
+	if result.is_empty():
+		return ""
+	var collider: Object = result.get("collider", null)
+	if collider != null and _collider_to_province.has(collider):
+		return _collider_to_province[collider]
+	return ""
+
+
+## 兵牌命中测试：投影兵牌位置到屏幕，点选像素距离 < BANNER_HIT_PIXELS 视为命中；返回最近命中国家 id（""=未命中）
+func _hit_banner(screen_pos: Vector2) -> String:
+	var best := ""
+	var best_d := BANNER_HIT_PIXELS
+	for cid in _army_banners:
+		var root: Node3D = _army_banners[cid]
+		if root == null or not is_instance_valid(root):
+			continue
+		var sp := _camera.unproject_position(root.global_position)
+		var d := screen_pos.distance_to(sp)
+		if d <= best_d:
+			best_d = d
+			best = cid
+	return best
+
+
+func _select_army(cid: String) -> void:
+	_selected_army = cid
+	_refresh_selection_gfx()
+	_show_feedback("已选中军队", true)
+
+
+func _deselect_army() -> void:
+	_selected_army = ""
+	_clear_node(_sel_root)
+	_sel_root = null
+	_refresh_order_gfx()   # 取消选中不影响待执行命令指示
+
+
+## 重建选中指示（金色圆环 + 合法移动线，沿邻接线条）
+func _refresh_selection_gfx() -> void:
+	_clear_node(_sel_root)
+	_sel_root = null
+	if _selected_army.is_empty():
+		return
+	_sel_root = Node3D.new()
+	_sel_root.name = "ArmySelGfx"
+	add_child(_sel_root)
+	var from: String = GameManager.army_position.get(_selected_army, "")
+	var mi: MeshInstance3D = _province_mesh.get(from, null)
+	if mi == null:
+		return
+	var anchor := _province_anchor(mi)
+	var torus := _make_ring(anchor, SEL_RING_RADIUS, Color(1.0, 0.85, 0.3, 0.95))
+	if torus:
+		_sel_root.add_child(torus)
+	# 合法移动线：沿 BFS 可达树边（父省→子省）画细圆柱，即复用邻接图线条
+	var tree: Dictionary = GameManager.get_reachable_tree(_selected_army)
+	for child in tree:
+		var parent: String = tree[child]
+		if not _province_mesh.has(child) or not _province_mesh.has(parent):
+			continue
+		var seg := _make_segment(_province_center(parent), _province_center(child), REACH_LINE_COLOR, REACH_LINE_RADIUS)
+		if seg:
+			_sel_root.add_child(seg)
+
+
+## 命令指示：玩家军队有待执行命令时，在目标省画金黄标记 + 沿 BFS 最短路径画路线
+func _refresh_order_gfx() -> void:
+	_clear_node(_order_root)
+	_order_root = null
+	var pid := GameManager.player_country_id
+	var target: String = GameManager.army_order.get(pid, "")
+	var from: String = GameManager.army_position.get(pid, "")
+	if target.is_empty() or from.is_empty():
+		return
+	_order_root = Node3D.new()
+	_order_root.name = "ArmyOrderGfx"
+	add_child(_order_root)
+	if _province_mesh.has(target):
+		var ring := _make_ring(_province_center(target), ORDER_MARK_RADIUS, Color(1.0, 0.7, 0.2, 1.0))
+		if ring:
+			_order_root.add_child(ring)
+	var path := GameManager.get_army_path(pid, target)
+	for i in path.size() - 1:
+		var a: String = path[i]
+		var b: String = path[i + 1]
+		if not _province_mesh.has(a) or not _province_mesh.has(b):
+			continue
+		var seg := _make_segment(_province_center(a), _province_center(b), ORDER_LINE_COLOR, REACH_LINE_RADIUS * 1.2)
+		if seg:
+			_order_root.add_child(seg)
+
+
+func _province_center(province: String) -> Vector3:
+	var mi: MeshInstance3D = _province_mesh.get(province, null)
+	if mi == null:
+		return Vector3.ZERO
+	return _province_anchor(mi)
+
+
+func _clear_node(n: Node) -> void:
+	if n != null and is_instance_valid(n):
+		n.queue_free()
+
+
+## 细圆柱线段（无光照 + 关闭深度测试，可透过地形/海洋显示），本地 Y 轴对齐 a→b
+func _make_segment(a: Vector3, b: Vector3, color: Color, radius: float) -> MeshInstance3D:
+	var len := a.distance_to(b)
+	if len < 0.01:
+		return null
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = len
+	mesh.radial_segments = 6
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.no_depth_test = true
+	mi.material_override = mat
+	var dir := (b - a).normalized()
+	var up := Vector3.UP
+	if absf(dir.dot(up)) > 0.999:
+		up = Vector3.FORWARD
+	var xa := up.cross(dir).normalized()
+	if xa.length() < 0.001:
+		xa = Vector3.RIGHT
+	var za := xa.cross(dir).normalized()
+	mi.transform = Transform3D(Basis(xa, dir, za), (a + b) * 0.5)
+	return mi
+
+
+## 平躺地表圆环标记（TorusMesh，XZ 平面）
+func _make_ring(at: Vector3, radius: float, color: Color) -> MeshInstance3D:
+	var mesh := TorusMesh.new()
+	mesh.inner_radius = radius * 0.75
+	mesh.outer_radius = radius
+	mesh.rings = 48
+	mesh.ring_segments = 6
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.no_depth_test = true
+	mi.material_override = mat
+	mi.position = Vector3(at.x, at.y + SEL_RING_LIFT, at.z)
+	return mi
+
+
+## 浮空操作提示：兵牌上方 Label3D，自动淡出
+func _show_feedback(text: String, ok: bool) -> void:
+	if _feedback == null:
+		_feedback = Label3D.new()
+		_feedback.name = "ArmyFeedback"
+		_feedback.font = load(LABEL_FONT_PATH)
+		_feedback.font_size = 40
+		_feedback.pixel_size = 0.012
+		_feedback.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_feedback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_feedback.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_feedback.outline_modulate = Color(0.05, 0.04, 0.03)
+		_feedback.outline_size = 8
+		add_child(_feedback)
+	_feedback.text = ("✓ " if ok else "✗ ") + text
+	_feedback.modulate = Color(0.9, 1.0, 0.75) if ok else Color(1.0, 0.62, 0.55)
+	_feedback_timer = FEEDBACK_SECONDS
+	var pid := GameManager.player_country_id
+	var pos: String = GameManager.army_position.get(pid, "")
+	var mi: MeshInstance3D = _province_mesh.get(pos, null)
+	if mi:
+		var anc := _province_anchor(mi)
+		_feedback.global_position = Vector3(anc.x, anc.y + FEEDBACK_LIFT, anc.z)
+	else:
+		_feedback.global_position = Vector3(MAP_CENTER.x, 3.0, MAP_CENTER.z)
+
+
+func _update_feedback(delta: float) -> void:
+	if _feedback == null or _feedback_timer <= 0.0:
+		return
+	_feedback_timer -= delta
+	_feedback.modulate.a = clampf(_feedback_timer / FEEDBACK_SECONDS, 0.0, 1.0)
 
 
 ## ===== 着色 =====

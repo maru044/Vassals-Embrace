@@ -331,6 +331,34 @@ func get_reachable_provinces(cid: String, max_steps: int = ARMY_MOVE_STEPS) -> A
 	return reached.keys()
 
 
+## BFS 可达树：{可达省: 父省}（含 1 步邻居 parent=起点），用于地图画合法移动线（沿邻接线条）。
+## 仅陆地通行；ZoC 非战时未启用（引擎④战争后补）。
+func get_reachable_tree(cid: String, max_steps: int = ARMY_MOVE_STEPS) -> Dictionary:
+	if not _ensure_adjacency():
+		return {}
+	var from: String = army_position.get(cid, "")
+	if from.is_empty():
+		return {}
+	var tree := {}
+	var visited := {from: true}
+	var frontier := [[from, 0]]
+	while not frontier.is_empty():
+		var cur: Array = frontier.pop_front()
+		var prov: String = cur[0]
+		var d: int = cur[1]
+		if d >= max_steps:
+			continue
+		for nxt in _adjacency.get(prov, {}):
+			if _adjacency[prov][nxt] != "land":
+				continue
+			if visited.has(nxt):
+				continue
+			visited[nxt] = true
+			tree[nxt] = prov
+			frontier.append([nxt, d + 1])
+	return tree
+
+
 ## 移动合法性（非战时：目标在 2 格陆地可达内即合法；ZoC 战争限制引擎④补）
 func can_move_to(cid: String, target: String) -> Dictionary:
 	if target == army_position.get(cid, ""):
@@ -349,6 +377,15 @@ func issue_order(cid: String, target: String) -> Dictionary:
 		return {"ok": false, "error": chk.get("reason", "")}
 	army_order[cid] = target
 	return {"ok": true, "order": target}
+
+
+## 公开路径查询（沿陆地的 BFS 最短路径），供地图画命令路线。
+## 注意：勿命名 get_path_to（与 Node 内置方法冲突，签名不匹配会编译报错）
+func get_army_path(cid: String, target: String) -> Array:
+	var from: String = army_position.get(cid, "")
+	if from.is_empty():
+		return []
+	return _shortest_path(from, target)
 
 
 ## BFS 最短路径（仅陆地）；无路径返回 []
