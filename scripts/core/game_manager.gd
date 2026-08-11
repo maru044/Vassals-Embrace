@@ -107,6 +107,14 @@ func _initial_favor(cid: String) -> float:
 	return base
 
 
+## 玩家对某国好感增减（LLM modify_favor 工具落地；clamp 0-100，即时生效并广播刷新）
+func change_favor(target_id: String, delta: float) -> void:
+	if not player_favor.has(target_id):
+		player_favor[target_id] = 0.0
+	player_favor[target_id] = clampf(player_favor[target_id] + delta, 0.0, 100.0)
+	EventBus.favor_changed.emit(target_id, player_favor[target_id])
+
+
 func _on_end_month() -> void:
 	_settle_month()
 	_advance_time()

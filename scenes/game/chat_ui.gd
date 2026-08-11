@@ -16,6 +16,7 @@ const PORTRAIT_DIR := "res://assets/portraits/"
 const PARALLAX_SHADER := "res://shaders/chat_ui_parallax.gdshader"
 const LLM_CLIENT_SCRIPT := "res://scripts/llm/llm_client.gd"
 const RESPONSE_PARSER_SCRIPT := "res://scripts/llm/response_parser.gd"
+const TOOL_EXECUTOR_SCRIPT := "res://scripts/llm/tool_executor.gd"
 
 var _target_kind := ""          # "country" / "harem" / "miku"
 var _target_id := ""            # 国家 id / 后宫名
@@ -33,6 +34,8 @@ var _input: LineEdit
 var _send: Button
 var _llm = null
 var _parser_script: GDScript = null
+var _tool_executor_script: GDScript = null
+var _tool_executor = null
 var _waiting := false
 var _parallax_smooth := Vector2.ZERO
 
@@ -42,13 +45,17 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	visible = false
 	_build_ui()
-	# LLM 客户端
+	# LLM 客户端 + 工具执行器（好感度等引擎状态经工具落地）
 	var script: GDScript = load(LLM_CLIENT_SCRIPT)
 	_llm = Node.new()
 	_llm.set_script(script)
 	add_child(_llm)
 	_llm.request_finished.connect(_on_llm_finished)
 	_parser_script = load(RESPONSE_PARSER_SCRIPT)
+	_tool_executor_script = load(TOOL_EXECUTOR_SCRIPT)
+	_tool_executor = Node.new()
+	_tool_executor.set_script(_tool_executor_script)
+	add_child(_tool_executor)
 
 
 func _build_ui() -> void:
@@ -232,7 +239,10 @@ func _on_send_pressed() -> void:
 		_waiting = true
 		_send.disabled = true
 		_send.text = "思考中…"
-		_llm.send_request()
+		if _target_kind == "country" and _tool_executor_script:
+			_llm.send_request(_tool_executor_script.TOOLS)   # 国家对话启用好感工具（modify_favor）
+		else:
+			_llm.send_request()
 
 
 func _on_llm_finished(success: bool, data: Dictionary) -> void:
@@ -248,6 +258,16 @@ func _on_llm_finished(success: bool, data: Dictionary) -> void:
 		_add_bubble(_display_name, "[i][color=#8a6d3b]" + str(parsed["cot"]) + "[/color][/i]\n" + content, false)
 	else:
 		_add_bubble(_display_name, content, false)
+	# 执行工具调用（好感度经 modify_favor 落地 → favor_changed → 外交面板即时刷新）
+	var tool_calls: Array = parsed.get("tool_calls", [])
+	if not tool_calls.is_empty() and _tool_executor:
+		for tc in tool_calls:
+			var call: Dictionary = _parser_script.parse_tool_call(tc)
+			var res: Dictionary = _tool_executor.execute(call.get("name", ""), call.get("arguments", {}))
+			if res.get("ok", false) and call.get("name", "") == "modify_favor":
+				var delta: int = res.get("delta", 0)
+				var favor: float = res.get("favor", 0.0)
+				_add_system_msg("好感 %s%d → %d（%s）" % ["+" if delta >= 0 else "", delta, int(favor), _display_name])
 
 
 ## 对象人设（引擎①⑨接入后补状态锚点）
@@ -256,7 +276,8 @@ func _build_system_prompt() -> String:
 		"miku":
 			return "你是 Miku（初音未来），本系统的管理员女主人。性格可爱、高性能、爱吐槽，用中文与主人（玩家）对话。当前正在辅助玩家治理不列颠的百合后宫世界。"
 		"country":
-			return "你是 %s 的统治者，身处「欧陆百合风云」的百合后宫世界。主人是玩家（%s 的统治者）。请保持角色人设：端庄得体、外冷内淫、识趣的玩伴姿态，用中文与主人对话。当前是外交/私会场合。" % [_display_name, _target_id]
+			var rolls := "%d, %d, %d, %d, %d" % [Dice.d100(), Dice.d100(), Dice.d100(), Dice.d100(), Dice.d100()]
+			return "你是 %s 的统治者，身处「欧陆百合风云」的百合后宫世界。主人是玩家（%s 的统治者）。请保持角色人设：端庄得体、外冷内淫、识趣的玩伴姿态，用中文与主人对话。当前是外交/私会场合。\n【好感判定】当主人提出肢体/侍奉互动时：爱抚、玩弄玩具=简单（成功+3/失败-3）；口交、手淫=中等（成功+5/失败-3）；性交=困难（成功+10/失败-3，需高好感+氛围铺垫才可能成功）。用本次 5 个 D100（COC 越低越好，1-10 大成功/91-100 大失败）结合你的性格、当前好感、情境判定成败后，调用工具 modify_favor(target_id=\"%s\", delta=±N) 更新好感；纯闲聊不调用工具。\n本次随机数：roll 5d100=(%s)" % [_display_name, _target_id, _target_id, rolls]
 		"harem":
 			return "你是 %s 后宫中的一员，正与主人独处。温柔识趣、主动调情但不卑不亢，享受百合与侍奉，用中文与主人对话。" % _display_name
 	return "你是一个神秘的存在，用中文与主人对话。"

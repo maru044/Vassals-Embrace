@@ -11,8 +11,8 @@ const TOOLS: Array = [
 			"parameters": {
 				"type": "object",
 				"properties": {
-					"target_id": {"type": "integer", "description": "目标国家 id"},
-					"delta": {"type": "integer", "description": "好感度增减量"},
+					"target_id": {"type": "string", "description": "目标国家 id（如 England / Wales）"},
+					"delta": {"type": "integer", "description": "好感度增减量（简单互动成功+3/失败-3，中等成功+5，困难成功+10）"},
 				},
 				"required": ["target_id", "delta"],
 			},
@@ -64,12 +64,11 @@ func execute(tool_name: String, args: Dictionary) -> Dictionary:
 
 
 func _modify_favor(args: Dictionary) -> Dictionary:
-	var target_id: int = args.get("target_id", -1)
+	var target_id: String = str(args.get("target_id", ""))
 	var delta: int = args.get("delta", 0)
-	# TODO: 落库到玩家侧好感度系统
-	EventBus.favor_changed.emit(target_id, delta)
+	GameManager.change_favor(target_id, float(delta))   # 落库玩家侧好感（即时生效 + 广播刷新）
 	EventBus.tool_executed.emit("modify_favor", {"target_id": target_id, "delta": delta})
-	return {"ok": true, "target_id": target_id, "delta": delta}
+	return {"ok": true, "target_id": target_id, "delta": delta, "favor": GameManager.player_favor.get(target_id, 0.0)}
 
 
 func _modify_service_tendency(args: Dictionary) -> Dictionary:

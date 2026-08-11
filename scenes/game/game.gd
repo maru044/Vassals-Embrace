@@ -139,8 +139,12 @@ func _ready() -> void:
 	EventBus.diplomatic_play_resolved.connect(func(_p: int) -> void: _refresh_bottom_bar())
 	EventBus.union_changed.connect(func(_l: int, _m: int, _a: bool) -> void: _refresh_bottom_bar())
 	EventBus.organization_changed.connect(func(_o: int) -> void: _refresh_bottom_bar())
-	# 引擎①：过月后顶栏金币/威望/日期/军队接真实值
-	EventBus.month_advanced.connect(func(_m: int, _y: int) -> void: _refresh_top_bar())
+	# 引擎①：过月后顶栏 + 左栏当前面板热更新（金币/威望/好感/经济即时刷新，无需关开面板）
+	EventBus.month_advanced.connect(func(_m: int, _y: int) -> void:
+		_refresh_top_bar()
+		_refresh_left_panel())
+	# 引擎⑨雏形：对话好感即时变化 → 外交面板即时刷新
+	EventBus.favor_changed.connect(func(_t: String, _v: float) -> void: _refresh_left_panel())
 	# 聊天界面（参考 ChatUI 案例：左立绘+深度图视差，右对话区）
 	_chat_ui = ChatUI.new()
 	add_child(_chat_ui)
@@ -526,6 +530,16 @@ func _refresh_top_bar() -> void:
 	_top_gold.text = "金币 %d" % int(GameManager.country_gold.get(pid, 0.0))
 	_top_prestige.text = "威望 %d" % int(GameManager.country_prestige.get(pid, 0.0))
 	_top_army.text = "军队 %d" % GameManager.army_count.get(pid, 0)
+
+
+## 过月热更新：左栏当前面板重建（经济/外交等动态数字即时刷新；外交二级子面板过月回到列表）
+func _refresh_left_panel() -> void:
+	if not _left_open or _active_panel == "":
+		return
+	_left_title.text = PANEL_CN.get(_active_panel, _active_panel)
+	for c in _left_body.get_children():
+		c.queue_free()
+	_build_panel_content(_active_panel)
 
 
 ## 好感度色阶（玩家对某国）：80-100 绿 / 60-80 黄绿 / 40-60 黄 / 20-40 橙 / 0-20 红
