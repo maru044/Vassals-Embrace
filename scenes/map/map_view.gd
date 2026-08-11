@@ -460,6 +460,7 @@ func refresh_army(positions: Dictionary, counts: Dictionary) -> void:
 	# 兵牌重建后重绘选中/命令指示（月末军队移动后跟随）
 	_refresh_selection_gfx()
 	_refresh_order_gfx()
+	_hide_feedback()   # 过月即清浮空提示（Master：下令提示不残留）
 
 
 ## ===== 引擎②-B3-2c 兵牌交互 =====
@@ -668,6 +669,7 @@ func _show_feedback(text: String, ok: bool) -> void:
 		_feedback.outline_modulate = Color(0.05, 0.04, 0.03)
 		_feedback.outline_size = 8
 		add_child(_feedback)
+	_feedback.visible = true
 	_feedback.text = ("✓ " if ok else "✗ ") + text
 	_feedback.modulate = Color(0.9, 1.0, 0.75) if ok else Color(1.0, 0.62, 0.55)
 	_feedback_timer = FEEDBACK_SECONDS
@@ -685,7 +687,16 @@ func _update_feedback(delta: float) -> void:
 	if _feedback == null or _feedback_timer <= 0.0:
 		return
 	_feedback_timer -= delta
-	_feedback.modulate.a = clampf(_feedback_timer / FEEDBACK_SECONDS, 0.0, 1.0)
+	if _feedback_timer <= 0.0:
+		_hide_feedback()
+	else:
+		_feedback.modulate.a = clampf(_feedback_timer / FEEDBACK_SECONDS, 0.0, 1.0)
+
+
+func _hide_feedback() -> void:
+	if _feedback != null and is_instance_valid(_feedback):
+		_feedback.visible = false
+	_feedback_timer = 0.0
 
 
 ## ===== 着色 =====
