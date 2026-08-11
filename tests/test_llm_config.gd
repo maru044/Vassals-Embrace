@@ -16,7 +16,7 @@ func _initialize() -> void:
 
 	out.append("== ConfigManager presets ==")
 	var ref := {
-		"gemini": {"url": "https://gcli.ggchan.dev/v1/chat/completions", "model": "gemini-3.1-pro-preview", "temp": 1.0, "top_p": 0.88},
+		"gemini": {"url": "https://gcli.ggchan.dev/v1/chat/completions", "model": "gemini-3.1-pro-preview", "temp": 1.3, "top_p": 0.88},
 		"deepseek": {"url": "https://api.deepseek.com/chat/completions", "model": "deepseek-v4-flash", "temp": 1.0, "top_p": 0.9},
 		"custom": {"url": "", "model": "", "temp": 1.0, "top_p": 0.9},
 	}

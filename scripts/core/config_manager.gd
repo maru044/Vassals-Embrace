@@ -18,7 +18,7 @@ var presets: Dictionary = {
 		"url": "https://gcli.ggchan.dev/v1/chat/completions",
 		"model": "gemini-3.1-pro-preview",
 		"supports_vision": true,
-		"temp": 1.0,
+		"temp": 1.3,
 		"top_p": 0.88,
 	},
 	"deepseek": {
@@ -88,7 +88,7 @@ func apply_preset(type_str: String) -> void:
 	var p: Dictionary = presets.get(type_str, presets["gemini"])
 	api_url = p.get("url", "")
 	model = p.get("model", "")
-	api_temp = p.get("temp", 1.0)
+	api_temp = p.get("temp", 1.3)
 	api_top_p = p.get("top_p", 0.88)
 	supports_vision = p.get("supports_vision", true)
 
