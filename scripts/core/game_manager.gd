@@ -47,6 +47,7 @@ func start_new_game(country_id: String) -> void:
 	for cid in _all_country_ids():
 		country_gold[cid] = 100.0
 		country_prestige[cid] = 100.0
+		player_favor[cid] = 50.0   # 玩家对各国初始好感（引擎⑨聊天互动增减）
 	EventBus.start_game.emit()
 
 
@@ -70,7 +71,7 @@ func _on_end_month() -> void:
 func _settle_month() -> void:
 	for cid in country_gold:
 		# 金币：收入 - 军队维护 - 贷款利息
-		var income := _country_income(cid)
+			var income := get_country_income(cid)
 		var maint: float = ARMY_MAINTENANCE * float(army_count.get(cid, 0))
 		var interest: float = loans.get(cid, 0.0) * LOAN_RATE / 12.0
 		country_gold[cid] += income - maint - interest
@@ -81,8 +82,8 @@ func _settle_month() -> void:
 		player_favor[target] = player_favor[target] * FAVOR_DECAY
 
 
-## 国家月收入：基础 5 + 该国所有省份经济建筑（farm/market/brothel）每级 0.3
-func _country_income(cid: String) -> float:
+## 国家月收入：基础 5 + 该国所有省份经济建筑（farm/market/brothel）每级 0.3（经济面板展示用）
+func get_country_income(cid: String) -> float:
 	var inc := BASE_INCOME
 	for province in province_owner:
 		if province_owner[province] != cid:

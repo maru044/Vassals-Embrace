@@ -528,6 +528,19 @@ func _refresh_top_bar() -> void:
 	_top_army.text = "军队 %d" % GameManager.army_count.get(pid, 0)
 
 
+## 好感度色阶（玩家对某国）：80-100 绿 / 60-80 黄绿 / 40-60 黄 / 20-40 橙 / 0-20 红
+func _favor_color(v: float) -> Color:
+	if v >= 80.0:
+		return Color(0.20, 0.75, 0.25)
+	if v >= 60.0:
+		return Color(0.60, 0.80, 0.20)
+	if v >= 40.0:
+		return Color(0.88, 0.80, 0.15)
+	if v >= 20.0:
+		return Color(0.92, 0.55, 0.10)
+	return Color(0.85, 0.22, 0.22)
+
+
 ## ===== 游戏内 UI 层（四栏：顶栏 / 左栏滑入 / 右栏 / 下栏，金边羊皮纸主题）=====
 
 const TOP_BAR_H := 100
@@ -729,12 +742,17 @@ func _panel_label(text: String) -> Label:
 	return l
 
 
-## 经济：收入/支出/结余 + 招募 / 贷款（年5%）/ 还贷（#33 占位，引擎①接真实数值）
+## 经济：收入/支出/结余（引擎①接真值）+ 招募 / 贷款 / 还贷（T4 完善扣款）
 func _build_economy_panel() -> void:
-	_left_body.add_child(_panel_label("收入：—（引擎①接入）"))
-	_left_body.add_child(_panel_label("支出：—（引擎①接入）"))
-	_left_body.add_child(_panel_label("结余：—（引擎①接入）"))
-	_left_body.add_child(_panel_label("军队维护费：每队 100 人 = 0.1 金币/月"))
+	var pid := _player_country_id
+	var income: float = GameManager.get_country_income(pid)
+	var maint: float = GameManager.ARMY_MAINTENANCE * float(GameManager.army_count.get(pid, 0))
+	var interest: float = GameManager.loans.get(pid, 0.0) * GameManager.LOAN_RATE / 12.0
+	var spend := maint + interest
+	_left_body.add_child(_panel_label("收入：%.1f（基础 5 + 建筑 %.1f）" % [income, income - GameManager.BASE_INCOME]))
+	_left_body.add_child(_panel_label("支出：%.1f（军队维护 %.1f + 贷款利息 %.1f）" % [spend, maint, interest]))
+	_left_body.add_child(_panel_label("结余：%.1f / 金币 %d" % [income - spend, int(GameManager.country_gold.get(pid, 0.0))]))
+	_left_body.add_child(_panel_label("军队维护费：0.1 金币/队/月"))
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 8)
 	_left_body.add_child(spacer)
@@ -827,8 +845,16 @@ func _build_diplomacy_panel() -> void:
 		var cid: String = c.get("id", "")
 		if cid == _player_country_id:
 			continue
-		# 每行一个「选择」按钮进入该国子面板（未来在此追加该国的外交功能）
-		_build_gold_button(list, "◇ %s" % c.get("name", cid), _open_diplomacy_country.bind(cid))
+		# 每行：选择按钮 + 好感度（玩家对该国，带色阶）
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		list.add_child(row)
+		var btn := _build_gold_button(row, "◇ %s" % c.get("name", cid), _open_diplomacy_country.bind(cid))
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var fv: float = GameManager.player_favor.get(cid, 0.0)
+		var fl := _panel_label("好感 %d" % int(fv))
+		fl.add_theme_color_override("font_color", _favor_color(fv))
+		row.add_child(fl)
 
 
 ## 进入某国外交子面板：显示该国 对话/联统/受保护国 按钮 + 返回（#33 占位）
