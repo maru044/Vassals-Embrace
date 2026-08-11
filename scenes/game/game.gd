@@ -139,6 +139,8 @@ func _ready() -> void:
 	EventBus.diplomatic_play_resolved.connect(func(_p: int) -> void: _refresh_bottom_bar())
 	EventBus.union_changed.connect(func(_l: int, _m: int, _a: bool) -> void: _refresh_bottom_bar())
 	EventBus.organization_changed.connect(func(_o: int) -> void: _refresh_bottom_bar())
+	# 引擎①：过月后顶栏金币/威望/日期/军队接真实值
+	EventBus.month_advanced.connect(func(_m: int, _y: int) -> void: _refresh_top_bar())
 	# 聊天界面（参考 ChatUI 案例：左立绘+深度图视差，右对话区）
 	_chat_ui = ChatUI.new()
 	add_child(_chat_ui)
@@ -161,6 +163,9 @@ func _load_countries() -> void:
 	_province_owner = _load_json(MAP_DATA_PATH).get("province_owner", {})
 	_missions = _load_json(MISSIONS_PATH).get("missions", [])
 	_init_province_buildings()
+	# 引擎①：省份数据注入 GameManager（GDScript 字典按引用共享 → 单一数据源，建筑升级实时反映到结算）
+	GameManager.province_owner = _province_owner
+	GameManager.province_buildings = _province_buildings
 
 
 func _build_select_layer() -> void:
@@ -489,7 +494,7 @@ func _on_confirm_pressed() -> void:
 	var id: String = _countries[_selected].get("id", "")
 	EventBus.country_selected.emit(_selected)
 	EventBus.confirm_country.emit()
-	GameManager.start_new_game(_selected)
+	GameManager.start_new_game(id)   # 引擎①：string 国家 id 初始化运行态数据
 	AudioManager.play_game_music()
 	_transition_to_game(id)
 
@@ -511,6 +516,16 @@ func _transition_to_game(id: String) -> void:
 	var shield_path := SHIELD_DIR + id + ".png"
 	if ResourceLoader.exists(shield_path):
 		_top_shield.texture = load(shield_path)
+	_refresh_top_bar()   # 引擎①：进入游戏即显示真实金币/威望/日期/军队
+
+
+## 顶栏接真值（引擎①）：日期 / 金币 / 威望 / 军队 从 GameManager 读取
+func _refresh_top_bar() -> void:
+	_top_date.text = "%d 年 %d 月" % [GameManager.year, GameManager.month]
+	var pid := _player_country_id
+	_top_gold.text = "金币 %d" % int(GameManager.country_gold.get(pid, 0.0))
+	_top_prestige.text = "威望 %d" % int(GameManager.country_prestige.get(pid, 0.0))
+	_top_army.text = "军队 %d" % GameManager.army_count.get(pid, 0)
 
 
 ## ===== 游戏内 UI 层（四栏：顶栏 / 左栏滑入 / 右栏 / 下栏，金边羊皮纸主题）=====
