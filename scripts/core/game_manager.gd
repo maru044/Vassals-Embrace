@@ -24,6 +24,10 @@ const VASSAL_ARMY_PENALTY := 3    # 附庸税：附庸国上限 -3 队（受保�
 const RECRUIT_COST := 20.0        # 招募一队军队 20 金
 const INIT_ARMY_RATIO := 0.5      # 初始军队 = 上限 50%（向上取整；无战损，招募为领土扩张后补兵保底）
 
+# ---- 引擎②-B3-2 行军 ----
+const ADJACENCY_PATH := "res://data/province_adjacency.json"   # 省份导航图（land/sea）
+const ARMY_MOVE_STEPS := 2        # 每月最多移动 2 格
+
 const COUNTRIES_PATH := "res://data/countries.json"
 
 # 特例初始好感：宗主视角对特定附庸（威尔士=叛乱低、曼岛=乖受保护国高）
@@ -44,6 +48,10 @@ var player_favor := {}          # target_id -> float（玩家对各国好感度�
 var loans := {}                 # id -> float（贷款余额，T4 完善）
 var army_count := {}            # id -> int（军队队数，引擎②完善）
 var recruited_this_month := {}  # id -> bool（本月是否已招募；每月限 1 队，月末重置）
+var army_position := {}         # id -> 所在省（引擎②-B3-2 行军）
+var army_order := {}            # id -> 目标省（""=待命；月中可改，月末推进）
+var return_province := {}       # id -> 返回省份（ZoC 用，非战时随移动更新）
+var _adjacency := {}            # 省 -> {邻接省: land/sea}（懒加载）
 # 省份数据（由 game.gd 注入；GDScript 字典按引用共享 → 单一数据源，升级实时反映）
 var province_owner := {}
 var province_buildings := {}
@@ -68,6 +76,9 @@ func start_new_game(country_id: String) -> void:
 	player_favor.clear()
 	army_count.clear()
 	recruited_this_month.clear()
+	army_position.clear()
+	army_order.clear()
+	return_province.clear()
 	for cid in _all_country_ids():
 		country_gold[cid] = START_GOLD
 		country_prestige[cid] = START_PRESTIGE
@@ -201,6 +212,8 @@ func _settle_month() -> void:
 		player_favor[target] = player_favor[target] * FAVOR_DECAY
 	# 招募次数每月重置（每月限 1 队）
 	recruited_this_month.clear()
+	# 行军推进（每月最多 2 格，沿命令 BFS 最短路径；非战时无 ZoC）
+	_advance_army()
 
 
 ## 建筑升级费用：初始 100，每级 ×1.5（lv1→2 100 / 2→3 150 / 3→4 225）
@@ -264,3 +277,121 @@ func _advance_time() -> void:
 		month = 1
 		year += 1
 		EventBus.year_advanced.emit(year)
+
+
+# ===== 引擎②-B3-2 行军引擎（核心）=====
+
+## 懒加载省份邻接图
+func _ensure_adjacency() -> bool:
+	if not _adjacency.is_empty():
+		return true
+	var f := FileAccess.open(ADJACENCY_PATH, FileAccess.READ)
+	if f == null:
+		return false
+	var data: Variant = JSON.parse_string(f.get_as_text())
+	if data is Dictionary:
+		_adjacency = data.get("adjacency", {})
+	return not _adjacency.is_empty()
+
+
+## 初始化军队起始位置（game.gd 提供 {cid: 首都省}）；返回省份同步
+func init_army_positions(positions: Dictionary) -> void:
+	army_position.clear()
+	army_order.clear()
+	return_province.clear()
+	for cid in positions:
+		army_position[cid] = positions[cid]
+		return_province[cid] = positions[cid]
+
+
+## 某国军队在 max_steps 步（陆地）可达的省份（不含自身；ZoC 非战时未启用，引擎④战争后补）
+func get_reachable_provinces(cid: String, max_steps: int = ARMY_MOVE_STEPS) -> Array:
+	if not _ensure_adjacency():
+		return []
+	var from: String = army_position.get(cid, "")
+	if from.is_empty() or from == "":
+		return []
+	var reached := {}
+	var visited := {from: true}
+	var frontier := [[from, 0]]
+	while not frontier.is_empty():
+		var cur: Array = frontier.pop_front()
+		var prov: String = cur[0]
+		var d: int = cur[1]
+		if d >= max_steps:
+			continue
+		for nxt in _adjacency.get(prov, {}):
+			if _adjacency[prov][nxt] != "land":
+				continue   # 仅陆地通行（海军系统后续引擎）
+			if visited.has(nxt):
+				continue
+			visited[nxt] = true
+			reached[nxt] = true
+			frontier.append([nxt, d + 1])
+	return reached.keys()
+
+
+## 移动合法性（非战时：目标在 2 格陆地可达内即合法；ZoC 战争限制引擎④补）
+func can_move_to(cid: String, target: String) -> Dictionary:
+	if target == army_position.get(cid, ""):
+		return {"ok": true, "reason": "原地"}
+	if not get_reachable_provinces(cid, ARMY_MOVE_STEPS).has(target):
+		return {"ok": false, "reason": "超出可移动范围（每月 2 格）"}
+	return {"ok": true, "reason": ""}
+
+
+## 下移动令（玩家只能控制自己的军队；月中随时可改，月末推进）
+func issue_order(cid: String, target: String) -> Dictionary:
+	if cid != player_country_id:
+		return {"ok": false, "error": "只能控制自己的军队"}
+	var chk := can_move_to(cid, target)
+	if not chk.get("ok", false):
+		return {"ok": false, "error": chk.get("reason", "")}
+	army_order[cid] = target
+	return {"ok": true, "order": target}
+
+
+## BFS 最短路径（仅陆地）；无路径返回 []
+func _shortest_path(from: String, to: String) -> Array:
+	if not _ensure_adjacency():
+		return []
+	if from == to:
+		return [from]
+	var visited := {from: true}
+	var frontier := [[from]]
+	while not frontier.is_empty():
+		var path: Array = frontier.pop_front()
+		var cur: String = path[-1]
+		for nxt in _adjacency.get(cur, {}):
+			if _adjacency[cur][nxt] != "land":
+				continue
+			if visited.has(nxt):
+				continue
+			var np: Array = path.duplicate()
+			np.append(nxt)
+			if nxt == to:
+				return np
+			visited[nxt] = true
+			frontier.append(np)
+	return []
+
+
+## 月末推进：各国沿命令朝目标走最多 2 格；到达后清除命令；返回省份更新为旧位置（非战时简化）
+func _advance_army() -> void:
+	for cid in army_position:
+		var target: String = army_order.get(cid, "")
+		if target.is_empty():
+			continue
+		var from: String = army_position[cid]
+		if target == from:
+			army_order[cid] = ""
+			continue
+		var path := _shortest_path(from, target)
+		if path.size() < 2:
+			continue
+		var steps := mini(path.size() - 1, ARMY_MOVE_STEPS)
+		var new_pos: String = path[steps]
+		return_province[cid] = from
+		army_position[cid] = new_pos
+		if new_pos == target:
+			army_order[cid] = ""

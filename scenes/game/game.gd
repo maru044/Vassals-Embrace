@@ -409,6 +409,20 @@ func _init_province_buildings() -> void:
 			_province_buildings[cap_prov]["fort"] += 1
 
 
+## 各国军队起始位置 = 首都省（引擎②-B3-2；capital 中文 → _PROVINCE_CN 反查英文省）
+func _capital_positions() -> Dictionary:
+	var cn_to_province := {}
+	for prov in _PROVINCE_CN:
+		cn_to_province[_PROVINCE_CN[prov]] = prov
+	cn_to_province["约克"] = "Yorkshire"
+	var pos := {}
+	for c in _countries:
+		var cap_prov: String = cn_to_province.get(str(c.get("capital", "")), "")
+		if cap_prov != "":
+			pos[c.get("id", "")] = cap_prov
+	return pos
+
+
 ## 省份详情：所属国家 + 四类建筑等级（农场/市场/妓院/要塞）。
 ## 仅当省份归属玩家所选国家时才显示升级按钮（别国省份只读）。
 func _build_province_content(province: String, country: String) -> void:
@@ -508,6 +522,7 @@ func _on_confirm_pressed() -> void:
 	EventBus.country_selected.emit(_selected)
 	EventBus.confirm_country.emit()
 	GameManager.start_new_game(id)   # 引擎①：string 国家 id 初始化运行态数据
+	GameManager.init_army_positions(_capital_positions())   # 引擎②-B3-2：军队起始位置 = 各国首都
 	AudioManager.play_game_music()
 	_transition_to_game(id)
 
