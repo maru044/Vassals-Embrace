@@ -768,7 +768,7 @@ func _build_economy_panel() -> void:
 	spacer.custom_minimum_size = Vector2(0, 8)
 	_left_body.add_child(spacer)
 	_left_body.add_child(_panel_label("贷款总额：%.0f 金币（年利率 5%%）" % GameManager.loans.get(pid, 0.0)))
-	_build_gold_button(_left_body, "招募一队军队（20 金）", _on_recruit_pressed)
+	_build_gold_button(_left_body, "招募一队军队（20 金·每月限 1 队）", _on_recruit_pressed)
 	_build_gold_button(_left_body, "贷款一笔（+10 金币）", _on_loan_pressed)
 	_build_gold_button(_left_body, "偿还一笔贷款（-10 金币）", _on_repay_pressed)
 

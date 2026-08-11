@@ -22,6 +22,7 @@ const BASE_ARMY_CAP := 5          # 军队基础上限（队）
 const ARMY_PER_PROVINCE := 2      # 每直接统治地块 +2 队
 const VASSAL_ARMY_PENALTY := 3    # 附庸税：附庸国上限 -3 队（受保护国不算）
 const RECRUIT_COST := 20.0        # 招募一队军队 20 金
+const INIT_ARMY_RATIO := 0.5      # 初始军队 = 上限 50%（向上取整；无战损，招募为领土扩张后补兵保底）
 
 const COUNTRIES_PATH := "res://data/countries.json"
 
@@ -42,6 +43,7 @@ var country_prestige := {}      # id -> float（威望）
 var player_favor := {}          # target_id -> float（玩家对各国好感度；交互获取引擎⑨）
 var loans := {}                 # id -> float（贷款余额，T4 完善）
 var army_count := {}            # id -> int（军队队数，引擎②完善）
+var recruited_this_month := {}  # id -> bool（本月是否已招募；每月限 1 队，月末重置）
 # 省份数据（由 game.gd 注入；GDScript 字典按引用共享 → 单一数据源，升级实时反映）
 var province_owner := {}
 var province_buildings := {}
@@ -65,10 +67,11 @@ func start_new_game(country_id: String) -> void:
 	country_prestige.clear()
 	player_favor.clear()
 	army_count.clear()
+	recruited_this_month.clear()
 	for cid in _all_country_ids():
 		country_gold[cid] = START_GOLD
 		country_prestige[cid] = START_PRESTIGE
-		army_count[cid] = get_army_cap(cid)   # 引擎②-B1：初始军队 = 上限（满编起步，可调）
+		army_count[cid] = _initial_army(cid)   # 引擎②-B1：初始军队 = 上限 50%
 		if cid != player_country_id:
 			player_favor[cid] = _initial_favor(cid)
 	EventBus.start_game.emit()
@@ -134,17 +137,25 @@ func get_army_cap(cid: String) -> int:
 	return maxi(cap, 1)
 
 
-## 招募一队军队（引擎②-B2）：20 金/队；上限拦截；扣款 + 军队 +1
+## 初始军队 = 上限 50%（向上取整）。无战损：军队只增不减，招募用于领土扩张后补到新上限
+func _initial_army(cid: String) -> int:
+	return ceili(float(get_army_cap(cid)) * INIT_ARMY_RATIO)
+
+
+## 招募一队军队（引擎②-B2）：20 金/队；每月限 1 队；上限拦截；扣款 + 军队 +1
 func recruit_army() -> Dictionary:
 	var pid := player_country_id
 	var cur: int = army_count.get(pid, 0)
 	var cap := get_army_cap(pid)
+	if recruited_this_month.get(pid, false):
+		return {"ok": false, "error": "本月已招募过一队，下月再来"}
 	if cur >= cap:
 		return {"ok": false, "error": "已达军队上限（%d/%d）" % [cur, cap]}
 	if country_gold.get(pid, 0.0) < RECRUIT_COST:
 		return {"ok": false, "error": "金币不足（需要 %d 金）" % int(RECRUIT_COST)}
 	country_gold[pid] -= RECRUIT_COST
 	army_count[pid] = cur + 1
+	recruited_this_month[pid] = true
 	return {"ok": true, "army": cur + 1, "cap": cap, "gold": country_gold[pid]}
 
 
@@ -188,6 +199,8 @@ func _settle_month() -> void:
 	# 玩家好感度（玩家 → 各国）衰减 5%
 	for target in player_favor:
 		player_favor[target] = player_favor[target] * FAVOR_DECAY
+	# 招募次数每月重置（每月限 1 队）
+	recruited_this_month.clear()
 
 
 ## 建筑升级费用：初始 100，每级 ×1.5（lv1→2 100 / 2→3 150 / 3→4 225）

@@ -30,12 +30,12 @@ func _initialize() -> void:
 		var exp: int = cases[cid]
 		out.append("[%s] %s cap=%d (expect %d)" % [cid, "OK" if got == exp else "FAIL", got, exp])
 
-	out.append("== start_new_game 初始军队 = 上限 ==")
+	out.append("== start_new_game 初始军队 = 上限 50%（向上取整）==")
 	gm.call("start_new_game", "England")
 	var army: Dictionary = gm.get("army_count")
-	out.append("England army=%d (expect 25)" % army.get("England", -1))
-	out.append("Scotland army=%d (expect 17)" % army.get("Scotland", -1))
-	out.append("Wales army=%d (expect 4)" % army.get("Wales", -1))
+	out.append("England army=%d (expect 13)" % army.get("England", -1))
+	out.append("Scotland army=%d (expect 9)" % army.get("Scotland", -1))
+	out.append("Wales army=%d (expect 2)" % army.get("Wales", -1))
 
 	root.remove_child(gm)
 	gm.free()
