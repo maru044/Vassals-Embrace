@@ -33,6 +33,8 @@ func send_request(tools: Array = []) -> void:
 	var payload := {
 		"model": ConfigManager.model,
 		"messages": history,
+		"temperature": ConfigManager.api_temp,
+		"top_p": ConfigManager.api_top_p,
 	}
 	if not tools.is_empty():
 		payload["tools"] = tools

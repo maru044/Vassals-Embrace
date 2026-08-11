@@ -17,6 +17,12 @@ const AUTOSAVE_OPTIONS := [
 	{"key": "yearly", "label": "每年"},
 ]
 
+const PRESET_OPTIONS := [
+	{"key": "gemini", "label": "Gemini"},
+	{"key": "deepseek", "label": "DeepSeek"},
+	{"key": "custom", "label": "自定义"},
+]
+
 # ===== 羊皮纸噪声按钮参数 =====
 const PARCHMENT_BASE := Color(0.86, 0.72, 0.46)    # 羊皮纸暖金基色
 const PARCHMENT_HOVER := Color(0.98, 0.85, 0.6)    # hover 亮金
@@ -34,9 +40,12 @@ const TEXTURE_SIZE := 256                           # 噪声贴图边长
 @onready var _credits_button: Button = $MenuButtons/Credits
 
 @onready var _config_dialog: PanelContainer = $ConfigDialog
+@onready var _preset_option: OptionButton = $ConfigDialog/Margin/VBox/PresetOption
 @onready var _api_url_input: LineEdit = $ConfigDialog/Margin/VBox/ApiUrlInput
 @onready var _api_key_input: LineEdit = $ConfigDialog/Margin/VBox/ApiKeyInput
 @onready var _model_input: LineEdit = $ConfigDialog/Margin/VBox/ModelInput
+@onready var _temp_input: LineEdit = $ConfigDialog/Margin/VBox/TempInput
+@onready var _top_p_input: LineEdit = $ConfigDialog/Margin/VBox/TopPInput
 @onready var _save_button: Button = $ConfigDialog/Margin/VBox/Buttons/Save
 @onready var _cancel_button: Button = $ConfigDialog/Margin/VBox/Buttons/Cancel
 
@@ -67,6 +76,8 @@ func _ready() -> void:
 	_credits_close.pressed.connect(_on_credits_close_pressed)
 	_credits_text.meta_clicked.connect(_on_credits_meta_clicked)
 	_volume_slider.value_changed.connect(_on_volume_changed)
+	_preset_option.item_selected.connect(_on_preset_selected)
+	_fill_preset_options()
 	_apply_startup_resolution()
 	_apply_parchment_buttons()
 	AudioManager.play_menu_music()
@@ -90,18 +101,54 @@ func _on_load_pressed() -> void:
 
 
 func _on_config_pressed() -> void:
+	_select_preset_option(ConfigManager.active_api)
 	_api_url_input.text = ConfigManager.api_url
 	_api_key_input.text = ConfigManager.api_key
 	_model_input.text = ConfigManager.model
+	_temp_input.text = str(ConfigManager.api_temp)
+	_top_p_input.text = str(ConfigManager.api_top_p)
 	_config_dialog.visible = true
+
+
+func _fill_preset_options() -> void:
+	_preset_option.clear()
+	for i in PRESET_OPTIONS.size():
+		_preset_option.add_item(PRESET_OPTIONS[i]["label"])
+		_preset_option.set_item_metadata(i, PRESET_OPTIONS[i]["key"])
+
+
+func _select_preset_option(key: String) -> void:
+	for i in _preset_option.item_count:
+		if _preset_option.get_item_metadata(i) == key:
+			_preset_option.select(i)
+			return
+
+
+## 切换预设：应用参考项目的 URL / 模型 / 温度 / TopP（保留已输入的 API Key）
+func _on_preset_selected(index: int) -> void:
+	var key: String = _preset_option.get_item_metadata(index)
+	ConfigManager.apply_preset(key)
+	_api_url_input.text = ConfigManager.api_url
+	_model_input.text = ConfigManager.model
+	_temp_input.text = str(ConfigManager.api_temp)
+	_top_p_input.text = str(ConfigManager.api_top_p)
 
 
 func _on_save_config_pressed() -> void:
 	ConfigManager.api_url = _api_url_input.text.strip_edges()
 	ConfigManager.api_key = _api_key_input.text.strip_edges()
 	ConfigManager.model = _model_input.text.strip_edges()
+	ConfigManager.api_temp = _parse_float(_temp_input.text, 1.0)
+	ConfigManager.api_top_p = _parse_float(_top_p_input.text, 0.9)
 	ConfigManager.save_config()
 	_config_dialog.visible = false
+
+
+static func _parse_float(text: String, fallback: float) -> float:
+	var s := text.strip_edges()
+	if s.is_empty():
+		return fallback
+	return s.to_float()
 
 
 func _on_cancel_config_pressed() -> void:
