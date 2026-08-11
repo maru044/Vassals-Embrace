@@ -435,7 +435,7 @@ func _build_province_content(province: String, country: String) -> void:
 		lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(lbl)
 
-		if is_own:
+		if is_own and b != "fort":   # 要塞不可建造/升级（Master：关闭要塞升级，仅显示等级只读）
 			var up_cost := int(GameManager.building_upgrade_cost(b, lv))
 			var up := Button.new()
 			up.text = "升级(%dg)" % up_cost

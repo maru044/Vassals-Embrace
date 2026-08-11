@@ -210,6 +210,8 @@ func building_upgrade_cost(building: String, current_level: int) -> float:
 
 ## 尝试升级玩家国家某省建筑：扣款 + 等级+1（上限 LV4）
 func upgrade_building(province: String, building: String) -> Dictionary:
+	if building == "fort":
+		return {"ok": false, "error": "要塞不可建造/升级"}   # Master：关闭要塞升级（玩家+AI 均不可）
 	if province_owner.get(province, "") != player_country_id:
 		return {"ok": false, "error": "非本国省份"}
 	var b: Dictionary = province_buildings.get(province, {})
