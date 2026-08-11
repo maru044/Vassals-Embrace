@@ -40,6 +40,10 @@ const _PROVINCE_CN := {
 	"Wexford": "韦克斯福德", "Ormond": "奥蒙德", "Clanricarde": "克兰里卡德",
 	"Offaly": "奥法利", "Mayo": "梅奥", "Desmond": "德斯蒙德", "Thomond": "托蒙德",
 }
+# 初始要塞表（引擎①计划 §二）：7 省初始 LV2；首都默认 +1（读 countries.json capital → _PROVINCE_CN 反查英文省）
+const INITIAL_FORTS := {
+	"Lothian": 2, "Northumberland": 2, "Yorkshire": 2, "Wales": 2, "Tyrone": 2, "Offaly": 2, "Desmond": 2,
+}
 
 # 三文化五役后宫模板（容量固定 5；role=役名，name=职业名，portrait=harem 资产文件名，不带 .png）
 # A 人类宫廷（英格兰/苏格兰 english） / B 凯尔特犬娘（爱尔兰/威尔士 celtic） / C 诺斯塞壬（群岛/奥克尼/设得兰 norse）
@@ -389,10 +393,19 @@ func _province_cn(id: String) -> String:
 	return _PROVINCE_CN.get(id, id)
 
 
-## 省份建筑等级初始化（计划：农场/市场/妓院 lv.1，要塞 lv.0，首都默认 1 级要塞由引擎①细化）
+## 省份建筑等级初始化（引擎②-B3-0）：农场/市场/妓院 lv.1；要塞 = 初始表(7 省 LV2) + 首都 +1
+## 规则（源 引擎①计划）：读 countries.json capital（中文）→ _PROVINCE_CN 反查英文省；7 省若是首都则 LV2+1=LV3
 func _init_province_buildings() -> void:
+	var cn_to_province := {}
+	for prov in _PROVINCE_CN:
+		cn_to_province[_PROVINCE_CN[prov]] = prov
+	cn_to_province["约克"] = "Yorkshire"   # 别名：约克国首都「约克」→ 约克郡省（_PROVINCE_CN 里是「约克郡」）
 	for province in _province_owner:
-		_province_buildings[province] = {"farm": 1, "market": 1, "brothel": 1, "fort": 0}
+		_province_buildings[province] = {"farm": 1, "market": 1, "brothel": 1, "fort": INITIAL_FORTS.get(province, 0)}
+	for c in _countries:
+		var cap_prov: String = cn_to_province.get(str(c.get("capital", "")), "")
+		if cap_prov != "" and _province_buildings.has(cap_prov):
+			_province_buildings[cap_prov]["fort"] += 1
 
 
 ## 省份详情：所属国家 + 四类建筑等级（农场/市场/妓院/要塞）。
