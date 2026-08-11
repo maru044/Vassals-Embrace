@@ -524,7 +524,8 @@ func _refresh_top_bar() -> void:
 	var pid := _player_country_id
 	_top_gold.text = "金币 %d" % int(GameManager.country_gold.get(pid, 0.0))
 	_top_prestige.text = "威望 %d" % int(GameManager.country_prestige.get(pid, 0.0))
-	_top_army.text = "军队 %d" % GameManager.army_count.get(pid, 0)
+	# 引擎②-B1：军队显示「当前/上限」，上限 = 5 + 2×直辖地块（附庸 -3）
+	_top_army.text = "军队 %d/%d" % [GameManager.army_count.get(pid, 0), GameManager.get_army_cap(pid)]
 
 
 ## 过月热更新：左栏当前面板重建（经济/外交等动态数字即时刷新；外交二级子面板过月回到列表）

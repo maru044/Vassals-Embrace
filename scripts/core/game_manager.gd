@@ -17,6 +17,11 @@ const START_PRESTIGE := 50.0    # 初始威望
 const LOAN_AMOUNT := 10.0       # 每笔贷款金额（偿还也是一笔）
 const BUILDING_MAX_LEVEL := 4   # 建筑等级上限（初始 lv.1 可升 3 次）
 
+# ---- 引擎②-B1 军队（源 游戏规则.md §第六章）----
+const BASE_ARMY_CAP := 5          # 军队基础上限（队）
+const ARMY_PER_PROVINCE := 2      # 每直接统治地块 +2 队
+const VASSAL_ARMY_PENALTY := 3    # 附庸税：附庸国上限 -3 队（受保护国不算）
+
 const COUNTRIES_PATH := "res://data/countries.json"
 
 # 特例初始好感：宗主视角对特定附庸（威尔士=叛乱低、曼岛=乖受保护国高）
@@ -58,9 +63,11 @@ func start_new_game(country_id: String) -> void:
 	country_gold.clear()
 	country_prestige.clear()
 	player_favor.clear()
+	army_count.clear()
 	for cid in _all_country_ids():
 		country_gold[cid] = START_GOLD
 		country_prestige[cid] = START_PRESTIGE
+		army_count[cid] = get_army_cap(cid)   # 引擎②-B1：初始军队 = 上限（满编起步，可调）
 		if cid != player_country_id:
 			player_favor[cid] = _initial_favor(cid)
 	EventBus.start_game.emit()
@@ -94,6 +101,36 @@ func _country_liege(cid: String) -> String:
 		if c.get("id", "") == cid:
 			return str(c.get("liege", ""))
 	return ""
+
+
+## 附庸类型（countries.json vassal_type；受保护国不算附庸）
+func _country_vassal_type(cid: String) -> String:
+	for c in _country_list:
+		if c.get("id", "") == cid:
+			return str(c.get("vassal_type", ""))
+	return ""
+
+
+## 是否附庸（有宗主且非受保护国）——附庸税 -3 队规则用
+func _is_vassal(cid: String) -> bool:
+	return _country_liege(cid) != "" and _country_vassal_type(cid) != "protectorate"
+
+
+## 直辖地块数（该国王朝直领的省份；附庸不算宗主的地块）
+func _direct_provinces(cid: String) -> int:
+	var n := 0
+	for province in province_owner:
+		if province_owner[province] == cid:
+			n += 1
+	return n
+
+
+## 军队上限（引擎②-B1，源 游戏规则.md：5 + 2×直辖地块，附庸 -3 队）
+func get_army_cap(cid: String) -> int:
+	var cap := BASE_ARMY_CAP + ARMY_PER_PROVINCE * _direct_provinces(cid)
+	if _is_vassal(cid):
+		cap -= VASSAL_ARMY_PENALTY
+	return maxi(cap, 1)
 
 
 ## 玩家对某国初始好感：默认 20；直接附庸/宗主 +40（60）；特例覆盖（英格兰视角：威尔士 10 / 曼岛 80）
