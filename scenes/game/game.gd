@@ -768,7 +768,11 @@ func _build_economy_panel() -> void:
 	spacer.custom_minimum_size = Vector2(0, 8)
 	_left_body.add_child(spacer)
 	_left_body.add_child(_panel_label("贷款总额：%.0f 金币（年利率 5%%）" % GameManager.loans.get(pid, 0.0)))
-	_build_gold_button(_left_body, "招募一队军队（20 金·每月限 1 队）", _on_recruit_pressed)
+	# 招募每月限 1 队：本月已招募 → 按钮灰掉（过月重建面板自动恢复）
+	var recruit_btn := _build_gold_button(_left_body, "招募一队军队（20 金·每月限 1 队）", _on_recruit_pressed)
+	if GameManager.recruited_this_month.get(pid, false):
+		recruit_btn.disabled = true
+		recruit_btn.text = "本月已招募（下月再来）"
 	_build_gold_button(_left_body, "贷款一笔（+10 金币）", _on_loan_pressed)
 	_build_gold_button(_left_body, "偿还一笔贷款（-10 金币）", _on_repay_pressed)
 
