@@ -24,9 +24,7 @@ const FORT_ICON_SIZE := 0.5                         # 要塞图标世界宽度�
 const FORT_ICON_ALPHA := 0.65                       # 图标主体透明度（Master：图标本身也透明，半透明）
 const FORT_ICON_LIFT := 0.35                        # 要塞图标浮起高度（相对省份地表）
 const SHIELD_DIR := "res://assets/shields/"
-const ARMY_BANNER_SIZE := 1.2          # 兵牌宽度（世界单位，Master：盾徽+方框+数字）
 const ARMY_BANNER_LIFT := 1.1          # 兵牌浮起高度（相对省份地表，高于要塞图标）
-const ARMY_BANNER_ALPHA := 0.55        # 兵牌方框背景透明度
 
 # 相机（EU4 式）：俯角随缩放变化，yaw 固定从南看北（南在屏幕下，北退远）
 const PITCH_FAR := deg_to_rad(85.0)
@@ -399,13 +397,12 @@ func refresh_forts(buildings: Dictionary) -> void:
 		_fort_icons[province] = spr
 
 
-## 军队兵牌（引擎②-B3-2b 显示）：每国一个兵牌 = 方框背景 + 盾徽 + 数字（k 单位）。
+## 军队兵牌（引擎②-B3-2b 显示）：每国兵牌 = 盾徽 + 数字（k 单位），无背景（Master：去黑色底）。
 ## positions: cid -> 所在省；counts: cid -> 队数（1队=100人=0.1k）。只在游戏内调用（选国界面不显示）。
 func refresh_army(positions: Dictionary, counts: Dictionary) -> void:
 	for cid in _army_banners:
 		_army_banners[cid].queue_free()
 	_army_banners.clear()
-	var bg_tex := _make_banner_bg()
 	var font: Font = load(LABEL_FONT_PATH)
 	for cid in positions:
 		var province: String = positions[cid]
@@ -416,51 +413,31 @@ func refresh_army(positions: Dictionary, counts: Dictionary) -> void:
 		var root := Node3D.new()
 		root.name = "Army_" + str(cid)
 		root.position = Vector3(anchor.x, anchor.y + ARMY_BANNER_LIFT, anchor.z)
-		# 方框背景
-		var bg := Sprite3D.new()
-		bg.texture = bg_tex
-		bg.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		bg.pixel_size = ARMY_BANNER_SIZE / maxf(bg_tex.get_size().x, 1.0)
-		root.add_child(bg)
-		# 盾徽（方框内偏左）
+		# 盾徽（居中）
 		var shield_path := SHIELD_DIR + str(cid) + ".png"
 		if ResourceLoader.exists(shield_path):
 			var shield_tex: Texture2D = load(shield_path)
 			var sh := Sprite3D.new()
 			sh.texture = shield_tex
 			sh.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-			sh.pixel_size = 0.46 / maxf(shield_tex.get_size().x, 1.0)
-			sh.position = Vector3(-0.24, 0.0, 0.0)
+			sh.pixel_size = 0.5 / maxf(shield_tex.get_size().x, 1.0)
 			root.add_child(sh)
-		# 数字（k 单位，盾徽右侧）
+		# 数字（k 单位，盾徽右下方，小字号避免重叠）
 		var lbl := Label3D.new()
 		lbl.text = "%0.1fk" % (float(counts.get(cid, 0)) * 0.1)
 		lbl.font = font
-		lbl.font_size = 44
-		lbl.pixel_size = 0.012
+		lbl.font_size = 26
+		lbl.pixel_size = 0.008
 		lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		lbl.modulate = Color(0.97, 0.93, 0.8)
 		lbl.outline_modulate = Color(0.1, 0.08, 0.06)
-		lbl.outline_size = 8
-		lbl.position = Vector3(0.26, 0.0, 0.0)
+		lbl.outline_size = 6
+		lbl.position = Vector3(0.36, -0.08, 0.0)
 		root.add_child(lbl)
 		add_child(root)
 		_army_banners[cid] = root
-
-
-## 兵牌方框背景纹理（半透明深色 + 亮金描边）
-func _make_banner_bg() -> ImageTexture:
-	var w := 128
-	var img := Image.create(w, w, false, Image.FORMAT_RGBA8)
-	for y in w:
-		for x in w:
-			var a := ARMY_BANNER_ALPHA
-			if x < 3 or y < 3 or x >= w - 3 or y >= w - 3:
-				a = 0.95
-			img.set_pixel(x, y, Color(0.12, 0.09, 0.06, a))
-	return ImageTexture.create_from_image(img)
 
 
 ## ===== 着色 =====
