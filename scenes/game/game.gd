@@ -483,8 +483,10 @@ func _build_province_content(province: String, country: String) -> void:
 		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tr.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		tr.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		tr.margin_bottom = -16   # 底部避让一点
 		_left_body.add_child(tr)
+		var bottom_pad := Control.new()   # 底部避让 16px（VBox 布局；Godot4 无 margin_bottom 属性）
+		bottom_pad.custom_minimum_size = Vector2(0, 16)
+		_left_body.add_child(bottom_pad)
 
 
 ## 升级建筑：扣款 + 等级+1（引擎①真实逻辑）
