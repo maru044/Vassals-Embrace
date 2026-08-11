@@ -25,6 +25,7 @@ const FORT_ICON_ALPHA := 0.65                       # 图标主体透明度（Ma
 const FORT_ICON_LIFT := 0.35                        # 要塞图标浮起高度（相对省份地表）
 const SHIELD_DIR := "res://assets/shields/"
 const ARMY_BANNER_LIFT := 1.1          # 兵牌浮起高度（相对省份地表，高于要塞图标）
+const ARMY_BANNER_ALPHA := 0.75        # 军队盾徽透明度（Master：半透明；数字保持不透明）
 const ICON_SHOW_ZOOM := 0.35           # 镜头远景（zoom 低于此）隐藏要塞/军队图标（Master：远景更美观）
 
 # ---- 引擎②-B3-2c 兵牌交互 ----
@@ -442,6 +443,7 @@ func refresh_army(positions: Dictionary, counts: Dictionary) -> void:
 			sh.texture = shield_tex
 			sh.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 			sh.pixel_size = 0.42 / maxf(shield_tex.get_size().x, 1.0)
+			sh.modulate = Color(1.0, 1.0, 1.0, ARMY_BANNER_ALPHA)   # 盾徽半透明（Master）
 			root.add_child(sh)
 		# 数字（k 单位，盾徽右下方，小字号避免重叠）
 		var lbl := Label3D.new()
