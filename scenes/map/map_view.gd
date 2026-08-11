@@ -384,8 +384,8 @@ func refresh_forts(buildings: Dictionary) -> void:
 		var spr := Sprite3D.new()
 		spr.texture = _fort_texture
 		spr.billboard = BaseMaterial3D.BILLBOARD_ENABLED   # 始终面向相机，清晰可见
-		spr.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA   # 透明背景生效（堡垒.png 自带 alpha）
-		spr.modulate = Color(1.0, 1.0, 1.0, FORT_ICON_ALPHA)   # 图标主体半透明（Master：图标本身也透明）
+		# 注意：Sprite3D 没有 transparency 属性（那是 BaseMaterial3D 的）——图标透明度由 modulate 的 alpha 控制
+		spr.modulate = Color(1.0, 1.0, 1.0, FORT_ICON_ALPHA)   # 图标整体半透明（含主体）
 		var tex_w: float = _fort_texture.get_size().x
 		spr.pixel_size = FORT_ICON_SIZE / maxf(tex_w, 1.0)
 		spr.position = Vector3(anchor.x, anchor.y + FORT_ICON_LIFT, anchor.z)
