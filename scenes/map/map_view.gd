@@ -426,15 +426,15 @@ func refresh_army(positions: Dictionary, counts: Dictionary) -> void:
 		var lbl := Label3D.new()
 		lbl.text = "%0.1fk" % (float(counts.get(cid, 0)) * 0.1)
 		lbl.font = font
-		lbl.font_size = 26
-		lbl.pixel_size = 0.008
+		lbl.font_size = 32
+		lbl.pixel_size = 0.009
 		lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		lbl.modulate = Color(0.97, 0.93, 0.8)
 		lbl.outline_modulate = Color(0.1, 0.08, 0.06)
 		lbl.outline_size = 6
-		lbl.position = Vector3(0.36, -0.08, 0.0)
+		lbl.position = Vector3(0.44, -0.06, 0.0)
 		root.add_child(lbl)
 		add_child(root)
 		_army_banners[cid] = root
