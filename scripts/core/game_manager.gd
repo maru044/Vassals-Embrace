@@ -342,7 +342,8 @@ func init_army_positions(positions: Dictionary) -> void:
 		return_province[cid] = positions[cid]
 
 
-## 某国军队在 max_steps 步（陆地）可达的省份（不含自身；ZoC 非战时未启用，引擎④战争后补）
+## 某国军队在 max_steps 步可达的省份（不含自身；陆/海不区分——Master 定：邻接线即道路，海峡可通行）。
+## ZoC 非战时未启用（引擎④战争后补）
 func get_reachable_provinces(cid: String, max_steps: int = ARMY_MOVE_STEPS) -> Array:
 	if not _ensure_adjacency():
 		return []
@@ -359,8 +360,6 @@ func get_reachable_provinces(cid: String, max_steps: int = ARMY_MOVE_STEPS) -> A
 		if d >= max_steps:
 			continue
 		for nxt in _adjacency.get(prov, {}):
-			if _adjacency[prov][nxt] != "land":
-				continue   # 仅陆地通行（海军系统后续引擎）
 			if visited.has(nxt):
 				continue
 			visited[nxt] = true
@@ -370,7 +369,7 @@ func get_reachable_provinces(cid: String, max_steps: int = ARMY_MOVE_STEPS) -> A
 
 
 ## BFS 可达树：{可达省: 父省}（含 1 步邻居 parent=起点），用于地图画合法移动线（沿邻接线条）。
-## 仅陆地通行；ZoC 非战时未启用（引擎④战争后补）。
+## 陆/海不区分；ZoC 非战时未启用（引擎④战争后补）。
 func get_reachable_tree(cid: String, max_steps: int = ARMY_MOVE_STEPS) -> Dictionary:
 	if not _ensure_adjacency():
 		return {}
@@ -387,8 +386,6 @@ func get_reachable_tree(cid: String, max_steps: int = ARMY_MOVE_STEPS) -> Dictio
 		if d >= max_steps:
 			continue
 		for nxt in _adjacency.get(prov, {}):
-			if _adjacency[prov][nxt] != "land":
-				continue
 			if visited.has(nxt):
 				continue
 			visited[nxt] = true
@@ -426,7 +423,7 @@ func get_army_path(cid: String, target: String) -> Array:
 	return _shortest_path(from, target)
 
 
-## BFS 最短路径（仅陆地）；无路径返回 []
+## BFS 最短路径（陆/海不区分）；无路径返回 []
 func _shortest_path(from: String, to: String) -> Array:
 	if not _ensure_adjacency():
 		return []
@@ -438,8 +435,6 @@ func _shortest_path(from: String, to: String) -> Array:
 		var path: Array = frontier.pop_front()
 		var cur: String = path[-1]
 		for nxt in _adjacency.get(cur, {}):
-			if _adjacency[cur][nxt] != "land":
-				continue
 			if visited.has(nxt):
 				continue
 			var np: Array = path.duplicate()
