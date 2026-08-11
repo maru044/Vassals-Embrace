@@ -19,8 +19,9 @@ const LAND_BASE_COLOR := Color(0.75, 0.72, 0.62)   # 陆地基底中性色
 const SUBDIVIDE_MAX_EDGE := 1.0                     # 网格细分最大边长（世界单位），越小地形越细腻
 const OCEAN_MARGIN := 4.0                           # 距离场/海洋平面外扩（须覆盖近海渐变上界 2.5m，与 gen_sea_distance.py 一致）
 const OCEAN_Y := -0.03                              # 海洋平面 y（略低于陆地基底 y=0，陆地遮挡海洋）
-const FORT_ICON_PATH := "res://assets/map/fort_icon.png"   # 要塞图标（堡垒.png，Master 提供）
-const FORT_ICON_SIZE := 0.9                         # 要塞图标世界宽度（立牌，可调）
+const FORT_ICON_PATH := "res://assets/map/fort_icon.png"   # 要塞图标（堡垒.png，Master 提供；本身已是透明背景）
+const FORT_ICON_SIZE := 0.5                         # 要塞图标世界宽度（立牌，Master：缩小）
+const FORT_ICON_ALPHA := 0.65                       # 图标主体透明度（Master：图标本身也透明，半透明）
 const FORT_ICON_LIFT := 0.35                        # 要塞图标浮起高度（相对省份地表）
 
 # 相机（EU4 式）：俯角随缩放变化，yaw 固定从南看北（南在屏幕下，北退远）
@@ -383,6 +384,8 @@ func refresh_forts(buildings: Dictionary) -> void:
 		var spr := Sprite3D.new()
 		spr.texture = _fort_texture
 		spr.billboard = BaseMaterial3D.BILLBOARD_ENABLED   # 始终面向相机，清晰可见
+		spr.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA   # 透明背景生效（堡垒.png 自带 alpha）
+		spr.modulate = Color(1.0, 1.0, 1.0, FORT_ICON_ALPHA)   # 图标主体半透明（Master：图标本身也透明）
 		var tex_w: float = _fort_texture.get_size().x
 		spr.pixel_size = FORT_ICON_SIZE / maxf(tex_w, 1.0)
 		spr.position = Vector3(anchor.x, anchor.y + FORT_ICON_LIFT, anchor.z)
