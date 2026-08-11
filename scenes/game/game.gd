@@ -478,10 +478,11 @@ func _build_province_content(province: String, country: String) -> void:
 		_left_body.add_child(spacer)
 		var tr := TextureRect.new()
 		tr.texture = load(LANDSCAPE_IRELAND_PATH)
-		tr.custom_minimum_size = Vector2(0, 320)
-		tr.expand_mode = TextureRect.EXPAND_FIT_HEIGHT_PROPORTIONAL   # 高 320、宽按纹理比例（3:4 竖版）等比
-		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.custom_minimum_size = Vector2(240, 320)                     # 固定 3:4 框
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED     # 纹理等比居中，不变形
 		tr.size_flags_horizontal = Control.SIZE_SHRINK_CENTER          # 水平居中
+		tr.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		_left_body.add_child(tr)
 
 
