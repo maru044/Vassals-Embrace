@@ -174,6 +174,7 @@ func _load_countries() -> void:
 	# 引擎①：省份数据注入 GameManager（GDScript 字典按引用共享 → 单一数据源，建筑升级实时反映到结算）
 	GameManager.province_owner = _province_owner
 	GameManager.province_buildings = _province_buildings
+	_map_view.refresh_forts(_province_buildings)   # 引擎②-B3-2：要塞图标（仅 fort≥2 显示，置于省份点上方）
 
 
 func _build_select_layer() -> void:

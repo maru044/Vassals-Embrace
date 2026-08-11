@@ -19,6 +19,9 @@ const LAND_BASE_COLOR := Color(0.75, 0.72, 0.62)   # 陆地基底中性色
 const SUBDIVIDE_MAX_EDGE := 1.0                     # 网格细分最大边长（世界单位），越小地形越细腻
 const OCEAN_MARGIN := 4.0                           # 距离场/海洋平面外扩（须覆盖近海渐变上界 2.5m，与 gen_sea_distance.py 一致）
 const OCEAN_Y := -0.03                              # 海洋平面 y（略低于陆地基底 y=0，陆地遮挡海洋）
+const FORT_ICON_PATH := "res://assets/map/fort_icon.png"   # 要塞图标（堡垒.png，Master 提供）
+const FORT_ICON_SIZE := 0.9                         # 要塞图标世界宽度（立牌，可调）
+const FORT_ICON_LIFT := 0.35                        # 要塞图标浮起高度（相对省份地表）
 
 # 相机（EU4 式）：俯角随缩放变化，yaw 固定从南看北（南在屏幕下，北退远）
 const PITCH_FAR := deg_to_rad(85.0)
@@ -51,11 +54,14 @@ var _height_overlay: MeshInstance3D = null
 var _overlay_visible := false         # F10：高度图叠加调试开关
 var _ocean: MeshInstance3D = null
 var _ocean_mat: ShaderMaterial = null
+var _fort_texture: Texture2D = null   # 要塞图标纹理
+var _fort_icons := {}                 # province -> Sprite3D（fort≥2 才创建）
 
 
 func _ready() -> void:
 	_heightmap = load(HEIGHTMAP_PATH)
 	_terrain_shader = load(TERRAIN_SHADER_PATH)
+	_fort_texture = load(FORT_ICON_PATH)
 	_apply_colors()
 	_setup_labels()
 	_setup_heightmap_overlay()
@@ -348,6 +354,41 @@ func _mesh_verts(mesh: Mesh) -> PackedVector3Array:
 	var arrays := (mesh as ArrayMesh).surface_get_arrays(0)
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	return verts
+
+
+## 省份锚点 = 网格顶点质心（x,z 居中；y 取地表均值，图标由此浮起）
+func _province_anchor(mi: MeshInstance3D) -> Vector3:
+	var verts := _mesh_verts(mi.mesh)
+	if verts.is_empty():
+		return mi.global_position
+	var acc := Vector3.ZERO
+	for v in verts:
+		acc += v
+	return acc / float(verts.size())
+
+
+## 要塞图标（引擎②-B3-2）：只显示 fort ≥ 2 的省份（1 级无 ZoC，不显示）。
+## 立牌（billboard）浮于省份地表上方，宽度 FORT_ICON_SIZE 世界单位。
+func refresh_forts(buildings: Dictionary) -> void:
+	for prov in _fort_icons:
+		_fort_icons[prov].queue_free()
+	_fort_icons.clear()
+	if _fort_texture == null:
+		return
+	for province in _province_mesh:
+		var fort: int = int(buildings.get(province, {}).get("fort", 0))
+		if fort < 2:
+			continue
+		var anchor := _province_anchor(_province_mesh[province])
+		var spr := Sprite3D.new()
+		spr.texture = _fort_texture
+		spr.billboard = BaseMaterial3D.BILLBOARD_ENABLED   # 始终面向相机，清晰可见
+		var tex_w: float = _fort_texture.get_size().x
+		spr.pixel_size = FORT_ICON_SIZE / maxf(tex_w, 1.0)
+		spr.position = Vector3(anchor.x, anchor.y + FORT_ICON_LIFT, anchor.z)
+		spr.name = "Fort_" + province
+		add_child(spr)
+		_fort_icons[province] = spr
 
 
 ## ===== 着色 =====
