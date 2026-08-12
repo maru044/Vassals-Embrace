@@ -155,6 +155,9 @@ var _bottom_title: Label = null
 var _bottom_body: Control = null
 var _bottom_notice: Label = null   # 下栏弹窗内占位按钮的反馈文本
 var _bottom_hbox: HBoxContainer = null   # 下栏图标容器（选国后重建，因为 _player_country_id 此时才确定）
+var _play_target_opt: OptionButton = null   # 外交博弈面板：目标国选择
+var _play_goal_edit: LineEdit = null        # 外交博弈面板：战争目标输入
+var _play_notice_msg: String = ""           # 外交博弈面板：动作反馈（重建后回填）
 var _chat_ui: ChatUI = null   # 全局聊天面板（羊皮纸 + 立绘视差；Miku 无立绘）
 
 
@@ -1366,7 +1369,10 @@ func _bottom_icon_slots() -> Array:
 		slots.append("org_pirate_league")   # 塞壬三栖姬（群岛/奥克尼/设得兰）→ 海盗联盟
 	elif gov == "tribal":
 		slots.append("org_high_kingdom")    # 爱尔兰犬娘诸部（蒂龙等）→ 爱尔兰至高王国
-	# 战争 / 外交博弈 / 联合统治：引擎③④⑧接入后按运行态增补
+	# 外交博弈（引擎④）：选国后，有进行中的博弈或玩家可发起（未参战）时显示
+	if _player_country_id != "" and (not GameManager.get_active_plays().is_empty() or not _country_in_war(_player_country_id)):
+		slots.append("diplomacy_play")
+	# 战争 / 联合统治：引擎③④⑧接入后按运行态增补
 	return slots
 
 
@@ -1490,13 +1496,153 @@ func _build_org_content(vbox: VBoxContainer, title: String, members: Array, note
 	vbox.add_child(_panel_label("—— 引擎⑧接入凝聚力 / 成员管理 ——"))
 
 
-## 外交博弈占位（引擎④：单阶段持续 2 个月，期间可随意调整目标/条件）
+## 外交博弈面板（引擎④）：进行中博弈列表（站队 / 退缩 / 改目标）+ 发起博弈
 func _build_diplomacy_play_content(vbox: VBoxContainer) -> void:
-	vbox.add_child(_panel_label("外交博弈（单阶段 · 引擎④接入）"))
-	vbox.add_child(_panel_label("当前博弈：无"))
-	vbox.add_child(_panel_label("规则：博弈持续 2 个月，期间可随意调整目标与条件"))
-	vbox.add_child(_panel_label("时间到仍谈不拢 → 开战；一方退让 → 对方不战而获"))
-	vbox.add_child(_panel_label("—— 引擎④接入博弈状态机 ——"))
+	vbox.add_child(_panel_label("外交博弈（单阶段 · 持续 2 个月）"))
+	var plays: Array = GameManager.get_active_plays()
+	if plays.is_empty():
+		vbox.add_child(_panel_label("　当前无进行中的博弈"))
+	for p in plays:
+		var pid: int = int(p.get("id", 0))
+		vbox.add_child(_panel_label("博弈 #%d：%s(%s) vs %s(%s) · 剩 %d 月" % [
+			pid,
+			_country_name(str(p.get("initiator", ""))), str(p.get("init_goal", "")),
+			_country_name(str(p.get("target", ""))), str(p.get("targ_goal", "")),
+			int(p.get("deadline", 0))]))
+		vbox.add_child(_panel_label("　站队：%s / %s" % [
+			_side_names(p.get("sides", {}).get("A", [])),
+			_side_names(p.get("sides", {}).get("B", []))]))
+		var my_side := _my_play_side(p)
+		var actions := HBoxContainer.new()
+		actions.add_theme_constant_override("separation", 8)
+		if my_side == "":
+			_build_gold_button(actions, "加入发起方", _on_join_play.bind(pid, "A"))
+			_build_gold_button(actions, "加入防守方", _on_join_play.bind(pid, "B"))
+		else:
+			_build_gold_button(actions, "退缩（失威望）", _on_back_down.bind(pid, my_side))
+			if str(p.get("initiator", "")) == _player_country_id or str(p.get("target", "")) == _player_country_id:
+				_build_gold_button(actions, "修改我方目标", _on_edit_my_goal.bind(pid))
+		vbox.add_child(actions)
+	# 发起博弈
+	vbox.add_child(_panel_label("— 发起博弈 —"))
+	var pick_row := HBoxContainer.new()
+	pick_row.add_theme_constant_override("separation", 8)
+	pick_row.add_child(_panel_label("目标国："))
+	_play_target_opt = OptionButton.new()
+	_play_target_opt.custom_minimum_size = Vector2(240, 40)
+	for c in _countries:
+		var cid: String = str(c.get("id", ""))
+		if cid == _player_country_id or _country_in_war(cid) or _country_in_play(cid):
+			continue
+		_play_target_opt.add_item(str(c.get("name", cid)))
+		_play_target_opt.set_item_metadata(_play_target_opt.item_count - 1, cid)
+	if _play_target_opt.item_count == 0:
+		_play_target_opt.add_item("（无可用目标）")
+	pick_row.add_child(_play_target_opt)
+	vbox.add_child(pick_row)
+	_play_goal_edit = LineEdit.new()
+	_play_goal_edit.placeholder_text = "战争目标（如：附庸化 / 吞并 洛锡安 / 联合统治）"
+	_play_goal_edit.custom_minimum_size = Vector2(560, 40)
+	vbox.add_child(_play_goal_edit)
+	_build_gold_button(vbox, "发起博弈", _on_start_play_pressed)
+	_bottom_notice = _panel_label(_play_notice_msg)
+	vbox.add_child(_bottom_notice)
+
+
+## 玩家在某博弈中的阵营（"" = 未站队）
+func _my_play_side(p: Dictionary) -> String:
+	if (p.get("sides", {}).get("A", []) as Array).has(_player_country_id):
+		return "A"
+	if (p.get("sides", {}).get("B", []) as Array).has(_player_country_id):
+		return "B"
+	return ""
+
+
+## 站队成员中文名列表（"、" 连接）
+func _side_names(list: Array) -> String:
+	var names: Array[String] = []
+	for cid in list:
+		names.append(_country_name(str(cid)))
+	return "、".join(names)
+
+
+## 该国是否在战争中（引擎④：博弈面板可用性）
+func _country_in_war(cid: String) -> bool:
+	for w in GameManager.wars:
+		if (w.get("attacker", []) as Array).has(cid) or (w.get("defender", []) as Array).has(cid):
+			return true
+	return false
+
+
+## 该国是否已在进行中的博弈
+func _country_in_play(cid: String) -> bool:
+	for p in GameManager.get_active_plays():
+		if str(p.get("initiator", "")) == cid or str(p.get("target", "")) == cid:
+			return true
+		if (p.get("sides", {}).get("A", []) as Array).has(cid) or (p.get("sides", {}).get("B", []) as Array).has(cid):
+			return true
+	return false
+
+
+## 发起博弈
+func _on_start_play_pressed() -> void:
+	if _play_target_opt == null or _play_goal_edit == null:
+		return
+	var sel := _play_target_opt.selected
+	if sel < 0 or _play_target_opt.get_item_metadata(sel) == null:
+		_play_notice_msg = "请选择目标国"
+		_refresh_diplomacy_panel()
+		return
+	var target: String = str(_play_target_opt.get_item_metadata(sel))
+	var goal: String = _play_goal_edit.text.strip_edges()
+	if goal.is_empty():
+		_play_notice_msg = "请填写战争目标"
+		_refresh_diplomacy_panel()
+		return
+	var res := GameManager.start_play(_player_country_id, target, goal)
+	var msg: String = "成功" if res.get("ok", false) else str(res.get("error", "失败"))
+	_play_notice_msg = "发起博弈：%s" % msg
+	_refresh_diplomacy_panel()
+
+
+## 站队
+func _on_join_play(play_id: int, side: String) -> void:
+	var res := GameManager.join_play(play_id, _player_country_id, side)
+	var msg: String = "成功" if res.get("ok", false) else str(res.get("error", "失败"))
+	_play_notice_msg = "站队：%s" % msg
+	_refresh_diplomacy_panel()
+
+
+## 退缩
+func _on_back_down(play_id: int, side: String) -> void:
+	var res := GameManager.back_down(play_id, side)
+	var msg: String = "成功" if res.get("ok", false) else str(res.get("error", "失败"))
+	_play_notice_msg = "退缩：%s" % msg
+	_refresh_diplomacy_panel()
+
+
+## 修改我方目标（发起方/防守方；用共享目标输入框填写新目标）
+func _on_edit_my_goal(play_id: int) -> void:
+	if _play_goal_edit == null:
+		return
+	var goal: String = _play_goal_edit.text.strip_edges()
+	if goal.is_empty():
+		_play_notice_msg = "请先在上方目标框填写新目标"
+		_refresh_diplomacy_panel()
+		return
+	var res := GameManager.set_play_goal(play_id, _player_country_id, goal)
+	var msg: String = "成功" if res.get("ok", false) else str(res.get("error", "失败"))
+	_play_notice_msg = "修改目标：%s" % msg
+	_refresh_diplomacy_panel()
+
+
+## 重建外交博弈面板（动作后刷新；_play_notice_msg 回填到新 notice）
+func _refresh_diplomacy_panel() -> void:
+	if _active_bottom != "diplomacy_play":
+		return
+	for c in _bottom_body.get_children():
+		c.queue_free()
+	_build_bottom_content("diplomacy_play")
 
 
 ## 战争占位（引擎③④）：攻破首都=无条件投降；其余议和走 LLM 聊天（提条件·同意即和平）
