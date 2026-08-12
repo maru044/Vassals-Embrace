@@ -613,6 +613,7 @@ func _resolve_sieges() -> void:
 
 
 ## 破城/临时占领：省份归属改攻方 + 敌首都破城即时投降标记（引擎④ 处理和约/割让）
+## 引擎④-T4 ZoC 归属转变：province_owner 实时变更 → _enemy_zoc/_zoc_sources 随之翻转（破城后该要塞 ZoC 归攻方，友军通行、敌军受困）
 func _take_province(prov: String, cid: String, prev_owner: String) -> void:
 	province_owner[prov] = cid
 	siege_target[cid] = ""
@@ -722,13 +723,119 @@ func init_army_positions(positions: Dictionary) -> void:
 		return_province[cid] = positions[cid]
 
 
+# ===== 引擎④-T4 ZoC 接入（Master 8/12：敌方要塞 ≥2 级覆盖自身+相邻圈，阻挡行军；破城后 ZoC 归属转变）=====
+
+## 省份要塞等级（province_buildings[省].fort）
+func _fort_level(prov: String) -> int:
+	return int(province_buildings.get(prov, {}).get("fort", 0))
+
+
+## 与 cid 交战的国家列表（引擎④-战争前置 wars 数据）
+func _at_war_with(cid: String) -> Array:
+	var out: Array = []
+	for w in wars:
+		var side_a: Array = w["attacker"]
+		var side_b: Array = w["defender"]
+		if side_a.has(cid):
+			for e in side_b:
+				if not out.has(e):
+					out.append(e)
+		elif side_b.has(cid):
+			for e in side_a:
+				if not out.has(e):
+					out.append(e)
+	return out
+
+
+## cid 的 ZoC 源省份（要塞 ≥2 级 且 属于 cid）——只有 ≥2 级要塞产生 ZoC
+func _zoc_sources(cid: String) -> Array:
+	var out: Array = []
+	for prov in province_owner:
+		if province_owner[prov] == cid and _fort_level(prov) >= 2:
+			out.append(prov)
+	return out
+
+
+## cid 的 ZoC 覆盖省（源要塞自身 + 相邻一圈）
+func _zoc_provinces(cid: String) -> Dictionary:
+	if not _ensure_adjacency():
+		return {}
+	var z := {}
+	for src in _zoc_sources(cid):
+		z[src] = true
+		for nb in _adjacency.get(src, {}):
+			z[nb] = true
+	return z
+
+
+## 对 cid 而言的敌方 ZoC（所有交战国的要塞 ZoC 并集；和平为空）
+func _enemy_zoc(cid: String) -> Dictionary:
+	var z := {}
+	for enemy in _at_war_with(cid):
+		var ez: Dictionary = _zoc_provinces(enemy)
+		for p in ez:
+			z[p] = true
+	return z
+
+
+## 省是否属于 cid 或其盟友（同国 / 同战争同侧）
+func _is_side_owned(cid: String, prov: String) -> bool:
+	var owner: String = province_owner.get(prov, "")
+	if owner == "":
+		return false
+	return _are_allies(cid, owner)
+
+
+## ZoC 进入规则（EU4 式，按步判断，from = 当前所在省）：
+## 1) 己方/盟友省 → 可进（自家地不被敌方 ZoC 卡）
+## 2) 敌方要塞省（≥2 级且交战）→ 可进（去围攻，先攻要塞清障）
+## 3) 不在敌方 ZoC → 可进
+## 4) 在敌方 ZoC 内 → 仅当 from 也不在敌方 ZoC 才可进（接敌逼近）；已在 ZoC 内则被围困（只能攻要塞或撤出）
+func _can_enter_province(cid: String, prov: String, from: String) -> bool:
+	if _is_side_owned(cid, prov):
+		return true
+	var owner: String = province_owner.get(prov, "")
+	if owner != "" and _are_at_war(cid, owner) and _fort_level(prov) >= 2:
+		return true
+	var ez: Dictionary = _enemy_zoc(cid)
+	if not ez.has(prov):
+		return true
+	return not ez.has(from)
+
+
+## 覆盖 prov 的阻挡要塞（首个使 prov 处于敌方 ZoC 的 ≥2 级要塞；无则 ""）
+func _zoc_source_for(prov: String, cid: String) -> String:
+	if not _ensure_adjacency():
+		return ""
+	for enemy in _at_war_with(cid):
+		for src in _zoc_sources(enemy):
+			if src == prov or _adjacency.get(src, {}).has(prov):
+				return src
+	return ""
+
+
+## ZoC 阻挡检测（AI 用）：前往 target 的最短路径上首个不可进入省 → 返回其阻挡要塞（先攻清障）；无阻挡返回 ""
+func find_blocking_fort(cid: String, target: String) -> String:
+	var from: String = army_position.get(cid, "")
+	if from.is_empty():
+		return ""
+	var path := _shortest_path(from, target)
+	if path.size() < 2:
+		return ""
+	for i in range(1, path.size()):
+		var prov: String = path[i]
+		if not _can_enter_province(cid, prov, path[i - 1]):
+			return _zoc_source_for(prov, cid)
+	return ""
+
+
 ## 某国军队在 max_steps 步可达的省份（不含自身；陆/海不区分——Master 定：邻接线即道路，海峡可通行）。
-## ZoC 非战时未启用（引擎④战争后补）
+## 引擎④-T4 ZoC：战争时敌方要塞 ZoC 禁行（可进敌方要塞围攻）；和平无 ZoC
 func get_reachable_provinces(cid: String, max_steps: int = ARMY_MOVE_STEPS) -> Array:
 	if not _ensure_adjacency():
 		return []
 	var from: String = army_position.get(cid, "")
-	if from.is_empty() or from == "":
+	if from.is_empty():
 		return []
 	var reached := {}
 	var visited := {from: true}
@@ -740,7 +847,7 @@ func get_reachable_provinces(cid: String, max_steps: int = ARMY_MOVE_STEPS) -> A
 		if d >= max_steps:
 			continue
 		for nxt in _adjacency.get(prov, {}):
-			if visited.has(nxt):
+			if visited.has(nxt) or not _can_enter_province(cid, nxt, prov):
 				continue
 			visited[nxt] = true
 			reached[nxt] = true
@@ -749,7 +856,7 @@ func get_reachable_provinces(cid: String, max_steps: int = ARMY_MOVE_STEPS) -> A
 
 
 ## BFS 可达树：{可达省: 父省}（含 1 步邻居 parent=起点），用于地图画合法移动线（沿邻接线条）。
-## 陆/海不区分；ZoC 非战时未启用（引擎④战争后补）。
+## 陆/海不区分；引擎④-T4 ZoC：战争时敌方要塞 ZoC 禁行（可进敌方要塞围攻）
 func get_reachable_tree(cid: String, max_steps: int = ARMY_MOVE_STEPS) -> Dictionary:
 	if not _ensure_adjacency():
 		return {}
@@ -766,7 +873,7 @@ func get_reachable_tree(cid: String, max_steps: int = ARMY_MOVE_STEPS) -> Dictio
 		if d >= max_steps:
 			continue
 		for nxt in _adjacency.get(prov, {}):
-			if visited.has(nxt):
+			if visited.has(nxt) or not _can_enter_province(cid, nxt, prov):
 				continue
 			visited[nxt] = true
 			tree[nxt] = prov
@@ -774,11 +881,14 @@ func get_reachable_tree(cid: String, max_steps: int = ARMY_MOVE_STEPS) -> Dictio
 	return tree
 
 
-## 移动合法性（非战时：目标在 2 格陆地可达内即合法；ZoC 战争限制引擎④补）
+## 移动合法性：目标在 2 格可达内即合法；战争时被敌方要塞 ZoC 阻挡 → 明确报错（需先攻要塞）
 func can_move_to(cid: String, target: String) -> Dictionary:
 	if target == army_position.get(cid, ""):
 		return {"ok": true, "reason": "原地"}
 	if not get_reachable_provinces(cid, ARMY_MOVE_STEPS).has(target):
+		var from: String = army_position.get(cid, "")
+		if not _can_enter_province(cid, target, from):
+			return {"ok": false, "reason": "被敌方要塞 ZoC 阻挡，需先攻占要塞"}
 		return {"ok": false, "reason": "超出可移动范围（每月 2 格）"}
 	return {"ok": true, "reason": ""}
 
@@ -794,16 +904,16 @@ func issue_order(cid: String, target: String) -> Dictionary:
 	return {"ok": true, "order": target}
 
 
-## 公开路径查询（沿陆地的 BFS 最短路径），供地图画命令路线。
+## 公开路径查询（ZoC 感知的 BFS 最短路径），供地图画命令路线。
 ## 注意：勿命名 get_path_to（与 Node 内置方法冲突，签名不匹配会编译报错）
 func get_army_path(cid: String, target: String) -> Array:
 	var from: String = army_position.get(cid, "")
 	if from.is_empty():
 		return []
-	return _shortest_path(from, target)
+	return _shortest_path_zoc(cid, from, target)
 
 
-## BFS 最短路径（陆/海不区分）；无路径返回 []
+## BFS 最短路径（陆/海不区分，忽略 ZoC）；无路径返回 []
 func _shortest_path(from: String, to: String) -> Array:
 	if not _ensure_adjacency():
 		return []
@@ -826,7 +936,32 @@ func _shortest_path(from: String, to: String) -> Array:
 	return []
 
 
-## 月末推进：各国沿命令朝目标走最多 2 格；到达后清除命令；返回省份更新为旧位置（非战时简化）
+## ZoC 感知最短路径（战争时行军用）：每步须可进入（敌方 ZoC 禁行；可进敌方要塞围攻）。
+## 和平无 ZoC → 等价于 _shortest_path。被阻挡（目标不可达）返回 []
+func _shortest_path_zoc(cid: String, from: String, to: String) -> Array:
+	if not _ensure_adjacency():
+		return []
+	if from == to:
+		return [from]
+	var visited := {from: true}
+	var frontier := [[from]]
+	while not frontier.is_empty():
+		var path: Array = frontier.pop_front()
+		var cur: String = path[-1]
+		for nxt in _adjacency.get(cur, {}):
+			if visited.has(nxt) or not _can_enter_province(cid, nxt, cur):
+				continue
+			var np: Array = path.duplicate()
+			np.append(nxt)
+			if nxt == to:
+				return np
+			visited[nxt] = true
+			frontier.append(np)
+	return []
+
+
+## 月末推进：各国沿命令朝目标走最多 2 格；到达后清除命令；返回省份更新为旧位置。
+## 引擎④-T4 ZoC：战争时走 ZoC 感知路径，被敌方要塞阻挡 → 原地待命（AI 应改目标先攻要塞；玩家 UI 已拦截）
 func _advance_army() -> void:
 	for cid in army_position:
 		var target: String = army_order.get(cid, "")
@@ -836,7 +971,7 @@ func _advance_army() -> void:
 		if target == from:
 			army_order[cid] = ""
 			continue
-		var path := _shortest_path(from, target)
+		var path := _shortest_path_zoc(cid, from, target)
 		if path.size() < 2:
 			continue
 		var steps := mini(path.size() - 1, ARMY_MOVE_STEPS)
