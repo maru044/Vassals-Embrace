@@ -158,6 +158,8 @@ var _bottom_hbox: HBoxContainer = null   # 下栏图标容器（选国后重建�
 var _play_target_opt: OptionButton = null   # 外交博弈面板：目标国选择
 var _play_goal_edit: LineEdit = null        # 外交博弈面板：战争目标输入
 var _play_notice_msg: String = ""           # 外交博弈面板：动作反馈（重建后回填）
+var _diplo_goal_edit: LineEdit = null       # 外交国家视图：宣战目标输入
+var _diplo_notice_msg: String = ""          # 外交国家视图：发起博弈反馈
 var _chat_ui: ChatUI = null   # 全局聊天面板（羊皮纸 + 立绘视差；Miku 无立绘）
 
 
@@ -998,6 +1000,14 @@ func _open_diplomacy_country(country: String) -> void:
 		_build_gold_button(_left_body, "要求附庸", _on_diplomacy_action.bind(country, "make_vassal"))
 	else:
 		_build_gold_button(_left_body, "要求成为受保护国", _on_diplomacy_action.bind(country, "protect"))
+	# 引擎④：发起博弈（宣战）—— 填战争目标后发起，走 2 个月博弈
+	_diplo_goal_edit = LineEdit.new()
+	_diplo_goal_edit.placeholder_text = "战争目标（如：附庸化 / 吞并 洛锡安）"
+	_diplo_goal_edit.custom_minimum_size = Vector2(420, 40)
+	_left_body.add_child(_diplo_goal_edit)
+	_build_gold_button(_left_body, "发起博弈（宣战）", _on_diplo_declare_war.bind(country))
+	if not _diplo_notice_msg.is_empty():
+		_left_body.add_child(_panel_label(_diplo_notice_msg))
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 10)
 	_left_body.add_child(spacer)
@@ -1019,6 +1029,25 @@ func _on_diplomacy_action(country: String, action: String) -> void:
 			_chat_ui.open_chat("country", country, _country_name(country))
 		return
 	print("外交: ", action, " → ", country, "（占位）")
+
+
+## 发起博弈（宣战）：对外交视图中的国家，用目标框内容发起 2 个月博弈（引擎④）
+func _on_diplo_declare_war(country: String) -> void:
+	if _diplo_goal_edit == null:
+		return
+	var goal: String = _diplo_goal_edit.text.strip_edges()
+	if goal.is_empty():
+		_diplo_notice_msg = "请先填写战争目标"
+		_refresh_diplo_country(country)
+		return
+	var res := GameManager.start_play(_player_country_id, country, goal)
+	_diplo_notice_msg = "发起博弈：%s" % ("成功" if res.get("ok", false) else str(res.get("error", "失败")))
+	_refresh_diplo_country(country)
+
+
+## 重建外交国家视图（发起博弈动作后刷新）
+func _refresh_diplo_country(country: String) -> void:
+	_open_diplomacy_country(country)
 
 
 ## 附庸/宗主：直接宗主 + 【直接附庸】与【受保护国】分开展示（#33 占位；vassal_type 区分）
