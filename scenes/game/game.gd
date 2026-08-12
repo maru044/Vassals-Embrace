@@ -22,15 +22,15 @@ const _PROVINCE_LANDSCAPE := {
 	"Munster": "ireland_02.png", "Wexford": "ireland_02.png", "Ormond": "ireland_02.png",
 	"Tyrone": "ireland_01.png", "Breifne": "ireland_01.png", "Westmeath": "ireland_01.png",
 	"Offaly": "ireland_01.png", "Clanricarde": "ireland_01.png", "Kildare": "ireland_01.png",
-	"Leinster": "ireland_01.png", "Pale": "ireland_01.png",
-	# —— 英格兰低地：东南田园麦田→01 / 东安格利亚平坦原野→02 ——
-	"London": "england_lowland_01.png", "Home Counties": "england_lowland_01.png",
+	"Leinster": "ireland_01.png", "Pale": "dublin.png",   # 都柏林（英租界 Pale）
+	# —— 英格兰低地：东南田园麦田→01 / 东安格利亚平坦原野→02（伦敦=专属图）——
+	"London": "london.png", "Home Counties": "england_lowland_01.png",
 	"Wessex": "england_lowland_01.png", "Severn Valley": "england_lowland_01.png",
 	"East Anglia": "england_lowland_02.png", "Lincolnshire": "england_lowland_02.png",
 	# —— 威尔士 ——
 	"Wales": "wales.png",
-	# —— 英格兰丘陵：北部·湖区山谷→01 / 米德兰·西南→02 ——
-	"Yorkshire": "england_hills_01.png", "Northumberland": "england_hills_01.png",
+	# —— 英格兰丘陵：北部·湖区山谷→01 / 米德兰·西南→02（约克=专属图）——
+	"Yorkshire": "york.png", "Northumberland": "england_hills_01.png",
 	"Durham": "england_hills_01.png", "Westmorland": "england_hills_01.png",
 	"Lancashire": "england_hills_01.png",
 	"Midlands": "england_hills_02.png", "Southwest": "england_hills_02.png",
