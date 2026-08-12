@@ -1398,8 +1398,8 @@ func _bottom_icon_slots() -> Array:
 		slots.append("org_pirate_league")   # 塞壬三栖姬（群岛/奥克尼/设得兰）→ 海盗联盟
 	elif gov == "tribal":
 		slots.append("org_high_kingdom")    # 爱尔兰犬娘诸部（蒂龙等）→ 爱尔兰至高王国
-	# 外交博弈（引擎④）：选国后，有进行中的博弈或玩家可发起（未参战）时显示
-	if _player_country_id != "" and (not GameManager.get_active_plays().is_empty() or not _country_in_war(_player_country_id)):
+	# 外交博弈（引擎④）：仅在有进行中的博弈时显示（发起走左栏外交，此处查看/站队/退缩）
+	if not GameManager.get_active_plays().is_empty():
 		slots.append("diplomacy_play")
 	# 战争 / 联合统治：引擎③④⑧接入后按运行态增补
 	return slots
