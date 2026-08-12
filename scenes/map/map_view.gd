@@ -27,11 +27,13 @@ const SHIELD_DIR := "res://assets/shields/"
 const ARMY_BANNER_LIFT := 1.1          # 兵牌浮起高度（相对省份地表，高于要塞图标）
 const ARMY_BANNER_ALPHA := 0.75        # 军队盾徽透明度（Master：半透明；数字保持不透明）
 const ARMY_BANNER_STACK_GAP := 0.85    # 同省多军队兵牌垂直堆叠间距（Master：上下放置）
-# 引擎③ 士气条（盾徽右侧绿色竖条，长度随士气变化，与盾徽同高；Master：不要黑色背景）
+# 引擎③ 士气条（盾徽右侧竖条，满士气绿色；随士气降低从顶端变短并渐变为黄→红；Master：EU4 血条式，无黑色背景）
 const MORALE_BAR_W := 0.07             # 士气条宽度
 const MORALE_BAR_H := 0.5              # 士气条满值高度（与盾徽高度一致）
 const MORALE_BAR_X := 0.36             # 士气条 X 偏移（盾徽右缘外侧）
-const MORALE_BAR_FULL := Color(0.3, 0.95, 0.35, 0.95)   # 士气条绿色（满士气）
+const MORALE_COL_FULL := Color(0.3, 0.95, 0.35, 0.95)   # 满士气：绿
+const MORALE_COL_MID := Color(0.98, 0.82, 0.15, 0.95)   # 半士气：黄
+const MORALE_COL_LOW := Color(0.95, 0.25, 0.15, 0.95)   # 低士气：红
 const ICON_SHOW_ZOOM := 0.35           # 镜头远景（zoom 低于此）隐藏要塞/军队图标（Master：远景更美观）
 
 # ---- 引擎②-B3-2c 兵牌交互 ----
@@ -137,6 +139,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_toggle_spines()
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F10:
 		_toggle_overlay()
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F11:
+		_debug_damage_morale()   # 调试：削减玩家士气，实时验证士气条长度/颜色渐变
 	elif event is InputEventKey and event.pressed and not event.echo and _overlay_visible:
 		_handle_overlay_keys(event)
 	elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
@@ -474,12 +478,13 @@ func refresh_army(positions: Dictionary, counts: Dictionary) -> void:
 			lbl.outline_size = 6
 			lbl.position = Vector3(0.52, -0.06, 0.0)   # 右移，给右侧士气条让位
 			root.add_child(lbl)
-			# 士气条（引擎③）：盾徽右侧绿色竖条，长度随士气变化（血条式，从底部向上；无黑色背景）
+			# 士气条（引擎③）：盾徽右侧竖条，满士气绿色，随士气降低从顶端变短并渐变黄→红（EU4 血条式，无黑色背景）
 			var m_max_m: float = GameManager.get_total_morale(cid)
 			var m_cur_m: float = GameManager.get_morale(cid)
 			var m_ratio: float = 1.0 if m_max_m <= 0.0 else clampf(m_cur_m / m_max_m, 0.0, 1.0)
-			var bar_fill := _make_morale_bar(MORALE_BAR_W, MORALE_BAR_H, MORALE_BAR_FULL)
+			var bar_fill := _make_morale_bar(MORALE_BAR_W, MORALE_BAR_H, _morale_color(m_ratio))
 			bar_fill.scale.y = m_ratio
+			# 底部固定在 -H/2，顶端随比例下降（从上面变短）；scale.y 只压缩高度、锚点不变
 			bar_fill.position = Vector3(MORALE_BAR_X, -MORALE_BAR_H * 0.5 + MORALE_BAR_H * m_ratio * 0.5, 0.0)
 			root.add_child(bar_fill)
 			add_child(root)
@@ -677,6 +682,22 @@ func _make_morale_bar(width: float, height: float, color: Color) -> MeshInstance
 	mat.no_depth_test = true
 	mi.material_override = mat
 	return mi
+
+
+## 士气条颜色（EU4 血条渐变）：满=绿，50%=黄，0%=红，随比例平滑过渡
+func _morale_color(ratio: float) -> Color:
+	var r: float = clampf(ratio, 0.0, 1.0)
+	if r >= 0.5:
+		return MORALE_COL_FULL.lerp(MORALE_COL_MID, (1.0 - r) * 2.0)
+	return MORALE_COL_MID.lerp(MORALE_COL_LOW, (0.5 - r) * 2.0)
+
+
+## 调试：F11 削减玩家军队士气 35%，实时验证士气条长度与颜色渐变（引擎④战争接入后可移除）
+func _debug_damage_morale() -> void:
+	var res := GameManager.debug_damage_morale(GameManager.player_country_id, 0.35)
+	if res.get("ok", false):
+		refresh_army(GameManager.army_position, GameManager.army_count)
+		print("士气调试：削减至 %s / %s" % [str(res.get("morale")), str(res.get("max"))])
 
 
 ## 平躺地表圆环标记（TorusMesh，XZ 平面）
