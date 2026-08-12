@@ -294,15 +294,6 @@ func get_morale(cid: String) -> float:
 	return clampf(army_morale.get(cid, 0.0), 0.0, get_total_morale(cid))
 
 
-## 调试：削减指定国家军队士气比例（F11 实机验证士气条长度/颜色渐变用，引擎④战争接入后可移除）
-func debug_damage_morale(cid: String, ratio: float) -> Dictionary:
-	if not army_count.has(cid):
-		return {"ok": false, "error": "无军队"}
-	var max_m: float = get_total_morale(cid)
-	army_morale[cid] = maxf(0.0, get_morale(cid) - max_m * ratio)
-	return {"ok": true, "morale": army_morale[cid], "max": max_m}
-
-
 ## ---- 战争判定（引擎④前置）----
 
 ## 某国所属战争与阵营；未参战返回 {}（简化：一国同时只在一场战争）

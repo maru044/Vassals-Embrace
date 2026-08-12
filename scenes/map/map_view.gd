@@ -140,10 +140,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		_toggle_spines()
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F10:
 		_toggle_overlay()
-	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F11:
-		_debug_damage_morale()   # 调试：削减玩家士气，实时验证士气条长度/颜色渐变
-	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F12:
-		_debug_declare_war()     # 调试：英格兰 vs 威尔士开战，验证战争占领/围城（宣战 UI 未做）
 	elif event is InputEventKey and event.pressed and not event.echo and _overlay_visible:
 		_handle_overlay_keys(event)
 	elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
@@ -710,24 +706,6 @@ func _morale_color(ratio: float) -> Color:
 	if r >= 0.5:
 		return MORALE_COL_FULL.lerp(MORALE_COL_MID, (1.0 - r) * 2.0)
 	return MORALE_COL_MID.lerp(MORALE_COL_LOW, (0.5 - r) * 2.0)
-
-
-## 调试：F11 削减玩家军队士气 35%，实时验证士气条长度与颜色渐变（引擎④战争接入后可移除）
-func _debug_damage_morale() -> void:
-	var res := GameManager.debug_damage_morale(GameManager.player_country_id, 0.35)
-	if res.get("ok", false):
-		refresh_army(GameManager.army_position, GameManager.army_count)
-		print("士气调试：削减至 %s / %s" % [str(res.get("morale")), str(res.get("max"))])
-
-
-## 调试：F12 英格兰 vs 威尔士 开战（宣战 UI 未做，Master 先用此键测战争占领/围城）
-## 触发 war_started 事件 → 底栏战争栏自动刷新；再移动军队到敌省即可测围城
-func _debug_declare_war() -> void:
-	var res := GameManager.declare_war("England", "Wales")
-	if res.get("ok", false):
-		print("战争调试：英格兰 vs 威尔士 开战（war_id=%d）" % int(res.get("war_id", 0)))
-	else:
-		print("战争调试：失败 - %s" % str(res.get("error", "未知")))
 
 
 ## 平躺地表圆环标记（TorusMesh，XZ 平面）
