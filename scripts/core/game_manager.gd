@@ -71,6 +71,11 @@ var siege_target := {}           # cid -> 围城目标省（引擎③-T4 驻留�
 # ---- 引擎④-战争前置（Master 8/12：战斗只在战争状态发生，盟友同侧不互打）----
 var wars := []                   # 每项 {id:int, attacker:[cid...], defender:[cid...]}
 var _next_war_id := 1
+# ---- 引擎④ 外交博弈（Master 8/13 过家家模式：AI 决策交 LLM，引擎只结算）----
+const PLAY_DURATION := 2         # 博弈持续 2 个月（单阶段，经两次月末结算）
+const PRESTIGE_BACKDOWN := 10.0  # 退缩方失威望
+var plays := []                  # 每项 {id, initiator, target, init_goal, targ_goal, deadline, sides:{A,B}, state}
+var _next_play_id := 1
 
 var _country_list: Array = []   # countries.json（读 liege 关系，用于初始好感）
 
@@ -101,6 +106,8 @@ func start_new_game(country_id: String) -> void:
 	siege_target.clear()         # 引擎③-T4：新档无围城
 	wars.clear()                 # 引擎④-战争前置：新档无战争
 	_next_war_id = 1
+	plays.clear()                # 引擎④：新档无外交博弈
+	_next_play_id = 1
 	for cid in _all_country_ids():
 		country_gold[cid] = START_GOLD
 		country_prestige[cid] = START_PRESTIGE
@@ -242,6 +249,8 @@ func _settle_month() -> void:
 	_resolve_sieges()
 	_apply_morale_recovery()
 	_update_capital_occupation()
+	# 引擎④：外交博弈推进（deadline -1，到期开战）
+	_tick_plays()
 	# 行军推进（每月最多 2 格，沿命令 BFS 最短路径；非战时无 ZoC）
 	_advance_army()
 
@@ -364,6 +373,135 @@ func end_war(war_id: int) -> Dictionary:
 			EventBus.war_ended.emit(war_id)
 			return {"ok": true}
 	return {"ok": false, "error": "战争不存在"}
+
+
+## ---- 引擎④ 外交博弈（Master 8/13：AI 决策交 LLM「过家家」，引擎只结算）----
+
+## 该国是否已在战争中（任一战争任一侧）
+func _in_war(cid: String) -> bool:
+	for w in wars:
+		if w["attacker"].has(cid) or w["defender"].has(cid):
+			return true
+	return false
+
+
+## 该国是否已在进行中的博弈
+func _in_play(cid: String) -> bool:
+	for p in plays:
+		if p["state"] != "playing":
+			continue
+		if p["initiator"] == cid or p["target"] == cid:
+			return true
+		if p["sides"]["A"].has(cid) or p["sides"]["B"].has(cid):
+			return true
+	return false
+
+
+## 发起外交博弈：initiator 对 target 提进攻目标（如 "附庸化" / "吞并 Lothian" / "独立" / "联合统治"）
+func start_play(initiator: String, target: String, init_goal: String) -> Dictionary:
+	if initiator == target:
+		return {"ok": false, "error": "不能对自己发起博弈"}
+	if _in_war(initiator) or _in_war(target):
+		return {"ok": false, "error": "不能对已在战争中的国家发起博弈"}
+	if _in_play(initiator) or _in_play(target):
+		return {"ok": false, "error": "已有进行中的博弈"}
+	plays.append({
+		"id": _next_play_id, "initiator": initiator, "target": target,
+		"init_goal": init_goal, "targ_goal": "保持现状",
+		"deadline": PLAY_DURATION, "sides": {"A": [initiator], "B": [target]}, "state": "playing",
+	})
+	var pid := _next_play_id
+	_next_play_id += 1
+	EventBus.diplomatic_play_started.emit(pid)
+	return {"ok": true, "play_id": pid}
+
+
+## 站队：cid 加入进行中博弈的 side（A 发起方 / B 防守方），即战前立场
+func join_play(play_id: int, cid: String, side: String) -> Dictionary:
+	if side != "A" and side != "B":
+		return {"ok": false, "error": "阵营必须为 A/B"}
+	if _in_war(cid) or _in_play(cid):
+		return {"ok": false, "error": "该国已在战争或博弈中"}
+	for p in plays:
+		if int(p["id"]) != play_id or p["state"] != "playing":
+			continue
+		var list: Array = p["sides"][side]
+		if list.has(cid):
+			return {"ok": false, "error": "已在该阵营"}
+		list.append(cid)
+		EventBus.diplomatic_play_started.emit(play_id)
+		return {"ok": true, "play_id": play_id, "side": side}
+	return {"ok": false, "error": "博弈不存在或已结束"}
+
+
+## 改目标：博弈方（发起方/防守方）改自己的战争目标
+func set_play_goal(play_id: int, cid: String, goal: String) -> Dictionary:
+	for p in plays:
+		if int(p["id"]) != play_id or p["state"] != "playing":
+			continue
+		if p["initiator"] == cid:
+			p["init_goal"] = goal
+		elif p["target"] == cid:
+			p["targ_goal"] = goal
+		else:
+			return {"ok": false, "error": "非博弈方"}
+		return {"ok": true, "play_id": play_id, "goal": goal}
+	return {"ok": false, "error": "博弈不存在或已结束"}
+
+
+## 退缩：side 侧退缩 → 对方不战而获目标 + 退缩方失威望 → 博弈和平解决
+func back_down(play_id: int, side: String) -> Dictionary:
+	if side != "A" and side != "B":
+		return {"ok": false, "error": "阵营必须为 A/B"}
+	for p in plays:
+		if int(p["id"]) != play_id or p["state"] != "playing":
+			continue
+		p["state"] = "resolved"
+		var winner_side: String = "B" if side == "A" else "A"
+		for cid in p["sides"][side]:
+			country_prestige[cid] = maxf(0.0, country_prestige.get(cid, 0.0) - PRESTIGE_BACKDOWN)
+		_apply_play_goal(p, winner_side)
+		EventBus.diplomatic_play_resolved.emit(play_id)
+		return {"ok": true, "play_id": play_id, "retreated": side, "winner_side": winner_side}
+	return {"ok": false, "error": "博弈不存在或已结束"}
+
+
+## 退缩后目标落地（引擎⑤⑧ 未就绪：附庸化/吞并先记录，联合统治交 LLM 叙事）
+func _apply_play_goal(p: Dictionary, winner_side: String) -> void:
+	p["winner_goal"] = p["init_goal"] if winner_side == "A" else p["targ_goal"]
+
+
+## 每月博弈推进：deadline -1；到期仍未退缩 → 开战（主国宣战 + 站队国入战）
+func _tick_plays() -> void:
+	for p in plays:
+		if p["state"] != "playing":
+			continue
+		p["deadline"] = int(p["deadline"]) - 1
+		if int(p["deadline"]) > 0:
+			continue
+		var attacker: String = p["initiator"]
+		var defender: String = p["target"]
+		if not _are_at_war(attacker, defender):
+			var wres := declare_war(attacker, defender)
+			if wres.get("ok", false):
+				var wid: int = int(wres.get("war_id", 0))
+				for cid in p["sides"]["A"]:
+					if cid != attacker:
+						add_war_participant(cid, wid, "A")
+				for cid in p["sides"]["B"]:
+					if cid != defender:
+						add_war_participant(cid, wid, "B")
+		p["state"] = "resolved"
+		EventBus.diplomatic_play_resolved.emit(int(p["id"]))
+
+
+## 进行中的博弈列表（面板 / LLM 世界状态用，深拷贝防篡改）
+func get_active_plays() -> Array:
+	var out := []
+	for p in plays:
+		if p["state"] == "playing":
+			out.append(p.duplicate(true))
+	return out
 
 
 ## ---- 交战结算（Master 8/12：只在战争状态触发；盟友按同侧合并对敌）----

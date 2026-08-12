@@ -48,6 +48,101 @@ const TOOLS: Array = [
 			},
 		},
 	},
+	# ---- 引擎④ 外交 / 战争（Master 8/13 过家家模式：AI 决策由 LLM 经工具落地）----
+	{
+		"type": "function",
+		"function": {
+			"name": "declare_war",
+			"description": "国家宣战：attacker 对 defender 直接开战（引擎④战争）。一般先走外交博弈，LLM 认为时机成熟也可直接宣战。",
+			"parameters": {
+				"type": "object",
+				"properties": {
+					"attacker": {"type": "string", "description": "宣战国 id（如 Scotland）"},
+					"defender": {"type": "string", "description": "被宣战国 id（如 England）"},
+				},
+				"required": ["attacker", "defender"],
+			},
+		},
+	},
+	{
+		"type": "function",
+		"function": {
+			"name": "join_war",
+			"description": "国家加入某场战争的某侧（A=进攻方 / B=防守方），即战时并肩",
+			"parameters": {
+				"type": "object",
+				"properties": {
+					"country_id": {"type": "string", "description": "加入国家 id"},
+					"war_id": {"type": "integer", "description": "战争 id"},
+					"side": {"type": "string", "description": "阵营 A / B"},
+				},
+				"required": ["country_id", "war_id", "side"],
+			},
+		},
+	},
+	{
+		"type": "function",
+		"function": {
+			"name": "start_play",
+			"description": "发起外交博弈：initiator 对 target 提战争目标（如 附庸化 / 吞并 X省 / 独立 / 联合统治），持续 2 个月，期间可站队/改目标/退缩",
+			"parameters": {
+				"type": "object",
+				"properties": {
+					"initiator": {"type": "string", "description": "发起国 id"},
+					"target": {"type": "string", "description": "被发起国 id"},
+					"goal": {"type": "string", "description": "进攻目标（如 附庸化 / 吞并 Lothian）"},
+				},
+				"required": ["initiator", "target", "goal"],
+			},
+		},
+	},
+	{
+		"type": "function",
+		"function": {
+			"name": "join_play",
+			"description": "国家加入某场外交博弈的某侧（A=发起方 / B=防守方），即战前站队",
+			"parameters": {
+				"type": "object",
+				"properties": {
+					"play_id": {"type": "integer", "description": "博弈 id"},
+					"country_id": {"type": "string", "description": "站队国家 id"},
+					"side": {"type": "string", "description": "阵营 A / B"},
+				},
+				"required": ["play_id", "country_id", "side"],
+			},
+		},
+	},
+	{
+		"type": "function",
+		"function": {
+			"name": "set_play_goal",
+			"description": "博弈方修改自己的战争目标",
+			"parameters": {
+				"type": "object",
+				"properties": {
+					"play_id": {"type": "integer", "description": "博弈 id"},
+					"country_id": {"type": "string", "description": "博弈方国家 id"},
+					"goal": {"type": "string", "description": "新目标"},
+				},
+				"required": ["play_id", "country_id", "goal"],
+			},
+		},
+	},
+	{
+		"type": "function",
+		"function": {
+			"name": "back_down",
+			"description": "某侧在外交博弈中退缩 → 对方不战而获目标，退缩方失威望",
+			"parameters": {
+				"type": "object",
+				"properties": {
+					"play_id": {"type": "integer", "description": "博弈 id"},
+					"side": {"type": "string", "description": "退缩的阵营 A / B"},
+				},
+				"required": ["play_id", "side"],
+			},
+		},
+	},
 ]
 
 
@@ -59,6 +154,18 @@ func execute(tool_name: String, args: Dictionary) -> Dictionary:
 			return _modify_service_tendency(args)
 		"trigger_event":
 			return _trigger_event(args)
+		"declare_war":
+			return _declare_war(args)
+		"join_war":
+			return _join_war(args)
+		"start_play":
+			return _start_play(args)
+		"join_play":
+			return _join_play(args)
+		"set_play_goal":
+			return _set_play_goal(args)
+		"back_down":
+			return _back_down(args)
 		_:
 			return {"ok": false, "error": "未知工具: %s" % tool_name}
 
@@ -86,3 +193,57 @@ func _trigger_event(args: Dictionary) -> Dictionary:
 	EventBus.event_triggered.emit(event_id)
 	EventBus.tool_executed.emit("trigger_event", {"event_id": event_id})
 	return {"ok": true, "event_id": event_id}
+
+
+# ---- 引擎④ 外交 / 战争工具（过家家模式：AI 决策由 LLM 落地）----
+
+func _declare_war(args: Dictionary) -> Dictionary:
+	var attacker: String = str(args.get("attacker", ""))
+	var defender: String = str(args.get("defender", ""))
+	var res := GameManager.declare_war(attacker, defender)
+	EventBus.tool_executed.emit("declare_war", {"attacker": attacker, "defender": defender})
+	return res
+
+
+func _join_war(args: Dictionary) -> Dictionary:
+	var cid: String = str(args.get("country_id", ""))
+	var war_id: int = args.get("war_id", 0)
+	var side: String = str(args.get("side", ""))
+	var res := GameManager.add_war_participant(cid, war_id, side)
+	EventBus.tool_executed.emit("join_war", {"country_id": cid, "war_id": war_id, "side": side})
+	return res
+
+
+func _start_play(args: Dictionary) -> Dictionary:
+	var initiator: String = str(args.get("initiator", ""))
+	var target: String = str(args.get("target", ""))
+	var goal: String = str(args.get("goal", ""))
+	var res := GameManager.start_play(initiator, target, goal)
+	EventBus.tool_executed.emit("start_play", {"initiator": initiator, "target": target, "goal": goal})
+	return res
+
+
+func _join_play(args: Dictionary) -> Dictionary:
+	var play_id: int = args.get("play_id", 0)
+	var cid: String = str(args.get("country_id", ""))
+	var side: String = str(args.get("side", ""))
+	var res := GameManager.join_play(play_id, cid, side)
+	EventBus.tool_executed.emit("join_play", {"play_id": play_id, "country_id": cid, "side": side})
+	return res
+
+
+func _set_play_goal(args: Dictionary) -> Dictionary:
+	var play_id: int = args.get("play_id", 0)
+	var cid: String = str(args.get("country_id", ""))
+	var goal: String = str(args.get("goal", ""))
+	var res := GameManager.set_play_goal(play_id, cid, goal)
+	EventBus.tool_executed.emit("set_play_goal", {"play_id": play_id, "country_id": cid, "goal": goal})
+	return res
+
+
+func _back_down(args: Dictionary) -> Dictionary:
+	var play_id: int = args.get("play_id", 0)
+	var side: String = str(args.get("side", ""))
+	var res := GameManager.back_down(play_id, side)
+	EventBus.tool_executed.emit("back_down", {"play_id": play_id, "side": side})
+	return res
