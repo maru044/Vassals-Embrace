@@ -479,13 +479,14 @@ func refresh_army(positions: Dictionary, counts: Dictionary) -> void:
 			lbl.position = Vector3(0.52, -0.06, 0.0)   # 右移，给右侧士气条让位
 			root.add_child(lbl)
 			# 士气条（引擎③）：盾徽右侧竖条，满士气绿色，随士气降低从顶端变短并渐变黄→红（EU4 血条式，无黑色背景）
+			# 直接用网格高度控制长度（不用 scale.y：billboard 材质下节点缩放失效，会导致整条下滑而非变短）
 			var m_max_m: float = GameManager.get_total_morale(cid)
 			var m_cur_m: float = GameManager.get_morale(cid)
 			var m_ratio: float = 1.0 if m_max_m <= 0.0 else clampf(m_cur_m / m_max_m, 0.0, 1.0)
-			var bar_fill := _make_morale_bar(MORALE_BAR_W, MORALE_BAR_H, _morale_color(m_ratio))
-			bar_fill.scale.y = m_ratio
-			# 底部固定在 -H/2，顶端随比例下降（从上面变短）；scale.y 只压缩高度、锚点不变
-			bar_fill.position = Vector3(MORALE_BAR_X, -MORALE_BAR_H * 0.5 + MORALE_BAR_H * m_ratio * 0.5, 0.0)
+			var bar_h: float = MORALE_BAR_H * m_ratio
+			var bar_fill := _make_morale_bar(MORALE_BAR_W, bar_h, _morale_color(m_ratio))
+			# 底部固定在 -H/2、顶端随比例下降（从上面变短）：中心 = 底 + 半高
+			bar_fill.position = Vector3(MORALE_BAR_X, -MORALE_BAR_H * 0.5 + bar_h * 0.5, 0.0)
 			root.add_child(bar_fill)
 			add_child(root)
 			_army_banners[cid] = root
