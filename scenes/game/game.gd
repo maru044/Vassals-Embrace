@@ -13,13 +13,36 @@ const MISSION_NODE_H := 60                              # 任务节点高
 const SHIELD_DIR := "res://assets/shields/"
 const BUILDING_ORDER := ["farm", "market", "brothel", "fort"]   # 省份面板建筑展示顺序
 const BUILDING_CN := {"farm": "农场", "market": "市场", "brothel": "妓院", "fort": "要塞"}
-# 省份风景图（测试：爱尔兰1.png 赋给爱尔兰 17 省；接入引擎③或壳层后按类别查表）
-const LANDSCAPE_IRELAND_PATH := "res://assets/province_landscape/ireland_01.png"
-const _IRELAND_PROVINCES := [
-	"Ulster", "Tyrone", "Tyrconnell", "Breifne", "Westmeath", "Sligo", "Mayo",
-	"Offaly", "Clanricarde", "Thomond", "Wexford", "Pale", "Kildare", "Leinster",
-	"Ormond", "Desmond", "Munster",
-]
+# 省份风景图（省→图片文件名，源 参考图/图标 13 张；7 类按地理地貌，详见 refer/prompts/province_landscape.md）
+const LANDSCAPE_DIR := "res://assets/province_landscape/"
+const _PROVINCE_LANDSCAPE := {
+	# —— 爱尔兰：沿海→02(海岸) / 内陆→01(中部平原) ——
+	"Ulster": "ireland_02.png", "Tyrconnell": "ireland_02.png", "Sligo": "ireland_02.png",
+	"Mayo": "ireland_02.png", "Thomond": "ireland_02.png", "Desmond": "ireland_02.png",
+	"Munster": "ireland_02.png", "Wexford": "ireland_02.png", "Ormond": "ireland_02.png",
+	"Tyrone": "ireland_01.png", "Breifne": "ireland_01.png", "Westmeath": "ireland_01.png",
+	"Offaly": "ireland_01.png", "Clanricarde": "ireland_01.png", "Kildare": "ireland_01.png",
+	"Leinster": "ireland_01.png", "Pale": "ireland_01.png",
+	# —— 英格兰低地：东南田园麦田→01 / 东安格利亚平坦原野→02 ——
+	"London": "england_lowland_01.png", "Home Counties": "england_lowland_01.png",
+	"Wessex": "england_lowland_01.png", "Severn Valley": "england_lowland_01.png",
+	"East Anglia": "england_lowland_02.png", "Lincolnshire": "england_lowland_02.png",
+	# —— 威尔士 ——
+	"Wales": "wales.png",
+	# —— 英格兰丘陵：北部·湖区山谷→01 / 米德兰·西南→02 ——
+	"Yorkshire": "england_hills_01.png", "Northumberland": "england_hills_01.png",
+	"Durham": "england_hills_01.png", "Westmorland": "england_hills_01.png",
+	"Lancashire": "england_hills_01.png",
+	"Midlands": "england_hills_02.png", "Southwest": "england_hills_02.png",
+	# —— 苏格兰低地 ——
+	"Lothian": "scotland.png", "Southern Uplands": "scotland.png",
+	"Central": "scotland.png", "Aberdeen": "scotland.png",
+	# —— 苏格兰高地：尼斯湖湖湾→01 / 山口山脊→02 ——
+	"Highlands": "scotland_highland_01.png", "Sutherland": "scotland_highland_02.png",
+	# —— 群岛：赫布里底峡湾→02 / 海蚀悬崖→01 ——
+	"The Isles": "isles_02.png", "Orkney": "isles_01.png",
+	"Shetland": "isles_01.png", "Isle of Man": "isles_01.png",
+}
 const CountryDetailScene := preload("res://scenes/game/country_detail.tscn")   # 详情栏子场景（编辑器里手动对齐）
 const UI_SLIDE_SECONDS := 0.6
 const UI_FADE_SECONDS := 0.4
@@ -472,8 +495,9 @@ func _build_province_content(province: String, country: String) -> void:
 			row.add_child(up)
 
 	# 省份风景图（测试：爱尔兰 17 省显示 爱尔兰1.png；宽度≈面板内容宽、3:4 等比、底部避让未来边框）
-	if _IRELAND_PROVINCES.has(province) and ResourceLoader.exists(LANDSCAPE_IRELAND_PATH):
-		var tex: Texture2D = load(LANDSCAPE_IRELAND_PATH)
+	var ls_path := LANDSCAPE_DIR + str(_PROVINCE_LANDSCAPE.get(province, ""))
+	if _PROVINCE_LANDSCAPE.has(province) and ResourceLoader.exists(ls_path):
+		var tex: Texture2D = load(ls_path)
 		var tw := 600.0   # 接近左栏内容宽（640 - 两侧边框预留）
 		var th := tw * float(tex.get_size().y) / float(tex.get_size().x)   # 按纹理比例（3:4）
 		var tr := TextureRect.new()
