@@ -571,6 +571,7 @@ func _on_confirm_pressed() -> void:
 	EventBus.country_selected.emit(_selected)
 	EventBus.confirm_country.emit()
 	GameManager.start_new_game(id)   # 引擎①：string 国家 id 初始化运行态数据
+	GameManager.capital_province = _capital_positions()      # 引擎③：首都英文省（撤退/投降判定用）
 	GameManager.init_army_positions(_capital_positions())   # 引擎②-B3-2：军队起始位置 = 各国首都
 	AudioManager.play_game_music()
 	_transition_to_game(id)

@@ -28,6 +28,13 @@ const INIT_ARMY_RATIO := 0.5      # 初始军队 = 上限 50%（向上取整；�
 const ADJACENCY_PATH := "res://data/province_adjacency.json"   # 省份导航图（land/sea）
 const ARMY_MOVE_STEPS := 2        # 每月最多移动 2 格
 
+# ---- 引擎③ 战斗（源 引擎数值备忘.md §六，Master 8/12 定）----
+const BASE_MORALE := 10.0            # 基础士气/队（默认 10）
+const MORALE_RECOVER := 0.2          # 战后每月恢复 20% 最大士气
+const BATTLE_FACTOR := 0.2           # 士气伤害系数（公式 0.2）
+const DICE_MORALE := 0.1             # 骰子修正系数（公式 0.1）
+const CAPITAL_LOST_SURRENDER := 6    # 首都连续沦陷 6 个月 → 自动投降（Master 定）
+
 const COUNTRIES_PATH := "res://data/countries.json"
 
 # 特例初始好感：宗主视角对特定附庸（威尔士=叛乱低、曼岛=乖受保护国高）
@@ -55,6 +62,11 @@ var _adjacency := {}            # 省 -> {邻接省: land/sea}（懒加载）
 # 省份数据（由 game.gd 注入；GDScript 字典按引用共享 → 单一数据源，升级实时反映）
 var province_owner := {}
 var province_buildings := {}
+# ---- 引擎③ 战斗运行态 ----
+var capital_province := {}       # cid -> 首都英文省（game.gd 注入）
+var army_morale := {}            # cid -> 当前士气（上限 = 基础士气×队数）
+var surrender_flag := {}         # cid -> bool（首都被打败 / 沦陷≥6月 → 自动投降）
+var capital_lost_months := {}    # cid -> 首都沦陷连续月数
 
 var _country_list: Array = []   # countries.json（读 liege 关系，用于初始好感）
 
@@ -79,10 +91,14 @@ func start_new_game(country_id: String) -> void:
 	army_position.clear()
 	army_order.clear()
 	return_province.clear()
+	army_morale.clear()          # 引擎③：初始士气 = 总士气
+	surrender_flag.clear()
+	capital_lost_months.clear()
 	for cid in _all_country_ids():
 		country_gold[cid] = START_GOLD
 		country_prestige[cid] = START_PRESTIGE
 		army_count[cid] = _initial_army(cid)   # 引擎②-B1：初始军队 = 上限 50%
+		army_morale[cid] = get_total_morale(cid)   # 引擎③：士气满值
 		if cid != player_country_id:
 			player_favor[cid] = _initial_favor(cid)
 	EventBus.start_game.emit()
@@ -214,6 +230,10 @@ func _settle_month() -> void:
 	recruited_this_month.clear()
 	# 引擎①-AI经营：AI 主动花钱（优先补兵到上限，然后升级经济建筑）
 	_ai_economy()
+	# 引擎③：交战结算（同省相遇）→ 士气归零处理 → 士气恢复 → 首都沦陷计时
+	_resolve_battles()
+	_apply_morale_recovery()
+	_update_capital_occupation()
 	# 行军推进（每月最多 2 格，沿命令 BFS 最短路径；非战时无 ZoC）
 	_advance_army()
 
@@ -252,6 +272,83 @@ func _ai_economy() -> void:
 					gold -= cost
 					b[bname] = lv + 1
 		country_gold[cid] = gold
+
+
+# ===== 引擎③ 战斗结算器（源 引擎数值备忘.md §六，无减员）=====
+
+## 总士气 = 基础士气 × 部队总数
+func get_total_morale(cid: String) -> float:
+	return BASE_MORALE * float(army_count.get(cid, 0))
+
+
+## 当前士气（clamp 到 0..总士气；上限随军队数变化）
+func get_morale(cid: String) -> float:
+	return clampf(army_morale.get(cid, 0.0), 0.0, get_total_morale(cid))
+
+
+## 每月交战：按省分组，同省有多方军队 → 取总士气最高的两方交战（简化）
+func _resolve_battles() -> void:
+	var by_province := {}
+	for cid in army_position:
+		var prov: String = army_position[cid]
+		if not by_province.has(prov):
+			by_province[prov] = []
+		by_province[prov].append(cid)
+	for prov in by_province:
+		var list: Array = by_province[prov]
+		if list.size() < 2:
+			continue
+		list.sort_custom(func(a: String, b: String) -> bool:
+			return get_total_morale(a) > get_total_morale(b))
+		_resolve_battle(str(list[0]), str(list[1]))
+
+
+## 单场交战：双方各投 D10，伤害 = max(双方总士气) × 0.2 × (1 + 0.1 × 骰子点数)
+func _resolve_battle(a: String, b: String) -> void:
+	if a == b:
+		return
+	var dmg_base: float = maxf(get_total_morale(a), get_total_morale(b)) * BATTLE_FACTOR
+	army_morale[a] = get_morale(a) - dmg_base * (1.0 + DICE_MORALE * float(Dice.d10()))
+	army_morale[b] = get_morale(b) - dmg_base * (1.0 + DICE_MORALE * float(Dice.d10()))
+	_handle_routed(a)
+	_handle_routed(b)
+
+
+## 士气归零：军队撤退至首都；已在首都 → 即时自动投降标记（Master 定：首都被打败即降）
+func _handle_routed(cid: String) -> void:
+	if get_morale(cid) > 0.0:
+		return
+	var cap: String = capital_province.get(cid, "")
+	if cap.is_empty():
+		return
+	if army_position.get(cid, "") == cap:
+		surrender_flag[cid] = true
+	else:
+		army_position[cid] = cap   # 撤退回首都
+		army_order[cid] = ""
+
+
+## 士气恢复：未投降军队每月恢复 20% 最大士气（上限 = 总士气）
+func _apply_morale_recovery() -> void:
+	for cid in army_count:
+		if surrender_flag.get(cid, false):
+			continue
+		var max_m: float = get_total_morale(cid)
+		army_morale[cid] = minf(get_morale(cid) + max_m * MORALE_RECOVER, max_m)
+
+
+## 首都沦陷计时：本方首都非本国所有 → 累计；收复清零；连续沦陷 ≥6 月 → 自动投降
+func _update_capital_occupation() -> void:
+	for cid in army_count:
+		var cap: String = capital_province.get(cid, "")
+		if cap.is_empty():
+			continue
+		if province_owner.get(cap, "") == cid:
+			capital_lost_months[cid] = 0
+		else:
+			capital_lost_months[cid] = capital_lost_months.get(cid, 0) + 1
+			if capital_lost_months[cid] >= CAPITAL_LOST_SURRENDER:
+				surrender_flag[cid] = true
 
 
 ## 建筑升级费用：初始 100，每级 ×1.5（lv1→2 100 / 2→3 150 / 3→4 225）
