@@ -68,6 +68,8 @@ var army_morale := {}            # cid -> 当前士气（上限 = 基础士气×
 var surrender_flag := {}         # cid -> bool（首都被打败 / 沦陷≥6月 → 自动投降）
 var capital_lost_months := {}    # cid -> 首都沦陷连续月数
 var siege_target := {}           # cid -> 围城目标省（引擎③-T4 驻留判定）
+# ---- 引擎④-T5 AI 军队状态机（Master 8/12：AI 军队行动走状态机，非 LLM）----
+var ai_army_state := {}          # cid -> FREE/MARCH_SIEGE/SIEGING/MARCH_RELIEF/REINFORCE
 # ---- 引擎④-战争前置（Master 8/12：战斗只在战争状态发生，盟友同侧不互打）----
 var wars := []                   # 每项 {id:int, attacker:[cid...], defender:[cid...]}
 var _next_war_id := 1
@@ -104,6 +106,7 @@ func start_new_game(country_id: String) -> void:
 	surrender_flag.clear()
 	capital_lost_months.clear()
 	siege_target.clear()         # 引擎③-T4：新档无围城
+	ai_army_state.clear()        # 引擎④-T5：新档 AI 军队全部 FREE
 	wars.clear()                 # 引擎④-战争前置：新档无战争
 	_next_war_id = 1
 	plays.clear()                # 引擎④：新档无外交博弈
@@ -251,6 +254,8 @@ func _settle_month() -> void:
 	_update_capital_occupation()
 	# 引擎④：外交博弈推进（deadline -1，到期开战）
 	_tick_plays()
+	# 引擎④-T5：AI 军队状态机决策（停战回 FREE / 首都沦陷解围 / 友军激战增援 / 默认围敌方首都，ZoC 阻挡先攻要塞）
+	_tick_ai_armies()
 	# 行军推进（每月最多 2 格，沿命令 BFS 最短路径；非战时无 ZoC）
 	_advance_army()
 
@@ -827,6 +832,114 @@ func find_blocking_fort(cid: String, target: String) -> String:
 		if not _can_enter_province(cid, prov, path[i - 1]):
 			return _zoc_source_for(prov, cid)
 	return ""
+
+
+# ===== 引擎④-T5 AI 军队状态机（Master 8/12：AI 军队行动走状态机，非 LLM）=====
+## 状态：FREE 空闲 / MARCH_SIEGE 前往敌方首都 / SIEGING 围城中 / MARCH_RELIEF 回防解围 / REINFORCE 增援激战友军
+
+## 该军队当前省是否有敌方军队（正在交战 → 驻留战斗，不打断）
+func _in_battle_now(cid: String) -> bool:
+	var prov: String = army_position.get(cid, "")
+	if prov.is_empty():
+		return false
+	for enemy in _at_war_with(cid):
+		if army_position.get(enemy, "") == prov:
+			return true
+	return false
+
+
+## cid 的敌方首都（默认作战目标；无交战国返回 ""）
+func _enemy_capital(cid: String) -> String:
+	for w in wars:
+		var side_a: Array = w["attacker"]
+		var side_b: Array = w["defender"]
+		var enemies: Array = []
+		if side_a.has(cid):
+			enemies = side_b
+		elif side_b.has(cid):
+			enemies = side_a
+		else:
+			continue
+		if enemies.is_empty():
+			return ""
+		return capital_province.get(enemies[0], "")
+	return ""
+
+
+## 增援目标：友军所在且正与敌方交战（同省有敌兵）的省；无返回 ""
+func _reinforce_target(cid: String) -> String:
+	for w in wars:
+		var side_a: Array = w["attacker"]
+		var side_b: Array = w["defender"]
+		var allies: Array = []
+		var enemies: Array = []
+		if side_a.has(cid):
+			allies = side_a
+			enemies = side_b
+		elif side_b.has(cid):
+			allies = side_b
+			enemies = side_a
+		else:
+			continue
+		for ally in allies:
+			if ally == cid:
+				continue
+			var prov: String = army_position.get(ally, "")
+			if prov.is_empty():
+				continue
+			for e in enemies:
+				if army_position.get(e, "") == prov:
+					return prov
+	return ""
+
+
+## 是否有友军正在战斗（有增援目标即视为有）
+func _ally_in_battle(cid: String) -> bool:
+	return _reinforce_target(cid) != ""
+
+
+## AI 军队每月决策（在 _settle_month 内、行军前调用）：
+## 停战→FREE；首都沦陷→解围（最高优先）；围城中→驻留；自由且友军激战→增援；默认→围敌方首都（ZoC 阻挡先攻要塞）
+func _tick_ai_armies() -> void:
+	for cid in army_count:
+		if cid == player_country_id:
+			continue   # 玩家军队由玩家 UI 控制
+		# 停战 / 已投降 → 回 FREE 原地待命
+		if not _in_war(cid) or surrender_flag.get(cid, false):
+			ai_army_state[cid] = "FREE"
+			army_order[cid] = ""
+			continue
+		# 正在交战 → 驻留该省继续战斗（不打断）
+		if _in_battle_now(cid):
+			army_order[cid] = ""
+			continue
+		# 持续围城：已在敌方省驻留且破城判定进行中 → 不动
+		if ai_army_state.get(cid, "") == "SIEGING" and siege_target.get(cid, "") != "":
+			army_order[cid] = ""
+			continue
+		var cap: String = capital_province.get(cid, "")
+		var cap_lost: bool = not cap.is_empty() and province_owner.get(cap, "") != cid
+		var target := ""
+		if cap_lost:
+			# ① 本方首都沦陷 → 解围（最高优先）
+			ai_army_state[cid] = "MARCH_RELIEF"
+			target = cap
+		elif _ally_in_battle(cid):
+			# ② 自由且友军正在战斗 → 增援
+			ai_army_state[cid] = "REINFORCE"
+			target = _reinforce_target(cid)
+		else:
+			# ③ 默认 → 围敌方首都（ZoC 阻挡则先攻要塞清障）
+			ai_army_state[cid] = "MARCH_SIEGE"
+			target = _enemy_capital(cid)
+			var blk := find_blocking_fort(cid, target)
+			if blk != "":
+				target = blk
+		if target == army_position.get(cid, ""):
+			ai_army_state[cid] = "SIEGING"   # 已到达目标 → 围城（驻留，破城判定交给 _resolve_sieges）
+			army_order[cid] = ""
+		else:
+			army_order[cid] = target
 
 
 ## 某国军队在 max_steps 步可达的省份（不含自身；陆/海不区分——Master 定：邻接线即道路，海峡可通行）。
