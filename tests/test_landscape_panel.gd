@@ -22,7 +22,7 @@ func _initialize() -> void:
 		"The Isles": "isles_02.png",         # 群岛赫布里底
 		"East Anglia": "england_lowland_02.png",   # 低地东安格利亚
 		"Midlands": "england_hills_02.png",  # 丘陵米德兰
-		"Lothian": "scotland.png",           # 苏格兰低地
+		"Lothian": "edinburgh.png",          # 苏格兰低地（爱丁堡专属图）
 	}
 	for province in checks:
 		for c in body.get_children():
