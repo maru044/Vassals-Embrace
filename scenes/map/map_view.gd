@@ -27,12 +27,11 @@ const SHIELD_DIR := "res://assets/shields/"
 const ARMY_BANNER_LIFT := 1.1          # 兵牌浮起高度（相对省份地表，高于要塞图标）
 const ARMY_BANNER_ALPHA := 0.75        # 军队盾徽透明度（Master：半透明；数字保持不透明）
 const ARMY_BANNER_STACK_GAP := 0.85    # 同省多军队兵牌垂直堆叠间距（Master：上下放置）
-# 引擎③ 士气条（盾徽右侧竖条，血条式；绿色按当前士气/总士气比例）
+# 引擎③ 士气条（盾徽右侧绿色竖条，长度随士气变化，与盾徽同高；Master：不要黑色背景）
 const MORALE_BAR_W := 0.07             # 士气条宽度
-const MORALE_BAR_H := 1.5              # 士气条高度（满值）
+const MORALE_BAR_H := 0.5              # 士气条满值高度（与盾徽高度一致）
 const MORALE_BAR_X := 0.36             # 士气条 X 偏移（盾徽右缘外侧）
 const MORALE_BAR_FULL := Color(0.3, 0.95, 0.35, 0.95)   # 士气条绿色（满士气）
-const MORALE_BAR_BG := Color(0.12, 0.1, 0.08, 0.85)     # 士气条底色
 const ICON_SHOW_ZOOM := 0.35           # 镜头远景（zoom 低于此）隐藏要塞/军队图标（Master：远景更美观）
 
 # ---- 引擎②-B3-2c 兵牌交互 ----
@@ -475,13 +474,10 @@ func refresh_army(positions: Dictionary, counts: Dictionary) -> void:
 			lbl.outline_size = 6
 			lbl.position = Vector3(0.52, -0.06, 0.0)   # 右移，给右侧士气条让位
 			root.add_child(lbl)
-			# 士气条（引擎③）：盾徽右侧竖条，绿色按 当前士气/总士气 比例（血条式，从底部向上）
+			# 士气条（引擎③）：盾徽右侧绿色竖条，长度随士气变化（血条式，从底部向上；无黑色背景）
 			var m_max_m: float = GameManager.get_total_morale(cid)
 			var m_cur_m: float = GameManager.get_morale(cid)
 			var m_ratio: float = 1.0 if m_max_m <= 0.0 else clampf(m_cur_m / m_max_m, 0.0, 1.0)
-			var bar_bg := _make_morale_bar(MORALE_BAR_W, MORALE_BAR_H, MORALE_BAR_BG)
-			bar_bg.position = Vector3(MORALE_BAR_X, 0.0, 0.0)
-			root.add_child(bar_bg)
 			var bar_fill := _make_morale_bar(MORALE_BAR_W, MORALE_BAR_H, MORALE_BAR_FULL)
 			bar_fill.scale.y = m_ratio
 			bar_fill.position = Vector3(MORALE_BAR_X, -MORALE_BAR_H * 0.5 + MORALE_BAR_H * m_ratio * 0.5, 0.0)
