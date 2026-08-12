@@ -34,9 +34,9 @@ const _PROVINCE_LANDSCAPE := {
 	"Durham": "england_hills_01.png", "Westmorland": "england_hills_01.png",
 	"Lancashire": "england_hills_01.png",
 	"Midlands": "england_hills_02.png", "Southwest": "england_hills_02.png",
-	# —— 苏格兰低地（洛锡安 = 爱丁堡专属图，Master 提供）——
+	# —— 苏格兰低地（洛锡安=爱丁堡、阿伯丁=专属图）——
 	"Lothian": "edinburgh.png", "Southern Uplands": "scotland.png",
-	"Central": "scotland.png", "Aberdeen": "scotland.png",
+	"Central": "scotland.png", "Aberdeen": "aberdeen.png",
 	# —— 苏格兰高地：尼斯湖湖湾→01 / 山口山脊→02 ——
 	"Highlands": "scotland_highland_01.png", "Sutherland": "scotland_highland_02.png",
 	# —— 群岛：赫布里底峡湾→02 / 海蚀悬崖→01 ——

@@ -26,6 +26,7 @@ func _initialize() -> void:
 		"London": "london.png",              # 伦敦专属
 		"Pale": "dublin.png",                # 都柏林专属（Pale 英租界）
 		"Yorkshire": "york.png",             # 约克专属
+		"Aberdeen": "aberdeen.png",          # 阿伯丁专属
 	}
 	for province in checks:
 		for c in body.get_children():
