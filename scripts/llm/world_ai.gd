@@ -112,5 +112,14 @@ func _world_state_text() -> String:
 		lines.append("进行中的战争：")
 		for w in GameManager.wars:
 			lines.append("  战争#%s：A方%s vs B方%s" % [str(w.get("id", "")), str(w.get("attacker", [])), str(w.get("defender", []))])
+	# 投降告知（Master 8/13：投降不自动结束战争/割地，和平条款全交 LLM 对话，只需让 LLM 知道谁投降了）
+	var surrendered: Array[String] = []
+	for cid in GameManager.army_count:
+		if GameManager.surrender_flag.get(cid, false):
+			surrendered.append(str(cid))
+	if surrendered.is_empty():
+		lines.append("已投降国家：无")
+	else:
+		lines.append("已投降国家（已无条件投降，可谈和平条款/割地）：%s" % ", ".join(surrendered))
 	lines.append("请决定本月 AI 国家的外交动作（用工具；无事可做就什么都别调）。")
 	return "\n".join(lines)

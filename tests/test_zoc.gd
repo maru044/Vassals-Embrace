@@ -73,6 +73,31 @@ func _initialize() -> void:
 	out.append("enemy Scotland D->H path = [%s] must pass fort F: %s" % [", ".join(p_scot), p_scot.has("F")])
 	out.append("ZoC flip ally free / enemy forced: %s" % (not p_eng.is_empty() and p_scot.has("F")))
 
+	# ⑥ 返回省份规则（Master 8/13 补全）：仅离开非 ZoC 省时更新；落入敌方 ZoC 自动清除
+	gm.set("wars", [])
+	gm.set("province_owner", {"H": "England", "X": "Scotland", "F": "Scotland", "D": "Scotland"})
+	gm.set("province_buildings", {"H": {"fort": 0}, "X": {"fort": 0}, "F": {"fort": 3}, "D": {"fort": 0}})
+	gm.call("declare_war", "England", "Scotland")
+	# ⑥a 离开安全省 H → 返回省份更新为 H
+	gm.set("army_position", {"England": "H"})
+	gm.set("army_order", {"England": "F"})
+	gm.set("return_province", {"England": ""})
+	gm.call("_advance_army")
+	var rp1: Dictionary = gm.get("return_province")
+	out.append("rp: leave safe H -> return_province = H: %s (rp=%s)" % [rp1.get("England", "") == "H", rp1.get("England", "")])
+	# ⑥b 已在敌方 ZoC（X）内移动 → 返回省份不更新（保持 H）
+	gm.set("army_position", {"England": "X"})
+	gm.set("army_order", {"England": "F"})
+	gm.set("return_province", {"England": "H"})
+	gm.call("_advance_army")
+	var rp2: Dictionary = gm.get("return_province")
+	out.append("rp: leave ZoC X -> NOT updated (stays H): %s (rp=%s)" % [rp2.get("England", "") == "H", rp2.get("England", "")])
+	# ⑥c 返回省份落入敌方 ZoC → 自动清除
+	gm.set("return_province", {"England": "X"})   # X 在 F 的 ZoC 内
+	gm.call("_refresh_return_provinces")
+	var rp3: Dictionary = gm.get("return_province")
+	out.append("rp: return_province in enemy ZoC -> cleared: %s (rp='%s')" % [rp3.get("England", "") == "", rp3.get("England", "")])
+
 	root.remove_child(gm)
 	gm.free()
 	out.append("TEST_DONE")

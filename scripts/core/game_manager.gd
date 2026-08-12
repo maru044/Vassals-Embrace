@@ -254,6 +254,8 @@ func _settle_month() -> void:
 	_resolve_sieges()
 	_apply_morale_recovery()
 	_update_capital_occupation()
+	# 引擎③-返回省份（Master 8/13 补全规则）：返回省份落入敌方 ZoC → 自动清除
+	_refresh_return_provinces()
 	# 引擎④：外交博弈推进（deadline -1，到期开战）
 	_tick_plays()
 	# 引擎④-T5：AI 军队状态机决策（停战回 FREE / 首都沦陷解围 / 友军激战增援 / 默认围敌方首都，ZoC 阻挡先攻要塞）
@@ -1080,7 +1082,17 @@ func _shortest_path_zoc(cid: String, from: String, to: String) -> Array:
 	return []
 
 
-## 月末推进：各国沿命令朝目标走最多 2 格；到达后清除命令；返回省份更新为旧位置。
+## 返回省份刷新（_settle_month 调用，Master 8/13 补全规则）：返回省份本身落入敌方 ZoC → 自动清除
+func _refresh_return_provinces() -> void:
+	for cid in army_position:
+		var rp: String = return_province.get(cid, "")
+		if rp == "":
+			continue
+		if _enemy_zoc(cid).has(rp):
+			return_province[cid] = ""   # 返回省份已被敌方 ZoC 覆盖 → 清除
+
+
+## 月末推进：各国沿命令朝目标走最多 2 格；到达后清除命令；返回省份仅离开非 ZoC 省时更新。
 ## 引擎④-T4 ZoC：战争时走 ZoC 感知路径，被敌方要塞阻挡 → 原地待命（AI 应改目标先攻要塞；玩家 UI 已拦截）
 func _advance_army() -> void:
 	for cid in army_position:
@@ -1096,7 +1108,8 @@ func _advance_army() -> void:
 			continue
 		var steps := mini(path.size() - 1, ARMY_MOVE_STEPS)
 		var new_pos: String = path[steps]
-		return_province[cid] = from
+		if not _enemy_zoc(cid).has(from):
+			return_province[cid] = from   # 仅离开非 ZoC（安全）省时更新返回省份（Master 8/13 补全）
 		army_position[cid] = new_pos
 		if new_pos == target:
 			army_order[cid] = ""
