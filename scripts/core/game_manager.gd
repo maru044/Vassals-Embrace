@@ -67,6 +67,9 @@ var capital_province := {}       # cid -> 首都英文省（game.gd 注入）
 var army_morale := {}            # cid -> 当前士气（上限 = 基础士气×队数）
 var surrender_flag := {}         # cid -> bool（首都被打败 / 沦陷≥6月 → 自动投降）
 var capital_lost_months := {}    # cid -> 首都沦陷连续月数
+# ---- 引擎④-战争前置（Master 8/12：战斗只在战争状态发生，盟友同侧不互打）----
+var wars := []                   # 每项 {id:int, attacker:[cid...], defender:[cid...]}
+var _next_war_id := 1
 
 var _country_list: Array = []   # countries.json（读 liege 关系，用于初始好感）
 
@@ -94,6 +97,8 @@ func start_new_game(country_id: String) -> void:
 	army_morale.clear()          # 引擎③：初始士气 = 总士气
 	surrender_flag.clear()
 	capital_lost_months.clear()
+	wars.clear()                 # 引擎④-战争前置：新档无战争
+	_next_war_id = 1
 	for cid in _all_country_ids():
 		country_gold[cid] = START_GOLD
 		country_prestige[cid] = START_PRESTIGE
@@ -295,7 +300,81 @@ func debug_damage_morale(cid: String, ratio: float) -> Dictionary:
 	return {"ok": true, "morale": army_morale[cid], "max": max_m}
 
 
-## 每月交战：按省分组，同省有多方军队 → 取总士气最高的两方交战（简化）
+## ---- 战争判定（引擎④前置）----
+
+## 某国所属战争与阵营；未参战返回 {}（简化：一国同时只在一场战争）
+func _war_affiliation(cid: String) -> Dictionary:
+	for w in wars:
+		if w["attacker"].has(cid):
+			return {"war_id": int(w["id"]), "side": "A"}
+		if w["defender"].has(cid):
+			return {"war_id": int(w["id"]), "side": "B"}
+	return {}
+
+
+## a、b 是否在同一场战争的敌对阵营（同一战争的 A 对 B）
+func _are_at_war(a: String, b: String) -> bool:
+	if a == b:
+		return false
+	var wa := _war_affiliation(a)
+	var wb := _war_affiliation(b)
+	if wa.is_empty() or wb.is_empty():
+		return false
+	return int(wa["war_id"]) == int(wb["war_id"]) and wa["side"] != wb["side"]
+
+
+## a、b 是否为盟友（同一战争的同侧；或同一国家）
+func _are_allies(a: String, b: String) -> bool:
+	if a == b:
+		return true
+	var wa := _war_affiliation(a)
+	var wb := _war_affiliation(b)
+	if wa.is_empty() or wb.is_empty():
+		return false
+	return int(wa["war_id"]) == int(wb["war_id"]) and wa["side"] == wb["side"]
+
+
+## 宣战：attacker 对 defender 开战（后续可加入盟友/附庸）
+func declare_war(attacker: String, defender: String) -> Dictionary:
+	if attacker == defender:
+		return {"ok": false, "error": "不能对自己宣战"}
+	if _are_at_war(attacker, defender):
+		return {"ok": false, "error": "双方已处于战争状态"}
+	wars.append({"id": _next_war_id, "attacker": [attacker], "defender": [defender]})
+	var wid := _next_war_id
+	_next_war_id += 1
+	EventBus.war_started.emit(wid)
+	return {"ok": true, "war_id": wid}
+
+
+## 加入战争某侧（盟友/附庸入战；side: "A" 进攻方 / "B" 防守方）
+func add_war_participant(cid: String, war_id: int, side: String) -> Dictionary:
+	if not _war_affiliation(cid).is_empty():
+		return {"ok": false, "error": "该国家已参与其他战争"}
+	for w in wars:
+		if int(w["id"]) != war_id:
+			continue
+		var list: Array = w["attacker"] if side == "A" else w["defender"]
+		if list.has(cid):
+			return {"ok": false, "error": "已在该阵营"}
+		list.append(cid)
+		return {"ok": true}
+	return {"ok": false, "error": "战争不存在"}
+
+
+## 结束战争（议和/投降后移除参战关系）
+func end_war(war_id: int) -> Dictionary:
+	for i in wars.size():
+		if int(wars[i]["id"]) == war_id:
+			wars.remove_at(i)
+			EventBus.war_ended.emit(war_id)
+			return {"ok": true}
+	return {"ok": false, "error": "战争不存在"}
+
+
+## ---- 交战结算（Master 8/12：只在战争状态触发；盟友按同侧合并对敌）----
+
+## 每月交战：按省分组 → 省内战解析（仅战争双方相遇才交战，和平/中立不参战）
 func _resolve_battles() -> void:
 	var by_province := {}
 	for cid in army_position:
@@ -304,23 +383,51 @@ func _resolve_battles() -> void:
 			by_province[prov] = []
 		by_province[prov].append(cid)
 	for prov in by_province:
-		var list: Array = by_province[prov]
-		if list.size() < 2:
+		_resolve_province_battles(by_province[prov])
+
+
+## 省内交战：按 (战争, 阵营) 分组，同一战争的两侧各自合并所有盟友，只交战双方
+func _resolve_province_battles(list: Array) -> void:
+	var war_groups := {}   # war_id -> {"A": [cid...], "B": [cid...]}
+	for cid in list:
+		var aff := _war_affiliation(cid)
+		if aff.is_empty():
+			continue   # 中立 / 未参战国：和平时期不参战
+		var wid: int = int(aff["war_id"])
+		if not war_groups.has(wid):
+			war_groups[wid] = {"A": [], "B": []}
+		war_groups[wid][aff["side"]].append(cid)
+	for wid in war_groups:
+		var side_a: Array = war_groups[wid]["A"]
+		var side_b: Array = war_groups[wid]["B"]
+		if side_a.is_empty() or side_b.is_empty():
 			continue
-		list.sort_custom(func(a: String, b: String) -> bool:
-			return get_total_morale(a) > get_total_morale(b))
-		_resolve_battle(str(list[0]), str(list[1]))
+		_resolve_battle_sides(side_a, side_b)
 
 
-## 单场交战：双方各投 D10，伤害 = max(双方总士气) × 0.2 × (1 + 0.1 × 骰子点数)
-func _resolve_battle(a: String, b: String) -> void:
-	if a == b:
-		return
-	var dmg_base: float = maxf(get_total_morale(a), get_total_morale(b)) * BATTLE_FACTOR
-	army_morale[a] = get_morale(a) - dmg_base * (1.0 + DICE_MORALE * float(Dice.d10()))
-	army_morale[b] = get_morale(b) - dmg_base * (1.0 + DICE_MORALE * float(Dice.d10()))
-	_handle_routed(a)
-	_handle_routed(b)
+## 单场交战（两侧）：双方各投 D10，伤害 = max(两侧总士气) × 0.2 × (1 + 0.1 × 骰子)
+## 侧总伤害按各军队占比分摊给盟友；士气归零走撤退/投降
+func _resolve_battle_sides(side_a: Array, side_b: Array) -> void:
+	var a_total: float = 0.0
+	var b_total: float = 0.0
+	for cid in side_a:
+		a_total += get_total_morale(cid)
+	for cid in side_b:
+		b_total += get_total_morale(cid)
+	var dmg_base: float = maxf(a_total, b_total) * BATTLE_FACTOR
+	_apply_side_damage(side_a, dmg_base * (1.0 + DICE_MORALE * float(Dice.d10())), a_total)
+	_apply_side_damage(side_b, dmg_base * (1.0 + DICE_MORALE * float(Dice.d10())), b_total)
+	for cid in side_a:
+		_handle_routed(cid)
+	for cid in side_b:
+		_handle_routed(cid)
+
+
+## 按军队占比分摊侧总伤害（单军侧占比=1，与旧公式一致）
+func _apply_side_damage(side: Array, dmg: float, side_total: float) -> void:
+	for cid in side:
+		var share: float = get_total_morale(cid) / maxf(side_total, 0.001)
+		army_morale[cid] = get_morale(cid) - dmg * share
 
 
 ## 士气归零：军队撤退至首都；已在首都 → 即时自动投降标记（Master 定：首都被打败即降）
