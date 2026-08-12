@@ -34,6 +34,7 @@ const MORALE_BAR_X := 0.36             # 士气条 X 偏移（盾徽右缘外侧
 const MORALE_COL_FULL := Color(0.3, 0.95, 0.35, 0.95)   # 满士气：绿
 const MORALE_COL_MID := Color(0.98, 0.82, 0.15, 0.95)   # 半士气：黄
 const MORALE_COL_LOW := Color(0.95, 0.25, 0.15, 0.95)   # 低士气：红
+const SIEGE_LABEL_X := 0.66            # 围城破城概率文字 X 偏移（兵牌最右侧）
 const ICON_SHOW_ZOOM := 0.35           # 镜头远景（zoom 低于此）隐藏要塞/军队图标（Master：远景更美观）
 
 # ---- 引擎②-B3-2c 兵牌交互 ----
@@ -488,6 +489,22 @@ func refresh_army(positions: Dictionary, counts: Dictionary) -> void:
 			# 底部固定在 -H/2、顶端随比例下降（从上面变短）：中心 = 底 + 半高
 			bar_fill.position = Vector3(MORALE_BAR_X, -MORALE_BAR_H * 0.5 + bar_h * 0.5, 0.0)
 			root.add_child(bar_fill)
+			# 围城下城概率（引擎③-T4）：军队图标最右侧显示「破城X%」（仅围城中，金色小字）
+			var siege_chance: float = GameManager.get_siege_chance(cid)
+			if siege_chance > 0.0:
+				var slbl := Label3D.new()
+				slbl.text = "破城%d%%" % int(round(siege_chance * 100.0))
+				slbl.font = font
+				slbl.font_size = 24
+				slbl.pixel_size = 0.009
+				slbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+				slbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				slbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+				slbl.modulate = Color(1.0, 0.85, 0.3)
+				slbl.outline_modulate = Color(0.1, 0.08, 0.06)
+				slbl.outline_size = 6
+				slbl.position = Vector3(SIEGE_LABEL_X, -0.02, 0.0)
+				root.add_child(slbl)
 			add_child(root)
 			_army_banners[cid] = root
 	# 兵牌重建后重绘选中/命令指示（月末军队移动后跟随）

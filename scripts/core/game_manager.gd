@@ -67,6 +67,7 @@ var capital_province := {}       # cid -> 首都英文省（game.gd 注入）
 var army_morale := {}            # cid -> 当前士气（上限 = 基础士气×队数）
 var surrender_flag := {}         # cid -> bool（首都被打败 / 沦陷≥6月 → 自动投降）
 var capital_lost_months := {}    # cid -> 首都沦陷连续月数
+var siege_target := {}           # cid -> 围城目标省（引擎③-T4 驻留判定）
 # ---- 引擎④-战争前置（Master 8/12：战斗只在战争状态发生，盟友同侧不互打）----
 var wars := []                   # 每项 {id:int, attacker:[cid...], defender:[cid...]}
 var _next_war_id := 1
@@ -97,6 +98,7 @@ func start_new_game(country_id: String) -> void:
 	army_morale.clear()          # 引擎③：初始士气 = 总士气
 	surrender_flag.clear()
 	capital_lost_months.clear()
+	siege_target.clear()         # 引擎③-T4：新档无围城
 	wars.clear()                 # 引擎④-战争前置：新档无战争
 	_next_war_id = 1
 	for cid in _all_country_ids():
@@ -235,8 +237,9 @@ func _settle_month() -> void:
 	recruited_this_month.clear()
 	# 引擎①-AI经营：AI 主动花钱（优先补兵到上限，然后升级经济建筑）
 	_ai_economy()
-	# 引擎③：交战结算（同省相遇）→ 士气归零处理 → 士气恢复 → 首都沦陷计时
+	# 引擎③：交战结算（同省相遇）→ 围城破城 → 士气恢复 → 首都沦陷计时
 	_resolve_battles()
+	_resolve_sieges()
 	_apply_morale_recovery()
 	_update_capital_occupation()
 	# 行军推进（每月最多 2 格，沿命令 BFS 最短路径；非战时无 ZoC）
@@ -451,6 +454,41 @@ func _apply_morale_recovery() -> void:
 			continue
 		var max_m: float = get_total_morale(cid)
 		army_morale[cid] = minf(get_morale(cid) + max_m * MORALE_RECOVER, max_m)
+
+
+## ---- 引擎③-T4 围城（Master 8/12：驻留敌方省 + 每月破城 1/(fort+1) + 临时占领 + 地图刷新）----
+
+## 围城破城概率（兵牌显示用）：非围城 0；无要塞 100%；有要塞 1/(fort+1)
+func get_siege_chance(cid: String) -> float:
+	var prov: String = army_position.get(cid, "")
+	var owner: String = province_owner.get(prov, "")
+	if owner.is_empty() or owner == cid or not _are_at_war(cid, owner):
+		return 0.0
+	var fort: int = int(province_buildings.get(prov, {}).get("fort", 0))
+	return 1.0 if fort < 1 else 1.0 / float(fort + 1)
+
+
+## 每月围城判定：驻留敌方省 → 标记围城 → Dice.chance(1/(fort+1)) 破城 → 临时占领
+func _resolve_sieges() -> void:
+	for cid in army_position:
+		var prov: String = army_position[cid]
+		var owner: String = province_owner.get(prov, "")
+		if owner.is_empty() or owner == cid or not _are_at_war(cid, owner):
+			siege_target[cid] = ""    # 非围城（本国/非敌省/中立）
+			continue
+		siege_target[cid] = prov      # 驻留敌方省：围城中
+		var fort: int = int(province_buildings.get(prov, {}).get("fort", 0))
+		var p: float = 1.0 if fort < 1 else 1.0 / float(fort + 1)
+		if Dice.chance(p):
+			_take_province(prov, cid, owner)
+
+
+## 破城/临时占领：省份归属改攻方 + 敌首都破城即时投降标记（引擎④ 处理和约/割让）
+func _take_province(prov: String, cid: String, prev_owner: String) -> void:
+	province_owner[prov] = cid
+	siege_target[cid] = ""
+	if capital_province.get(prev_owner, "") == prov:
+		surrender_flag[prev_owner] = true    # 敌方首都被攻破 → 无条件投降标记
 
 
 ## 首都沦陷计时：本方首都非本国所有 → 累计；收复清零；连续沦陷 ≥6 月 → 自动投降

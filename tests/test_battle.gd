@@ -1,6 +1,7 @@
 extends SceneTree
 ## 引擎③ 战斗结算器冒烟测试：士气公式 / 交战伤害 / 无减员 / 撤退 / 即时投降 / 恢复 / 首都沦陷计时
-## 引擎④-战争前置：只在战争状态交战 + 盟友同侧合并对敌（Master 8/12）
+## 引擎④-战争前置：只在战争状态交战 + 盟友同侧合并对敌不互打
+## 引擎③-T4 围城：无要塞直接占领 / 有要塞 1/(fort+1) / 敌首都破城即降 / 破城概率查询
 ## 运行：godot --headless --path . --script res://tests/test_battle.gd
 
 const RESULT_PATH := "user://test_battle_result.txt"
@@ -14,7 +15,8 @@ func _initialize() -> void:
 	gm.set("player_country_id", "England")
 	gm.set("army_count", {"England": 13, "Scotland": 6, "Wales": 4})
 	gm.set("capital_province", {"England": "London", "Scotland": "Lothian", "Wales": "Glamorgan"})
-	gm.set("province_owner", {"London": "England", "Lothian": "Scotland", "Glamorgan": "Wales"})
+	gm.set("province_owner", {"London": "England", "Lothian": "Scotland", "Glamorgan": "Wales", "Highlands": "Scotland"})
+	gm.set("province_buildings", {"London": {"fort": 2}, "Lothian": {"fort": 2}, "Glamorgan": {"fort": 0}, "Highlands": {"fort": 0}})
 
 	# ① 总士气公式：基础士气 10 × 队数
 	out.append("England total morale = %d (expect 130)" % int(gm.call("get_total_morale", "England")))
@@ -68,7 +70,7 @@ func _initialize() -> void:
 	# ⑦ 首都沦陷 ≥6 月 → 自动投降
 	gm.set("surrender_flag", {})
 	gm.set("capital_lost_months", {})
-	gm.set("province_owner", {"London": "England", "Lothian": "England"})   # Scotland 首都被占
+	gm.set("province_owner", {"London": "England", "Lothian": "England", "Glamorgan": "Wales", "Highlands": "Scotland"})   # Scotland 首都被占
 	for i in 5:
 		gm.call("_update_capital_occupation")
 	out.append("Scotland capital lost 5mo surrendered=%s (expect false)" % gm.get("surrender_flag").get("Scotland", false))
@@ -77,7 +79,7 @@ func _initialize() -> void:
 
 	# ⑧ 盟友同侧合并对敌、同侧不互打（England+Wales 同盟 vs Scotland，三军同省）
 	gm.set("wars", [])
-	gm.set("province_owner", {"London": "England", "Lothian": "Scotland", "Glamorgan": "Wales"})
+	gm.set("province_owner", {"London": "England", "Lothian": "Scotland", "Glamorgan": "Wales", "Highlands": "Scotland"})
 	gm.set("army_position", {"England": "Lothian", "Wales": "Lothian", "Scotland": "Lothian"})
 	gm.set("army_morale", {"England": 130.0, "Wales": 40.0, "Scotland": 100.0})
 	var wr2: Dictionary = gm.call("declare_war", "England", "Scotland")
@@ -91,6 +93,47 @@ func _initialize() -> void:
 	out.append("ally side England+Wales both drop: %s" % (
 		m3.get("England", 0.0) < 130.0 and m3.get("Wales", 0.0) < 40.0))
 	out.append("ally enemy Scotland drops: %s" % (m3.get("Scotland", 0.0) < 100.0))
+
+	# ⑨ 围城-无要塞省直接占领（fort=0 → 破城概率 100%）
+	gm.set("wars", [])
+	gm.set("province_owner", {"London": "England", "Lothian": "Scotland", "Glamorgan": "Wales", "Highlands": "Scotland"})
+	gm.set("province_buildings", {"London": {"fort": 2}, "Lothian": {"fort": 2}, "Glamorgan": {"fort": 0}, "Highlands": {"fort": 0}})
+	gm.set("army_position", {"England": "Highlands", "Scotland": "Lothian"})
+	gm.set("army_morale", {"England": 130.0, "Scotland": 60.0})
+	gm.call("declare_war", "England", "Scotland")
+	# 先查概率（围城前），再围城
+	out.append("siege chance no-fort = 1.0: %s" % (gm.call("get_siege_chance", "England") == 1.0))
+	gm.call("_resolve_sieges")
+	out.append("siege no-fort capture (Highlands -> England): %s" % (gm.get("province_owner").get("Highlands", "") == "England"))
+
+	# ⑩ 围城-有要塞省：概率 1/(fort+1)，多次采样统计接近（苏格兰军队移开，避免同省反向夺回）
+	gm.set("wars", [])
+	gm.set("province_owner", {"London": "England", "Lothian": "Scotland", "Glamorgan": "Wales", "Highlands": "Scotland"})
+	gm.set("province_buildings", {"London": {"fort": 2}, "Lothian": {"fort": 2}, "Glamorgan": {"fort": 0}, "Highlands": {"fort": 0}})
+	gm.set("army_position", {"England": "Lothian", "Scotland": "Highlands"})
+	gm.set("army_morale", {"England": 130.0, "Scotland": 60.0})
+	gm.call("declare_war", "England", "Scotland")
+	out.append("siege chance fort=2 = 1/3: %s" % (gm.call("get_siege_chance", "England") == 1.0 / 3.0))
+	var captured := 0
+	var total := 3000
+	for i in total:
+		gm.set("province_owner", {"London": "England", "Lothian": "Scotland", "Glamorgan": "Wales", "Highlands": "Scotland"})
+		gm.set("wars", [])
+		gm.call("declare_war", "England", "Scotland")
+		gm.call("_resolve_sieges")
+		if gm.get("province_owner").get("Lothian", "") == "England":
+			captured += 1
+	out.append("siege fort=2 empirical ~1/3 (%.2f%%): %s" % [
+		captured * 100.0 / float(total), absf(float(captured) / float(total) - 1.0 / 3.0) < 0.06])
+
+	# ⑪ 敌方首都破城 → 即时投降标记
+	gm.set("wars", [])
+	gm.set("surrender_flag", {})
+	gm.set("province_owner", {"London": "England", "Lothian": "Scotland", "Glamorgan": "Wales", "Highlands": "Scotland"})
+	gm.set("province_buildings", {"London": {"fort": 2}, "Lothian": {"fort": 2}, "Glamorgan": {"fort": 0}, "Highlands": {"fort": 0}})
+	gm.call("_take_province", "Lothian", "England", "Scotland")
+	out.append("capital captured -> Scotland surrender: %s" % (gm.get("surrender_flag").get("Scotland", false) == true))
+	out.append("captured province owner = England: %s" % (gm.get("province_owner").get("Lothian", "") == "England"))
 
 	root.remove_child(gm)
 	gm.free()

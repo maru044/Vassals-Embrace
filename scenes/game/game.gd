@@ -177,7 +177,9 @@ func _ready() -> void:
 	EventBus.month_advanced.connect(func(_m: int, _y: int) -> void:
 		_refresh_top_bar()
 		_refresh_left_panel()
-		_map_view.refresh_army(GameManager.army_position, GameManager.army_count))   # 引擎②-B3-2b：军队移动后兵牌跟随
+		_map_view.apply_ownership(GameManager.province_owner)                       # 引擎③-T4：破城后地图颜色/标签刷新
+		_map_view.refresh_forts(GameManager.province_buildings)                     # 引擎③-T4：破城后要塞图标刷新
+		_map_view.refresh_army(GameManager.army_position, GameManager.army_count))  # 引擎②-B3-2b：军队移动后兵牌跟随
 	# 引擎⑨雏形：对话好感即时变化 → 外交面板即时刷新
 	EventBus.favor_changed.connect(func(_t: String, _v: float) -> void: _refresh_left_panel())
 	# 聊天界面（参考 ChatUI 案例：左立绘+深度图视差，右对话区）
