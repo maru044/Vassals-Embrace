@@ -44,12 +44,17 @@ func _initialize() -> void:
 	out.append("battle damage ok: %s" % (ea < 130.0 and sa < 60.0 and ea >= 0.0 and sa >= 0.0))
 	out.append("army_count unchanged: %s" % (gm.get("army_count").get("England", 0) == 13 and gm.get("army_count").get("Scotland", 0) == 6))
 
-	# ④ 非首都省被打败 → 撤退回首都
+	# ④ 非首都省被打败 → 强制以首都为目标撤退（Master 8/13：非瞬移，位置不变 + 命令锁定为首都）
 	gm.set("army_position", {"England": "London", "Scotland": "Wales"})
 	gm.set("army_morale", {"England": 130.0, "Scotland": -5.0})
+	gm.set("retreating", {})
 	gm.call("_handle_routed", "Scotland")
 	var pos: Dictionary = gm.get("army_position")
-	out.append("Scotland routed -> capital Lothian: %s (pos=%s)" % [pos.get("Scotland", "") == "Lothian", pos.get("Scotland", "")])
+	var ord4: Dictionary = gm.get("army_order")
+	var ret4: Dictionary = gm.get("retreating")
+	out.append("Scotland routed: pos stays Wales (no teleport): %s (pos=%s)" % [pos.get("Scotland", "") == "Wales", pos.get("Scotland", "")])
+	out.append("Scotland forced order -> capital Lothian: %s (order=%s)" % [ord4.get("Scotland", "") == "Lothian", ord4.get("Scotland", "")])
+	out.append("Scotland retreating flag = true: %s" % (ret4.get("Scotland", false) == true))
 
 	# ⑤ 在本方首都被打败 → 即时自动投降
 	gm.set("army_position", {"England": "London", "Scotland": "Lothian"})

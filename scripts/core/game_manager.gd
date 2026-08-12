@@ -57,6 +57,7 @@ var army_count := {}            # id -> int（军队队数，引擎②完善）
 var recruited_this_month := {}  # id -> bool（本月是否已招募；每月限 1 队，月末重置）
 var army_position := {}         # id -> 所在省（引擎②-B3-2 行军）
 var army_order := {}            # id -> 目标省（""=待命；月中可改，月末推进）
+var retreating := {}            # id -> bool（战败强制撤退回首都中，命令锁定不可改）
 var return_province := {}       # id -> 返回省份（ZoC 用，非战时随移动更新）
 var _adjacency := {}            # 省 -> {邻接省: land/sea}（懒加载）
 # 省份数据（由 game.gd 注入；GDScript 字典按引用共享 → 单一数据源，升级实时反映）
@@ -101,6 +102,7 @@ func start_new_game(country_id: String) -> void:
 	recruited_this_month.clear()
 	army_position.clear()
 	army_order.clear()
+	retreating.clear()           # 引擎③：新档无撤退
 	return_province.clear()
 	army_morale.clear()          # 引擎③：初始士气 = 总士气
 	surrender_flag.clear()
@@ -567,7 +569,8 @@ func _apply_side_damage(side: Array, dmg: float, side_total: float) -> void:
 		army_morale[cid] = get_morale(cid) - dmg * share
 
 
-## 士气归零：军队撤退至首都；已在首都 → 即时自动投降标记（Master 定：首都被打败即降）
+## 士气归零：战败 → 强制以首都为目标撤退（走行军推进，每月 2 格，非瞬移）；已在首都 → 即时自动投降标记
+## Master 2026-08-13 纠正：之前是 army_position=首都 瞬移，应改为 army_order=首都 强制行军
 func _handle_routed(cid: String) -> void:
 	if get_morale(cid) > 0.0:
 		return
@@ -575,10 +578,10 @@ func _handle_routed(cid: String) -> void:
 	if cap.is_empty():
 		return
 	if army_position.get(cid, "") == cap:
-		surrender_flag[cid] = true
+		surrender_flag[cid] = true   # 已在首都战败 → 即时投降
 	else:
-		army_position[cid] = cap   # 撤退回首都
-		army_order[cid] = ""
+		retreating[cid] = true       # 标记撤退中（命令锁定，AI/玩家不可中途改）
+		army_order[cid] = cap        # 强制以首都为目标，走行军非瞬移
 
 
 ## 士气恢复：未投降军队每月恢复 20% 最大士气（上限 = 总士气）
@@ -904,6 +907,8 @@ func _tick_ai_armies() -> void:
 	for cid in army_count:
 		if cid == player_country_id:
 			continue   # 玩家军队由玩家 UI 控制
+		if retreating.get(cid, false):
+			continue   # 战败撤退中：保持强制回首都命令，AI 状态机不接管
 		# 停战 / 已投降 → 回 FREE 原地待命
 		if not _in_war(cid) or surrender_flag.get(cid, false):
 			ai_army_state[cid] = "FREE"
@@ -1010,6 +1015,8 @@ func can_move_to(cid: String, target: String) -> Dictionary:
 func issue_order(cid: String, target: String) -> Dictionary:
 	if cid != player_country_id:
 		return {"ok": false, "error": "只能控制自己的军队"}
+	if retreating.get(cid, false):
+		return {"ok": false, "error": "军队正在强制撤退回首都，无法下达新命令"}
 	var chk := can_move_to(cid, target)
 	if not chk.get("ok", false):
 		return {"ok": false, "error": chk.get("reason", "")}
@@ -1093,3 +1100,5 @@ func _advance_army() -> void:
 		army_position[cid] = new_pos
 		if new_pos == target:
 			army_order[cid] = ""
+		if retreating.get(cid, false) and army_position[cid] == capital_province.get(cid, ""):
+			retreating[cid] = false   # 已撤回首都 → 撤退结束，命令解锁
