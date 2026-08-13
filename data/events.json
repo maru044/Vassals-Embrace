@@ -1,41 +1,367 @@
 {
-  "comment": "事件表：历史 / 随机 / 脉冲；选项带权重（AI 按权重自动选）。",
+  "comment": "事件表（引擎⑥）：historical 历史一次性 / pulse 脉冲按周期 / random 随机。text 支持 [Root.GetName]/[Root.GetRulerName]/[Root.GetRulerTitle]/[Root.GetFullTitle]（From.* 同）。选项 weight：AI 按权重自动选，0=仅玩家可选；effects：gold/prestige/army/favor/cb/start_play/modifiers({type:army_cap|morale|income, value, months, target?})。开局 1400.9。",
   "events": [
     {
       "id": "welsh_revolt",
       "type": "historical",
-      "trigger": "开局 1400.9",
       "name": "威尔士起义",
+      "trigger": {"date": "1400.9", "country": "Wales"},
+      "text": "[Root.GetFullTitle] 举起了反旗，整个威尔士为之沸腾。若要讨回公道，唯有先发制人。",
       "options": [
-        {"text": "镇压起义（花资源）", "weight": 5},
-        {"text": "安抚（好感/威望）", "weight": 3}
+        {
+          "text": "发动起义（发起外交博弈）",
+          "weight": 9,
+          "effects": {
+            "start_play": {"target": "England", "goal": "威尔士起义", "cb": "welsh_revolt"},
+            "army": 15,
+            "modifiers": [
+              {"type": "army_cap", "value": 15, "months": 12},
+              {"type": "morale", "value": -0.2, "months": 12, "target": "England"}
+            ]
+          }
+        },
+        {"text": "暂不举兵，静观其变", "weight": 0, "effects": {}}
       ]
     },
     {
       "id": "percy_rebellion",
       "type": "historical",
-      "trigger": "1403",
       "name": "珀西叛乱",
+      "trigger": {"date": "1403.7", "country": "Northumberland"},
+      "text": "诺森伯兰的珀西家族对 [Root.GetName] 的统治日益不满，叛乱一触即发。",
       "options": [
-        {"text": "镇压", "weight": 5},
-        {"text": "议和（让步）", "weight": 2}
+        {
+          "text": "举兵（发起外交博弈）",
+          "weight": 8,
+          "effects": {
+            "start_play": {"target": "England", "goal": "珀西叛乱", "cb": "percy_rebellion"},
+            "army": 10,
+            "modifiers": [
+              {"type": "army_cap", "value": 10, "months": 12},
+              {"type": "morale", "value": -0.15, "months": 12, "target": "England"}
+            ]
+          }
+        },
+        {"text": "按兵不动，蛰伏待机", "weight": 2, "effects": {"prestige": -5, "gold": -10}}
+      ]
+    },
+    {
+      "id": "scottish_succession",
+      "type": "historical",
+      "name": "苏格兰王位继承危机",
+      "trigger": {"date": "1402.4", "country": "Scotland"},
+      "text": "女王玛格丽特年幼，贵族们觊觎摄政之位，百合宫廷暗流涌动。",
+      "options": [
+        {"text": "扶植亲信贵族摄政", "weight": 5, "effects": {"gold": -15, "prestige": 5}},
+        {"text": "与英格兰联姻求稳", "weight": 2, "effects": {"favor": {"target": "England", "delta": 10}, "prestige": -3}}
+      ]
+    },
+    {
+      "id": "hundred_years_opening",
+      "type": "historical",
+      "name": "百年战争开局",
+      "trigger": {"date": "1400.10", "country": "England"},
+      "text": "罗莎蒙德对法兰西王位再宣主权，百年战争的风暴正缓缓逼近海峡对岸。",
+      "options": [
+        {"text": "正式宣示对法王位", "weight": 8, "effects": {"prestige": 5}},
+        {"text": "暂缓，专注不列颠", "weight": 3, "effects": {"prestige": -3}}
+      ]
+    },
+    {
+      "id": "irish_unity_begin",
+      "type": "historical",
+      "name": "爱尔兰统一序曲",
+      "trigger": {"date": "1401.3", "country": "Tyrone"},
+      "text": "至高王 [Root.GetFullTitle] 召集诸部，共商统一爱尔兰的大计。",
+      "options": [
+        {"text": "召开诸部大会", "weight": 8, "effects": {"gold": -15, "prestige": 5}},
+        {"text": "冷处理，怕出乱子", "weight": 2, "effects": {"prestige": -3}}
+      ]
+    },
+    {
+      "id": "pirate_summit",
+      "type": "historical",
+      "name": "海盗联盟峰会",
+      "trigger": {"date": "1402.6", "country": "The Isles"},
+      "text": "三栖姬姐妹齐聚群岛领地，共商劫掠季的动员与分赃。",
+      "options": [
+        {"text": "大办峰会（分赃联欢）", "weight": 6, "effects": {"gold": -12, "prestige": 4}},
+        {"text": "从简，各自为战", "weight": 4, "effects": {}}
+      ]
+    },
+    {
+      "id": "man_island_plea",
+      "type": "historical",
+      "name": "曼岛归附请愿",
+      "trigger": {"date": "1401.8", "country": "Isle of Man"},
+      "text": "曼岛的莫娜请求 [Root.GetName] 加强庇护，渴望更受宠爱。",
+      "options": [
+        {"text": "接纳，赐予更多恩宠", "weight": 8, "effects": {"favor": {"target": "Isle of Man", "delta": 15}, "prestige": 3}},
+        {"text": "婉拒，保持现状", "weight": 2, "effects": {"favor": {"target": "Isle of Man", "delta": -8}}}
+      ]
+    },
+    {
+      "id": "high_king_festival",
+      "type": "pulse",
+      "name": "至高王淫乱节日",
+      "trigger": {"period_months": 12, "month": 5, "culture": "celtic"},
+      "text": "贝尔丹火节来临，[Root.GetFullTitle] 的领地燃起篝火，淫乱节日将诸部卷入欢愉与权力的漩涡。",
+      "options": [
+        {"text": "举办淫趴（花金币）", "weight": 7, "effects": {"gold": -15, "prestige": 6}},
+        {"text": "敷衍了事", "weight": 3, "effects": {"prestige": -2}},
+        {"text": "拒绝参与", "weight": 1, "effects": {"prestige": -5}}
+      ]
+    },
+    {
+      "id": "samhain_festival",
+      "type": "pulse",
+      "name": "萨温节",
+      "trigger": {"period_months": 12, "month": 10, "culture": "celtic"},
+      "text": "亡灵归来的夜晚，[Root.GetFullTitle] 的犬娘们举办「换妻」篝火祭。",
+      "options": [
+        {"text": "办换妻篝火祭", "weight": 7, "effects": {"gold": -12, "prestige": 7}},
+        {"text": "闭门不出", "weight": 3, "effects": {"prestige": -3}}
+      ]
+    },
+    {
+      "id": "pirate_raiding_season",
+      "type": "pulse",
+      "name": "海盗劫掠季",
+      "trigger": {"period_months": 12, "month": 9, "culture": "norse"},
+      "text": "秋风起，[Root.GetFullTitle] 的塞壬们扬帆远劫的旺季到了。",
+      "options": [
+        {"text": "出海劫掠", "weight": 8, "effects": {"gold": 20, "prestige": 4}},
+        {"text": "留守备战", "weight": 2, "effects": {}}
+      ]
+    },
+    {
+      "id": "court_ball",
+      "type": "pulse",
+      "name": "宫廷舞会",
+      "trigger": {"period_months": 12, "month": 1, "government": "monarchy"},
+      "text": "社交季的宫廷舞会在 [Root.GetName] 的城堡中拉开帷幕，公主与贵女们齐聚一堂。",
+      "options": [
+        {"text": "盛大举办", "weight": 6, "effects": {"gold": -15, "prestige": 8}},
+        {"text": "从简", "weight": 4, "effects": {"prestige": 2}}
+      ]
+    },
+    {
+      "id": "yule_festival",
+      "type": "pulse",
+      "name": "冬祭",
+      "trigger": {"period_months": 12, "month": 12, "culture": "norse"},
+      "text": "冬至长夜，[Root.GetFullTitle] 的塞壬们围炉祭酒、互赠战利品。",
+      "options": [
+        {"text": "开宴狂欢", "weight": 6, "effects": {"gold": -10, "prestige": 6, "modifiers": [{"type": "morale", "value": 0.05, "months": 6}]}},
+        {"text": "简单祭礼", "weight": 4, "effects": {"prestige": 2}}
+      ]
+    },
+    {
+      "id": "epiphany",
+      "type": "pulse",
+      "name": "主显节",
+      "trigger": {"period_months": 12, "month": 1, "government": "theocracy"},
+      "text": "主显节的圣礼弥撒由 [Root.GetFullTitle] 主持，信众齐聚采邑。",
+      "options": [
+        {"text": "大办弥撒施恩", "weight": 6, "effects": {"gold": -10, "prestige": 7}},
+        {"text": "简办", "weight": 4, "effects": {"prestige": 2}}
       ]
     },
     {
       "id": "harvest",
       "type": "random",
       "name": "丰收",
+      "trigger": {"weight": 5},
+      "text": "[Root.GetFullTitle] 的领地上迎来了大丰收，国库充盈。",
       "options": [
-        {"text": "丰收：+税收", "weight": 8}
+        {"text": "庆祝丰收", "weight": 8, "effects": {"prestige": 5}},
+        {"text": "征收重税", "weight": 2, "effects": {"gold": 20, "prestige": -3}}
       ]
     },
     {
       "id": "plague",
       "type": "random",
       "name": "灾疫",
+      "trigger": {"weight": 4},
+      "text": "领地疫病流行，[Root.GetName] 人心惶惶。",
       "options": [
-        {"text": "花费镇压", "weight": 4},
-        {"text": "放任", "weight": 3}
+        {"text": "花费镇压", "weight": 6, "effects": {"gold": -15}},
+        {"text": "放任", "weight": 4, "effects": {"prestige": -5, "modifiers": [{"type": "income", "value": -0.2, "months": 12}]}}
+      ]
+    },
+    {
+      "id": "famine",
+      "type": "random",
+      "name": "饥荒",
+      "trigger": {"weight": 3},
+      "text": "粮食歉收，饥民涌向 [Root.GetName] 的王庭。",
+      "options": [
+        {"text": "开仓赈济", "weight": 6, "effects": {"gold": -10, "prestige": 5}},
+        {"text": "无视", "weight": 4, "effects": {"prestige": -5, "modifiers": [{"type": "income", "value": -0.3, "months": 6}]}}
+      ]
+    },
+    {
+      "id": "caravan",
+      "type": "random",
+      "name": "商队",
+      "trigger": {"weight": 4},
+      "text": "一支富商驼队经过 [Root.GetName]，请求通行。",
+      "options": [
+        {"text": "盛情款待", "weight": 7, "effects": {"gold": 15, "prestige": 2}},
+        {"text": "抽重税", "weight": 3, "effects": {"gold": 25, "prestige": -2}}
+      ]
+    },
+    {
+      "id": "scandal",
+      "type": "random",
+      "name": "宫廷丑闻",
+      "trigger": {"weight": 3},
+      "text": "关于 [Root.GetFullTitle] 的流言在宫中蔓延。",
+      "options": [
+        {"text": "封口掩盖", "weight": 5, "effects": {"gold": -20}},
+        {"text": "坦然公开", "weight": 5, "effects": {"prestige": -8}}
+      ]
+    },
+    {
+      "id": "tournament",
+      "type": "random",
+      "name": "比武大会",
+      "trigger": {"weight": 3, "government": "monarchy"},
+      "text": "骑士与犬娘们在 [Root.GetName] 比武争锋，观者如潮。",
+      "options": [
+        {"text": "举办", "weight": 7, "effects": {"gold": -15, "prestige": 8}},
+        {"text": "不办", "weight": 3, "effects": {}}
+      ]
+    },
+    {
+      "id": "hot_spring",
+      "type": "random",
+      "name": "温泉",
+      "trigger": {"weight": 3},
+      "text": "[Root.GetName] 领地发现一处温泉胜地。",
+      "options": [
+        {"text": "皇室享用", "weight": 6, "effects": {"prestige": 5}},
+        {"text": "对外开放", "weight": 4, "effects": {"modifiers": [{"type": "income", "value": 0.1, "months": 12}]}}
+      ]
+    },
+    {
+      "id": "pirate_raid",
+      "type": "random",
+      "name": "海盗来袭",
+      "trigger": {"weight": 3},
+      "text": "异族海盗逼近 [Root.GetName] 的海岸。",
+      "options": [
+        {"text": "出兵反击", "weight": 7, "effects": {"gold": -10, "prestige": 5}},
+        {"text": "纳贡买安", "weight": 3, "effects": {"gold": -20}}
+      ]
+    },
+    {
+      "id": "treasure",
+      "type": "random",
+      "name": "沉船宝藏",
+      "trigger": {"weight": 3, "culture": "norse"},
+      "text": "风暴后，[Root.GetName] 的沙滩露出沉船残骸。",
+      "options": [
+        {"text": "打捞私藏", "weight": 7, "effects": {"gold": 25}},
+        {"text": "上报王室", "weight": 3, "effects": {"prestige": 8}}
+      ]
+    },
+    {
+      "id": "witch_night",
+      "type": "random",
+      "name": "女巫之夜",
+      "trigger": {"weight": 3, "culture": "celtic"},
+      "text": "犬娘女巫们在 [Root.GetName] 的月色下举行祭祀。",
+      "options": [
+        {"text": "参与祭祀", "weight": 7, "effects": {"gold": -5, "prestige": 8}},
+        {"text": "驱散", "weight": 3, "effects": {"prestige": -3}}
+      ]
+    },
+    {
+      "id": "hunt",
+      "type": "random",
+      "name": "猎获",
+      "trigger": {"weight": 3, "culture": "celtic"},
+      "text": "猎犬衔回一头肥鹿，献给 [Root.GetFullTitle]。",
+      "options": [
+        {"text": "分肉与民", "weight": 6, "effects": {"prestige": 5}},
+        {"text": "囤粮", "weight": 4, "effects": {"gold": 10}}
+      ]
+    },
+    {
+      "id": "festival_boom",
+      "type": "random",
+      "name": "节庆",
+      "trigger": {"weight": 3, "culture": "norse"},
+      "text": "[Root.GetName] 的领地自发兴起一场狂欢节。",
+      "options": [
+        {"text": "大办", "weight": 7, "effects": {"gold": -10, "prestige": 8}},
+        {"text": "从简", "weight": 3, "effects": {}}
+      ]
+    },
+    {
+      "id": "scholar",
+      "type": "random",
+      "name": "学者来访",
+      "trigger": {"weight": 3},
+      "text": "游学学者求见 [Root.GetFullTitle]，献上诗篇与见识。",
+      "options": [
+        {"text": "款待", "weight": 7, "effects": {"gold": -8, "prestige": 5}},
+        {"text": "婉拒", "weight": 3, "effects": {}}
+      ]
+    },
+    {
+      "id": "bandit",
+      "type": "random",
+      "name": "匪患",
+      "trigger": {"weight": 3},
+      "text": "盗匪劫掠 [Root.GetName] 的商路。",
+      "options": [
+        {"text": "剿匪", "weight": 7, "effects": {"gold": -10, "prestige": 4}},
+        {"text": "无视", "weight": 3, "effects": {"modifiers": [{"type": "income", "value": -0.2, "months": 6}]}}
+      ]
+    },
+    {
+      "id": "meteor",
+      "type": "random",
+      "name": "陨石",
+      "trigger": {"weight": 2},
+      "text": "天降陨石，落在 [Root.GetName]，猎奇与恐慌并存。",
+      "options": [
+        {"text": "研究", "weight": 5, "effects": {"gold": -15, "prestige": 10}},
+        {"text": "无视", "weight": 5, "effects": {}}
+      ]
+    },
+    {
+      "id": "marriage_offer",
+      "type": "random",
+      "name": "联姻提议",
+      "trigger": {"weight": 3},
+      "text": "邻国提议与 [Root.GetName] 结为百合姻亲。",
+      "options": [
+        {"text": "同意", "weight": 7, "effects": {"favor": {"target": "England", "delta": 15}}},
+        {"text": "拒绝", "weight": 3, "effects": {"favor": {"target": "England", "delta": -10}}}
+      ]
+    },
+    {
+      "id": "reliquary",
+      "type": "random",
+      "name": "圣物",
+      "trigger": {"weight": 2, "government": "theocracy"},
+      "text": "[Root.GetFullTitle] 寻得一件古老圣物。",
+      "options": [
+        {"text": "供奉", "weight": 7, "effects": {"prestige": 10}},
+        {"text": "出售", "weight": 3, "effects": {"gold": 20, "prestige": -3}}
+      ]
+    },
+    {
+      "id": "lucky",
+      "type": "random",
+      "name": "幸运日",
+      "trigger": {"weight": 2},
+      "text": "[Root.GetFullTitle] 今日诸事顺遂。",
+      "options": [
+        {"text": "沐浴赐福", "weight": 10, "effects": {"gold": 10, "prestige": 3}}
       ]
     }
   ]

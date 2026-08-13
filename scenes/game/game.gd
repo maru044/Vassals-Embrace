@@ -160,6 +160,13 @@ var _play_goal_edit: LineEdit = null        # 外交博弈面板：修改我方�
 var _diplo_cb_opt: OptionButton = null      # 外交国家视图：宣战 CB 子菜单（引擎④-CB）
 var _diplo_notice_msg: String = ""          # 外交国家视图：发起博弈反馈
 var _chat_ui: ChatUI = null   # 全局聊天面板（羊皮纸 + 立绘视差；Miku 无立绘）
+# 引擎⑥ 事件面板（居中弹窗）
+var _event_layer: CanvasLayer = null
+var _event_overlay: ColorRect = null
+var _event_image: TextureRect = null
+var _event_title: Label = null
+var _event_body: Label = null
+var _event_opts_box: VBoxContainer = null
 
 
 func _ready() -> void:
@@ -193,6 +200,9 @@ func _ready() -> void:
 	# 聊天界面（参考 ChatUI 案例：左立绘+深度图视差，右对话区）
 	_chat_ui = ChatUI.new()
 	add_child(_chat_ui)
+	# 引擎⑥ 事件面板（居中弹窗）+ 事件通知
+	_build_event_ui()
+	EventBus.event_pending.connect(_show_event_panel)
 
 
 func _load_countries() -> void:
@@ -683,6 +693,8 @@ func _build_game_layer() -> void:
 	root.position.x = get_viewport().get_visible_rect().size.x
 	canvas.add_child(root)
 	_game_root = root
+	# 引擎⑥-主题（Master 8/13）：统一 tooltip 为羊皮纸面板（向子节点传播，替代默认黑底 tooltip）
+	_game_root.theme = _make_tooltip_theme()
 
 	_build_top_bar(root)
 	_build_left_slide(root)
@@ -1739,6 +1751,141 @@ func _make_panel_stylebox(hover: bool = false) -> StyleBoxFlat:
 	sb.content_margin_top = 6
 	sb.content_margin_bottom = 6
 	return sb
+
+
+## 统一主题 tooltip（Master 8/13）：把 Godot 默认黑底 tooltip → 羊皮纸面板 + 墨色字
+## 作用域：全局 fallback_theme → 左栏图标（经济等）、底栏国际组织、任务、要求X 等所有 tooltip_text 统一
+func _make_tooltip_theme() -> Theme:
+	var t := Theme.new()
+	t.set_stylebox("panel", "TooltipPanel", _make_panel_stylebox())
+	t.set_color("font_color", "TooltipLabel", INK)
+	t.set_font_size("font_size", "TooltipLabel", 15)
+	return t
+
+
+## 主题 label（墨色字 + 自动换行，用于羊皮纸面板上；替代默认黑底 Label）
+func _make_themed_label(text: String) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", 16)
+	l.add_theme_color_override("font_color", INK)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	return l
+
+
+# ===== 引擎⑥ 事件面板（居中弹窗：左图容错 + 金色按钮 + EU4 悬停 tooltip + 主题 label）=====
+
+## 构建事件面板（CanvasLayer 遮罩 + 居中羊皮纸面板）
+func _build_event_ui() -> void:
+	_event_layer = CanvasLayer.new()
+	_event_layer.layer = 150
+	add_child(_event_layer)
+	_event_overlay = ColorRect.new()
+	_event_overlay.color = Color(0, 0, 0, 0.55)
+	_event_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_event_layer.add_child(_event_overlay)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_event_layer.add_child(center)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", _make_panel_stylebox())
+	panel.custom_minimum_size = Vector2(780, 500)
+	center.add_child(panel)
+	panel.theme = _make_tooltip_theme()   # 事件面板选项 tooltip 同样羊皮纸化
+	var root_v := VBoxContainer.new()
+	root_v.add_theme_constant_override("separation", 14)
+	panel.add_child(root_v)
+	# 左图 + 右内容
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 18)
+	root_v.add_child(top)
+	_event_image = TextureRect.new()
+	_event_image.custom_minimum_size = Vector2(250, 300)
+	_event_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_event_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	top.add_child(_event_image)
+	var right := VBoxContainer.new()
+	right.add_theme_constant_override("separation", 10)
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(right)
+	_event_title = _make_themed_label("")
+	_event_title.add_theme_font_size_override("font_size", 26)
+	right.add_child(_event_title)
+	_event_body = _make_themed_label("")
+	_event_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right.add_child(_event_body)
+	# 选项（金色羊皮纸按钮）
+	_event_opts_box = VBoxContainer.new()
+	_event_opts_box.add_theme_constant_override("separation", 8)
+	root_v.add_child(_event_opts_box)
+	_event_layer.visible = false
+
+
+## 事件通知 → 渲染队首事件（无则忽略）
+func _show_event_panel() -> void:
+	if GameManager.peek_player_event().is_empty():
+		return
+	_render_event_panel()
+
+
+## 渲染当前事件（标题/正文/左图容错/选项金色按钮 + EU4 effects tooltip）
+func _render_event_panel() -> void:
+	var ev: Dictionary = GameManager.peek_player_event()
+	if ev.is_empty():
+		return
+	var e: Dictionary = GameManager.get_event(str(ev.get("event_id", "")))
+	var root: String = str(ev.get("root", ""))
+	var from: String = str(ev.get("from", ""))
+	for c in _event_opts_box.get_children():
+		c.queue_free()
+	_event_title.text = str(e.get("name", "事件"))
+	_event_body.text = GameManager.resolve_event_vars(str(e.get("text", "")), root, from)
+	# 左图容错：res://assets/events/<id>.png 存在才显示，否则不显示（不报错）
+	var img := "res://assets/events/%s.png" % str(ev.get("event_id", ""))
+	if ResourceLoader.exists(img):
+		_event_image.texture = load(img)
+		_event_image.visible = true
+	else:
+		_event_image.visible = false
+	var opts: Array = e.get("options", [])
+	for i in opts.size():
+		var o: Dictionary = opts[i]
+		var b := _build_gold_button(_event_opts_box, str(o.get("text", "…")), _on_event_option.bind(i))
+		b.tooltip_text = _event_effects_text(o.get("effects", {}))
+	_event_layer.visible = true
+
+
+## 选项点击：落地 effects → 有下个事件继续显示，否则关闭
+func _on_event_option(idx: int) -> void:
+	GameManager.resolve_player_event(idx)
+	if GameManager.peek_player_event().is_empty():
+		_event_layer.visible = false
+	else:
+		_render_event_panel()
+
+
+## 效果字典 → 可读文本（EU4 式 tooltip 内容）
+func _event_effects_text(fx: Dictionary) -> String:
+	if fx.is_empty():
+		return "（无特殊效果）"
+	var lines: Array[String] = []
+	if fx.has("gold"):
+		lines.append("金币 %+d" % int(fx["gold"]))
+	if fx.has("prestige"):
+		lines.append("威望 %+d" % int(fx["prestige"]))
+	if fx.has("army"):
+		lines.append("军队 +%d" % int(fx["army"]))
+	if fx.has("favor"):
+		var fv: Dictionary = fx["favor"]
+		lines.append("%s 好感 %+d" % [_country_name(str(fv.get("target", ""))), int(fv.get("delta", 0))])
+	if fx.has("start_play"):
+		lines.append("发起外交博弈：%s" % str(fx["start_play"].get("goal", "")))
+	for m in fx.get("modifiers", []):
+		var mt: String = {"army_cap": "最大军队上限", "morale": "士气", "income": "月收入"}.get(str(m.get("type", "")), str(m.get("type", "")))
+		var mts: String = str(m.get("target", ""))
+		var who: String = ("%s " % _country_name(mts)) if mts != "" else ""
+		lines.append("%s%s %+d%% × %d月" % [who, mt, int(roundf(float(m.get("value", 0.0)) * 100.0)), int(m.get("months", 1))])
+	return "\n".join(lines)
 
 
 func _make_icon_button(panel_id: String, icon_name: String, cb: Callable) -> Button:

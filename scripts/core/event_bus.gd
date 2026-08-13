@@ -48,6 +48,7 @@ signal diplomatic_relation_changed(actor: String, target: String, relation: Stri
 # ---------- 6. 系统 ----------
 signal event_triggered(event_id: String)
 signal event_resolved(event_id: String)
+signal event_pending                                      # 引擎⑥：玩家有待处理事件（弹面板逐个显示）
 signal mission_completed(mission_id: String)
 signal mission_unlocked(mission_id: String)
 signal situation_changed(situation_id: String, value: int)

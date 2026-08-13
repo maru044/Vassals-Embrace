@@ -88,6 +88,13 @@ var cb_timers := {}                  # "actor:target:cb_id" -> 剩余月数（1�
 var runtime_liege := {}              # target -> liege（要求X同意后运行时附庸关系；完整机制引擎⑤）
 var runtime_union := {}              # target -> lead（要求联合统治同意后运行时联统；引擎⑧完整）
 var runtime_vassal_type := {}        # target -> vassal_type（要求X同意后运行时附庸类型：feudal/protectorate）
+# ---- 引擎⑥ 事件 + 临时修正（Master 8/13：历史/脉冲/随机三类 + [Root.*] 变量 + effects/modifiers）----
+const EVENTS_PATH := "res://data/events.json"
+var _event_list := []                  # events.json（懒加载）
+var _fired_historical := {}            # event_id -> true（历史事件一次性）
+var _pulse_last := {}                  # event_id -> "年.月"（脉冲上次触发）
+var modifiers := {}                    # 受影响国 cid -> [{type, value, months}] 临时修正
+var player_event_queue := []           # 玩家待处理事件 [{event_id, root, from}]（逐个弹出）
 
 var _country_list: Array = []   # countries.json（读 liege 关系，用于初始好感）
 
@@ -122,6 +129,10 @@ func start_new_game(country_id: String) -> void:
 	_next_war_id = 1
 	plays.clear()                # 引擎④：新档无外交博弈
 	_next_play_id = 1
+	_fired_historical.clear()    # 引擎⑥：新档历史事件未触发
+	_pulse_last.clear()          # 引擎⑥：新档脉冲未触发
+	modifiers.clear()            # 引擎⑥：新档无临时修正
+	player_event_queue.clear()   # 引擎⑥：新档无待处理事件
 	cb_timers.clear()            # 引擎④-CB：新档无 1 年要求 CB
 	runtime_liege.clear()        # 引擎④-CB：新档无运行时附庸关系
 	runtime_union.clear()        # 引擎④-CB：新档无运行时联统关系
@@ -200,11 +211,12 @@ func _direct_provinces(cid: String) -> int:
 	return n
 
 
-## 军队上限（引擎②-B1，源 游戏规则.md：5 + 2×直辖地块，附庸 -3 队）
+## 军队上限（引擎②-B1：5 + 2×直辖地块，附庸 -3 队）+ 引擎⑥ 临时 army_cap 修正
 func get_army_cap(cid: String) -> int:
 	var cap := BASE_ARMY_CAP + ARMY_PER_PROVINCE * _direct_provinces(cid)
 	if _is_vassal(cid):
 		cap -= VASSAL_ARMY_PENALTY
+	cap += int(country_event_modifier(cid, "army_cap"))
 	return maxi(cap, 1)
 
 
@@ -288,6 +300,8 @@ func _settle_month() -> void:
 	_tick_plays()
 	# 引擎④-CB：1 年要求 CB 计时 -1
 	_tick_cbs()
+	# 引擎⑥：事件结算（历史/脉冲/随机 → 玩家排队 / AI 自动；临时修正 -1）
+	_tick_events()
 	# 引擎④-T5：AI 军队状态机决策（停战回 FREE / 首都沦陷解围 / 友军激战增援 / 默认围敌方首都，ZoC 阻挡先攻要塞）
 	_tick_ai_armies()
 	# 行军推进（每月最多 2 格，沿命令 BFS 最短路径；非战时无 ZoC）
@@ -332,9 +346,9 @@ func _ai_economy() -> void:
 
 # ===== 引擎③ 战斗结算器（源 引擎数值备忘.md §六，无减员）=====
 
-## 总士气 = 基础士气 × 部队总数
+## 总士气 = 基础士气 × 部队总数 ×（1 + 临时 morale 修正，引擎⑥）
 func get_total_morale(cid: String) -> float:
-	return BASE_MORALE * float(army_count.get(cid, 0))
+	return BASE_MORALE * float(army_count.get(cid, 0)) * (1.0 + country_event_modifier(cid, "morale"))
 
 
 ## 当前士气（clamp 到 0..总士气；上限随军队数变化）
@@ -670,6 +684,257 @@ func _tick_cbs() -> void:
 		cb_timers.erase(key)
 
 
+# ===== 引擎⑥ 事件系统 + 临时修正（Master 8/13：历史/脉冲/随机三类 + [Root.*] 变量 + effects/modifiers）=====
+
+## 懒加载事件表（events.json）
+func _ensure_events() -> bool:
+	if not _event_list.is_empty():
+		return true
+	var f := FileAccess.open(EVENTS_PATH, FileAccess.READ)
+	if f == null:
+		return false
+	var data: Variant = JSON.parse_string(f.get_as_text())
+	if data is Dictionary:
+		_event_list = data.get("events", [])
+	return not _event_list.is_empty()
+
+
+## 取事件定义（无则 {}）
+func get_event(event_id: String) -> Dictionary:
+	if not _ensure_events():
+		return {}
+	for e in _event_list:
+		if str(e.get("id", "")) == event_id:
+			return e
+	return {}
+
+
+## 国家中文名 / 统治者 / 称号 / 完整称号（变量渲染用，仿 EU4 本地化）
+func _country_cn(cid: String) -> String:
+	for c in _country_list:
+		if c.get("id", "") == cid:
+			return str(c.get("name", cid))
+	return cid
+
+
+func _country_ruler_cn(cid: String) -> String:
+	for c in _country_list:
+		if c.get("id", "") == cid:
+			return str(c.get("ruler_en", ""))
+	return ""
+
+
+func _country_title_cn(cid: String) -> String:
+	for c in _country_list:
+		if c.get("id", "") == cid:
+			return str(c.get("title", ""))
+	return ""
+
+
+func _country_full_title(cid: String) -> String:
+	return "%s%s %s" % [_country_cn(cid), _country_title_cn(cid), _country_ruler_cn(cid)]
+
+
+## 变量渲染（仿 EU4 [Root.GetName]）：Root=主角国，From=来源国（可选）；未知占位保留原样
+func resolve_event_vars(text: String, root_cid: String, from_cid: String = "") -> String:
+	var out := text
+	out = out.replace("[Root.GetName]", _country_cn(root_cid))
+	out = out.replace("[Root.GetRulerName]", _country_ruler_cn(root_cid))
+	out = out.replace("[Root.GetRulerTitle]", _country_title_cn(root_cid))
+	out = out.replace("[Root.GetFullTitle]", _country_full_title(root_cid))
+	if from_cid != "":
+		out = out.replace("[From.GetName]", _country_cn(from_cid))
+		out = out.replace("[From.GetRulerName]", _country_ruler_cn(from_cid))
+		out = out.replace("[From.GetFullTitle]", _country_full_title(from_cid))
+	return out
+
+
+## 该国某类型临时修正总和（army_cap / morale / income）
+func country_event_modifier(cid: String, type: String) -> float:
+	var total := 0.0
+	for m in modifiers.get(cid, []):
+		if str(m.get("type", "")) == type:
+			total += float(m.get("value", 0.0))
+	return total
+
+
+func _add_modifier(affected_cid: String, type: String, value: float, months: int) -> void:
+	if not modifiers.has(affected_cid):
+		modifiers[affected_cid] = []
+	modifiers[affected_cid].append({"type": type, "value": value, "months": maxi(months, 1)})
+
+
+## 临时修正每月 -1；归零清除（_tick_events 调用）
+func _tick_modifiers() -> void:
+	for cid in modifiers:
+		var keep: Array = []
+		for m in modifiers[cid]:
+			m["months"] = int(m["months"]) - 1
+			if int(m["months"]) > 0:
+				keep.append(m)
+		modifiers[cid] = keep
+
+
+## 日期是否已到（"年.月"；开局 1400.9）
+func _date_reached(date: String) -> bool:
+	var parts := date.split(".")
+	if parts.size() < 2:
+		return false
+	return year * 12 + month >= int(parts[0]) * 12 + int(parts[1])
+
+
+## 每月事件结算（_settle_month 调用）：历史/脉冲/随机 → 玩家排队逐个弹 / AI 按权重自动选
+func _tick_events() -> void:
+	_tick_modifiers()
+	if not _ensure_events():
+		return
+	# 历史事件（日期到 + 未触发，一次性）
+	for e in _event_list:
+		if str(e.get("type", "")) != "historical":
+			continue
+		var eid: String = str(e.get("id", ""))
+		if _fired_historical.get(eid, false):
+			continue
+		var t: Dictionary = e.get("trigger", {})
+		if not _date_reached(str(t.get("date", ""))):
+			continue
+		_fired_historical[eid] = true
+		_queue_or_auto(e, str(t.get("country", "")), str(t.get("from", "")))
+	# 脉冲事件（month 锚定触发月，每年一次；可按 culture / government 限定，或 country 指定国）
+	for e in _event_list:
+		if str(e.get("type", "")) != "pulse":
+			continue
+		var eid: String = str(e.get("id", ""))
+		var t: Dictionary = e.get("trigger", {})
+		if int(t.get("month", 0)) != month:
+			continue
+		var key := "%d.%d" % [year, month]
+		if str(_pulse_last.get(eid, "")) == key:
+			continue
+		_pulse_last[eid] = key
+		if str(t.get("country", "")) != "":
+			_queue_or_auto(e, str(t.get("country", "")), str(t.get("from", "")))
+		else:
+			for cid in army_count:
+				if _event_applies(e, cid):
+					_queue_or_auto(e, cid, str(t.get("from", "")))
+	# 随机事件（每个国家按权重逐事件抽；每月可多档）
+	for cid in army_count:
+		for e in _event_list:
+			if str(e.get("type", "")) != "random":
+				continue
+			var t: Dictionary = e.get("trigger", {})
+			var w: int = int(t.get("weight", 0))
+			if w <= 0 or not _event_applies(e, cid):
+				continue
+			if Dice.chance(clampf(float(w) / 100.0, 0.0, 1.0)):
+				_queue_or_auto(e, cid, str(t.get("from", "")))
+	# 玩家有待处理事件 → 通知 UI 逐个显示
+	if not player_event_queue.is_empty():
+		EventBus.event_pending.emit()
+
+
+## 国家政体（countries.json government）
+func _country_government(cid: String) -> String:
+	for c in _country_list:
+		if c.get("id", "") == cid:
+			return str(c.get("government", ""))
+	return ""
+
+
+## 事件是否适用于该国（trigger 的 culture / government 过滤）
+func _event_applies(e: Dictionary, cid: String) -> bool:
+	var t: Dictionary = e.get("trigger", {})
+	var cult: String = str(t.get("culture", ""))
+	if cult != "" and country_culture(cid) != cult:
+		return false
+	var gov: String = str(t.get("government", ""))
+	if gov != "" and _country_government(cid) != gov:
+		return false
+	return true
+
+
+## 事件入队：玩家排队显示；AI 按权重自动选
+func _queue_or_auto(e: Dictionary, root_cid: String, from_cid: String) -> void:
+	var eid: String = str(e.get("id", ""))
+	if root_cid == "" or root_cid == player_country_id:
+		player_event_queue.append({
+			"event_id": eid, "root": root_cid if root_cid != "" else player_country_id, "from": from_cid,
+		})
+	else:
+		_resolve_ai_event(e, root_cid)
+
+
+## AI 按权重自动选选项并落地
+func _resolve_ai_event(e: Dictionary, cid: String) -> void:
+	var opts: Array = e.get("options", [])
+	if opts.is_empty():
+		return
+	_apply_option_effects(cid, opts[_pick_weighted_option(opts)], str(e.get("id", "")))
+
+
+## 加权随机选选项下标（AI 用；权重 0 永不选）
+func _pick_weighted_option(opts: Array) -> int:
+	var total := 0
+	for o in opts:
+		total += maxi(int(o.get("weight", 0)), 0)
+	if total <= 0:
+		return 0
+	var r := Dice.d100() % total
+	for i in opts.size():
+		var w := maxi(int(opts[i].get("weight", 0)), 0)
+		if r < w:
+			return i
+		r -= w
+	return opts.size() - 1
+
+
+## 落地选项效果（金币/威望/军队/好感/CB/发起博弈/临时修正；军队超上限由 _clamp_army_to_cap 收敛）
+func _apply_option_effects(cid: String, option: Dictionary, event_id: String) -> void:
+	var fx: Dictionary = option.get("effects", {})
+	if fx.has("gold"):
+		country_gold[cid] = country_gold.get(cid, 0.0) + float(fx["gold"])
+	if fx.has("prestige"):
+		country_prestige[cid] = maxf(0.0, country_prestige.get(cid, 0.0) + float(fx["prestige"]))
+	if fx.has("army"):
+		army_count[cid] = army_count.get(cid, 0) + int(fx["army"])
+	if fx.has("favor"):
+		var fv: Dictionary = fx["favor"]
+		change_favor(str(fv.get("target", "")), float(fv.get("delta", 0.0)))
+	if fx.has("cb"):
+		grant_requirement_cb(cid, str(fx.get("cb_target", "")), str(fx["cb"]))
+	if fx.has("start_play"):
+		var sp: Dictionary = fx["start_play"]
+		start_play(cid, str(sp.get("target", "")), str(sp.get("goal", "")), str(sp.get("cb", "")))
+	for m in fx.get("modifiers", []):
+		var mtarget: String = str(m.get("target", ""))
+		_add_modifier(mtarget if mtarget != "" else cid, str(m.get("type", "")), float(m.get("value", 0.0)), int(m.get("months", 1)))
+	_clamp_army_to_cap(cid)
+	EventBus.event_resolved.emit(event_id)
+
+
+## 玩家待处理事件队首（UI 显示用）；无则 {}
+func peek_player_event() -> Dictionary:
+	if player_event_queue.is_empty():
+		return {}
+	return player_event_queue[0]
+
+
+## 玩家选择第 option_index 个选项 → 落地 → 若有下个事件继续通知
+func resolve_player_event(option_index: int) -> Dictionary:
+	if player_event_queue.is_empty():
+		return {"ok": false, "error": "无待处理事件"}
+	var cur: Dictionary = player_event_queue.pop_front()
+	var e := get_event(str(cur.get("event_id", "")))
+	var opts: Array = e.get("options", [])
+	if option_index < 0 or option_index >= opts.size():
+		return {"ok": false, "error": "选项越界"}
+	var root: String = str(cur.get("root", ""))
+	_apply_option_effects(root, opts[option_index], str(cur.get("event_id", "")))
+	# 不在此重发 event_pending（UI 按 peek 队列自己驱动下一个显示，避免重复渲染）
+	return {"ok": true, "event_id": cur.get("event_id", ""), "root": root}
+
+
 ## 防环（DAG 约束，Master 8/13 确认：宗主/附庸树应为有向无环，像 EU4 贸易图）：
 ## 建立 actor→target（actor 成为 target 宗主）前，若 target 已是 actor 的宗主祖先（沿宗主链上行能到 target）→ 会成环
 func _would_create_liege_cycle(actor: String, target: String) -> bool:
@@ -896,7 +1161,7 @@ func repay_loan() -> Dictionary:
 	return {"ok": true, "loan": loans[player_country_id], "gold": country_gold[player_country_id]}
 
 
-## 国家月收入：基础 5 + 该国所有省份经济建筑（farm/market/brothel）每级 0.3（经济面板展示用）
+## 国家月收入：基础 5 + 该国所有省份经济建筑（farm/market/brothel）每级 0.3 ×（1 + 临时 income 修正，引擎⑥）
 func get_country_income(cid: String) -> float:
 	var inc := BASE_INCOME
 	for province in province_owner:
@@ -906,7 +1171,7 @@ func get_country_income(cid: String) -> float:
 		inc += float(b.get("farm", 0)) * BUILDING_INCOME
 		inc += float(b.get("market", 0)) * BUILDING_INCOME
 		inc += float(b.get("brothel", 0)) * BUILDING_INCOME
-	return inc
+	return inc * (1.0 + country_event_modifier(cid, "income"))
 
 
 func _advance_time() -> void:
