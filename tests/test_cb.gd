@@ -38,13 +38,13 @@ func _initialize() -> void:
 	var cbs_north: Array = gm.call("get_available_cbs", "Northumberland", "Ulster")
 	out.append("english vassal Northumberland -> protectorate (附庸嵌套): %s" % _has_cb(cbs_north, "protectorate"))
 
-	# ③ 附庸独立：玩家是附庸 + 对宗主好感低才有
+	# ③ 附庸独立（Master 8/13）：独立 CB 通用，附庸随时可独立（不受好感度限制；叛乱与否交 LLM）
 	gm.set("player_country_id", "Scotland")
 	var cbs_lo: Array = gm.call("get_available_cbs", "Scotland", "England")
 	out.append("vassal low favor -> independence: %s" % _has_cb(cbs_lo, "independence"))
 	gm.set("player_favor", {"The Isles": 90.0, "England": 90.0, "Tyrone": 50.0, "Ulster": 50.0})
 	var cbs_hi: Array = gm.call("get_available_cbs", "Scotland", "England")
-	out.append("vassal high favor -> no independence: %s" % (not _has_cb(cbs_hi, "independence")))
+	out.append("vassal high favor -> independence still available: %s" % _has_cb(cbs_hi, "independence"))
 	gm.set("player_country_id", "England")
 
 	# ④ personal_union（要求联合统治拒绝后 1 年）：未授予无，授予后可用

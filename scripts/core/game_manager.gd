@@ -83,7 +83,6 @@ var _next_play_id := 1
 const CB_PATH := "res://data/cb.json"
 const REQUIRE_CB_DURATION := 12      # 要求被拒 → 获得 1 年（12 回合）CB
 const REQUIRE_FAVOR_MIN := 80.0      # 要求附庸/受保护国/联合统治需好感度 >80
-const INDEPENDENCE_FAVOR_MAX := 40.0 # 附庸独立 CB：对宗主好感度 <40 可用
 var _cb_list := []                   # cb.json（懒加载）
 var cb_timers := {}                  # "actor:target:cb_id" -> 剩余月数（1年CB）
 var runtime_liege := {}              # target -> liege（要求X同意后运行时附庸关系；完整机制引擎⑤）
@@ -632,11 +631,7 @@ func get_available_cbs(actor: String, target: String) -> Array:
 					out.append(c)
 			"independence":
 				if _is_vassal_of(actor, target):
-					if actor == player_country_id:
-						if player_favor.get(target, 0.0) < INDEPENDENCE_FAVOR_MAX:
-							out.append(c)   # 玩家：需对宗主好感度很低
-					else:
-						out.append(c)       # AI 附庸独立由 LLM 判断合理性
+					out.append(c)   # Master 8/13：独立 CB 通用，附庸随时可独立；叛乱与否由 LLM 按好感度判断
 			_:
 				pass   # 收复失地/领土宣称/解放同族：需核心/宣称数据，数据就绪后补
 	return out
