@@ -66,6 +66,22 @@ func _initialize() -> void:
 	out.append("establish union: Ulster -> Tyrone: %s" % (
 		gm.get("runtime_union").get("Ulster", "") == "Tyrone" and res_u.get("ok", false)))
 
+	# ⑦ 附庸税（Master 8/13）：附庸 -3 队上限 + 超上限直接降；受保护国不扣
+	gm.set("runtime_liege", {})
+	gm.set("runtime_vassal_type", {})
+	gm.set("runtime_union", {})
+	gm.set("province_owner", {})
+	gm.set("army_count", {"The Isles": 5, "Scotland": 8, "Tyrone": 3, "Ulster": 8, "England": 10})
+	out.append("vassal tax: Ulster cap before = %d (expect 5)" % int(gm.call("get_army_cap", "Ulster")))
+	gm.call("establish_requirement", "The Isles", "Ulster", "vassalize")
+	out.append("vassal tax: Ulster cap after vassal = %d (expect 2)" % int(gm.call("get_army_cap", "Ulster")))
+	out.append("vassal tax: Ulster army clamped 8 -> %d (expect 2)" % int(gm.get("army_count").get("Ulster", 0)))
+	gm.set("runtime_liege", {})
+	gm.set("runtime_vassal_type", {})
+	gm.set("army_count", {"The Isles": 5, "Scotland": 8, "Tyrone": 3, "Ulster": 8, "England": 10})
+	gm.call("establish_requirement", "England", "Ulster", "protectorate")
+	out.append("vassal tax: Ulster protectorate cap = %d (expect 5, 受保护国不扣)" % int(gm.call("get_army_cap", "Ulster")))
+
 	root.remove_child(gm)
 	gm.free()
 	out.append("TEST_DONE")

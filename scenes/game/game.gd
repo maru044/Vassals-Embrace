@@ -1084,8 +1084,6 @@ func _on_diplo_declare_war(country: String) -> void:
 	var cb_id: String = str(_diplo_cb_opt.get_item_metadata(sel))
 	var cb := GameManager.get_cb(cb_id)
 	var goal: String = str(cb.get("name", cb_id))
-	if cb.get("allow_annex", false):
-		goal += "（含目标省）"   # 吞并类 CB：目标省选择后续补
 	var res := GameManager.start_play(_player_country_id, country, goal)
 	_diplo_notice_msg = "发起博弈：%s" % ("成功" if res.get("ok", false) else str(res.get("error", "失败")))
 	_refresh_diplo_country(country)

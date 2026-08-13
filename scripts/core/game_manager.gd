@@ -88,6 +88,7 @@ var _cb_list := []                   # cb.json（懒加载）
 var cb_timers := {}                  # "actor:target:cb_id" -> 剩余月数（1年CB）
 var runtime_liege := {}              # target -> liege（要求X同意后运行时附庸关系；完整机制引擎⑤）
 var runtime_union := {}              # target -> lead（要求联合统治同意后运行时联统；引擎⑧完整）
+var runtime_vassal_type := {}        # target -> vassal_type（要求X同意后运行时附庸类型：feudal/protectorate）
 
 var _country_list: Array = []   # countries.json（读 liege 关系，用于初始好感）
 
@@ -125,6 +126,7 @@ func start_new_game(country_id: String) -> void:
 	cb_timers.clear()            # 引擎④-CB：新档无 1 年要求 CB
 	runtime_liege.clear()        # 引擎④-CB：新档无运行时附庸关系
 	runtime_union.clear()        # 引擎④-CB：新档无运行时联统关系
+	runtime_vassal_type.clear()  # 引擎④-CB：新档无运行时附庸类型
 	for cid in _all_country_ids():
 		country_gold[cid] = START_GOLD
 		country_prestige[cid] = START_PRESTIGE
@@ -173,9 +175,21 @@ func _country_vassal_type(cid: String) -> String:
 	return ""
 
 
-## 是否附庸（有宗主且非受保护国）——附庸税 -3 队规则用
+## 运行时附庸类型（runtime_vassal_type 覆盖静态；要求X同意后生效）
+func _effective_vassal_type(cid: String) -> String:
+	return str(runtime_vassal_type.get(cid, _country_vassal_type(cid)))
+
+
+## 是否附庸（有宗主且非受保护国）——附庸税 -3 队规则用（Master 8/13：运行时附庸关系也算）
 func _is_vassal(cid: String) -> bool:
-	return _country_liege(cid) != "" and _country_vassal_type(cid) != "protectorate"
+	return _effective_liege(cid) != "" and _effective_vassal_type(cid) != "protectorate"
+
+
+## 附庸税落地（Master 8/13）：军队超上限 → 直接降到上限（附庸税 -3 队后可能超上限）
+func _clamp_army_to_cap(cid: String) -> void:
+	var cap := get_army_cap(cid)
+	if army_count.get(cid, 0) > cap:
+		army_count[cid] = cap
 
 
 ## 直辖地块数（该国王朝直领的省份；附庸不算宗主的地块）
@@ -261,6 +275,9 @@ func _settle_month() -> void:
 	recruited_this_month.clear()
 	# 引擎①-AI经营：AI 主动花钱（优先补兵到上限，然后升级经济建筑）
 	_ai_economy()
+	# 附庸税/上限（Master 8/13）：所有国家军队超上限 → 直接降到上限
+	for cid in army_count:
+		_clamp_army_to_cap(cid)
 	# 引擎③：交战结算（同省相遇）→ 围城破城 → 士气恢复 → 首都沦陷计时
 	_resolve_battles()
 	_resolve_sieges()
@@ -580,7 +597,7 @@ func _effective_liege(cid: String) -> String:
 
 ## cid 是否为 liege 的附庸（运行时；受保护国不算附庸）
 func _is_vassal_of(cid: String, liege: String) -> bool:
-	return _effective_liege(cid) == liege and _country_vassal_type(cid) != "protectorate"
+	return _effective_liege(cid) == liege and _effective_vassal_type(cid) != "protectorate"
 
 
 ## 玩家对某国是否可发起要求（好感度 >80，仅玩家侧判定）
@@ -654,6 +671,9 @@ func establish_requirement(actor: String, target: String, cb_id: String) -> Dict
 	match cb_id:
 		"vassalize", "protectorate":
 			runtime_liege[target] = actor
+			# 附庸税（Master 8/13）：附庸 -3 队上限 / 受保护国不扣；超上限直接降到上限
+			runtime_vassal_type[target] = "feudal" if cb_id == "vassalize" else "protectorate"
+			_clamp_army_to_cap(target)
 			var rel: String = "vassal" if cb_id == "vassalize" else "protectorate"
 			EventBus.diplomatic_relation_changed.emit(actor, target, rel)
 			return {"ok": true, "relation": rel, "liege": actor}
