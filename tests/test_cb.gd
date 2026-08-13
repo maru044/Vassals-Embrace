@@ -18,6 +18,7 @@ func _initialize() -> void:
 		{"id": "Tyrone", "government": "tribal"},
 		{"id": "Ulster", "government": "tribal"},
 		{"id": "Scotland", "government": "monarchy", "liege": "England", "vassal_type": "feudal"},
+		{"id": "Northumberland", "government": "monarchy", "liege": "England", "vassal_type": "feudal"},
 	])
 	gm.set("player_favor", {"The Isles": 90.0, "Scotland": 20.0, "Tyrone": 50.0, "Ulster": 50.0})
 
@@ -33,6 +34,9 @@ func _initialize() -> void:
 	out.append("english actor -> protectorate: %s" % _has_cb(cbs_eng, "protectorate"))
 	var cbs_celt: Array = gm.call("get_available_cbs", "Tyrone", "Ulster")
 	out.append("celtic actor vs celtic -> seize_leadership: %s" % _has_cb(cbs_celt, "seize_leadership"))
+	# ⑧ 附庸也能用通用 CB（附庸嵌套，Master 确认：英格兰 + 其附庸都能用受保护国 CB）
+	var cbs_north: Array = gm.call("get_available_cbs", "Northumberland", "Ulster")
+	out.append("english vassal Northumberland -> protectorate (附庸嵌套): %s" % _has_cb(cbs_north, "protectorate"))
 
 	# ③ 附庸独立：玩家是附庸 + 对宗主好感低才有
 	gm.set("player_country_id", "Scotland")
