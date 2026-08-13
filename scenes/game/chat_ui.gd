@@ -261,8 +261,10 @@ func _on_send_pressed() -> void:
 		_waiting = true
 		_send.disabled = true
 		_send.text = "思考中…"
-		if _target_kind == "country" and _tool_executor_script:
-			_llm.send_request(_tool_executor_script.TOOLS)   # 国家对话启用好感工具（modify_favor）
+		# Master 8/13 修复：所有对话都启用工具（submit_dialogue 正文 + modify_favor 好感等），
+		# 否则 Miku/harem 对话无工具 → LLM 只能把 submit_dialogue 写成 JSON 文本而非标准 tool_calls
+		if _tool_executor_script:
+			_llm.send_request(_tool_executor_script.TOOLS)
 		else:
 			_llm.send_request()
 
@@ -299,12 +301,14 @@ func _on_llm_finished(success: bool, data: Dictionary) -> void:
 				if dtext != "":
 					display_text = dtext
 				break
-	# 显示气泡
+	else:
+		# 容错：LLM 可能把 submit_dialogue 写成 JSON 文本（未走标准 tool_calls）→ 提取其 content 参数
+		var json_dialogue := _extract_dialogue_from_text(display_text)
+		if json_dialogue != "":
+			display_text = json_dialogue
+	# 显示气泡（仅正文，不显示 CoT/格式——Master 8/13 反馈）
 	if display_text != "":
-		if str(parsed.get("cot", "")) != "":
-			_add_bubble(_display_name, "[i][color=#8a6d3b]" + str(parsed["cot"]) + "[/color][/i]\n" + display_text, false)
-		else:
-			_add_bubble(_display_name, display_text, false)
+		_add_bubble(_display_name, display_text, false)
 	# 执行工具调用（含 submit_dialogue；好感度经 modify_favor 落地 → favor_changed → 外交面板即时刷新）
 	if not tool_calls.is_empty() and _tool_executor and _llm:
 		for tc in tool_calls:
@@ -377,6 +381,19 @@ func _build_system_prompt() -> String:
 	var pm := get_node("/root/PromptManager")
 	var prompts: String = pm.call("build_system_context", extra, [], exclude)
 	return (anchor + "\n\n" + prompts).strip_edges()
+
+
+## 容错：LLM 可能把 submit_dialogue 写成 JSON 文本（未走标准 tool_calls）→ 提取其 content 参数作为正文
+func _extract_dialogue_from_text(text: String) -> String:
+	if text.find("submit_dialogue") == -1:
+		return ""
+	var re := RegEx.new()
+	re.compile('"content"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"')
+	var m := re.search(text)
+	if m == null:
+		return ""
+	var raw := m.get_string(1)
+	return raw.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\")
 
 
 ## 玩家国家 id（无则回退「玩家」）
