@@ -1517,7 +1517,13 @@ func _make_bottom_status_icon(icon_id: String, label: String) -> Button:
 	b.add_theme_stylebox_override("normal", empty)
 	b.add_theme_stylebox_override("hover", empty)
 	b.add_theme_stylebox_override("pressed", empty)
-	var icon_path := UI_ICON_DIR + icon_id + ".png"
+	# 动态实例（play_<id>/war_<id>）映射到通用静态图（diplomacy_play/war）；org_* 直接同名资源
+	var icon_name := icon_id
+	if icon_id.begins_with("play_"):
+		icon_name = "diplomacy_play"
+	elif icon_id.begins_with("war_"):
+		icon_name = "war"
+	var icon_path := UI_ICON_DIR + icon_name + ".png"
 	if ResourceLoader.exists(icon_path):
 		b.icon = load(icon_path)
 		b.expand_icon = true
