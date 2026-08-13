@@ -6,4 +6,71 @@
 ---
 # 🔧 工具手册（System Tools Manual）
 
-<!-- 内容待 Master 复制：LLM 可调用工具说明（declare_war / join_war / start_play / join_play / set_play_goal / back_down / modify_favor / trigger_event 等，与 tool_executor.gd 对齐） -->
+你是 LLM，游戏引擎是唯一事实源。**所有游戏状态改动必须通过工具落地**，不要靠文字描述假装改变世界。以下是你可以调用的全部工具（OpenAI function calling 格式）。
+
+## 一、好感度（玩家侧）
+
+### `modify_favor`
+调整**玩家**对某国的好感度（0~100）。
+- `target_id` (string)：目标国家 id（如 `England` / `Wales`）
+- `delta` (integer)：增减量。判定基准：爱抚/玩弄玩具=简单（成功+3/失败-3）；口交/手淫=中等（成功+5/失败-3）；性交=困难（成功+10/失败-3，需高好感+氛围铺垫才可能成功）。纯闲聊不要调用。
+
+## 二、后宫（引擎⑧接入后生效）
+
+### `modify_service_tendency`
+调整某后宫成员的**奉仕傾向**（-50~+50）。
+- `country_id` (integer)：所属国家 id
+- `member_name` (string)：后宫成员名
+- `delta` (integer)：倾向增减量
+
+## 三、事件
+
+### `trigger_event`
+触发一个私人事件（LLM 演绎用）。
+- `event_id` (string)：事件 id
+
+## 四、外交 / 战争（AI 过家家模式核心）
+
+> 通用战争理由 CB：`reconquest` 收复失地 / `claim` 宣称 / `liberation` 解放 / `vassalize` 附庸化 / `protectorate` 受保护国 / `seize_leadership` 夺取至高王 / `independence` 独立。AI 可自由选用通用 CB，不受好感度限制。
+
+### `declare_war`
+国家宣战：`attacker` 对 `defender` 直接开战。一般先走外交博弈（`start_play`），时机成熟也可直接宣战。
+- `attacker` (string)：宣战国 id（如 `Scotland`）
+- `defender` (string)：被宣战国 id（如 `England`）
+- `cb` (string，可选)：战争理由 CB id
+
+### `join_war`
+国家加入某场战争某侧（战时并肩）。
+- `country_id` (string)：加入国 id
+- `war_id` (integer)：战争 id
+- `side` (string)：阵营 `A`（进攻方）/ `B`（防守方）
+
+### `start_play`
+发起外交博弈：`initiator` 对 `target` 提战争目标（如 附庸化 / 吞并 X省 / 独立 / 联合统治），持续 2 个月，期间可站队/改目标/退缩。
+- `initiator` (string)：发起国 id
+- `target` (string)：被发起国 id
+- `goal` (string)：进攻目标（如 附庸化 / 吞并 Lothian）；留空时用 cb 名
+- `cb` (string，可选)：战争理由 CB id
+
+### `join_play`
+国家加入某场外交博弈某侧（战前站队）。
+- `play_id` (integer)：博弈 id
+- `country_id` (string)：站队国 id
+- `side` (string)：阵营 `A`（发起方）/ `B`（防守方）
+
+### `set_play_goal`
+博弈方修改自己的战争目标。
+- `play_id` (integer)：博弈 id
+- `country_id` (string)：博弈方国家 id
+- `goal` (string)：新目标
+
+### `back_down`
+某侧在外交博弈中退缩 → 对方不战而获目标，退缩方失威望。
+- `play_id` (integer)：博弈 id
+- `side` (string)：退缩的阵营 `A` / `B`
+
+## 使用原则
+- 有正当理由（仇恨/野心/被威胁/扩张机会）才宣战或发起博弈；站队符合关系与利益，恩怨深才站敌对侧；势弱、被围或目标不划算时可能退缩。
+- 不要每月无脑宣战，克制、合理、有戏剧性。
+- 玩家国家（标注「玩家」）由玩家自己决定，你不要替它做动作。
+- 本月没有合适动作就【什么都不做】（不调用任何工具）。只调用工具，不要输出无关文字。

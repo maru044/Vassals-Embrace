@@ -28,6 +28,7 @@ GameManager="*res://scripts/core/game_manager.gd"
 SaveManager="*res://scripts/core/save_manager.gd"
 AudioManager="*res://scripts/core/audio_manager.gd"
 WorldAI="*res://scripts/llm/world_ai.gd"
+PromptManager="*res://scripts/llm/prompt_manager.gd"
 
 [display]
 

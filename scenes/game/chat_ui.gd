@@ -305,17 +305,35 @@ func _handle_requirement_result(content: String) -> void:
 		_add_system_msg("（未能从回复判断同意/拒绝，请再次明确表态）")
 
 
-## 对象人设（引擎①⑨接入后补状态锚点）
+## 对象人设：锚定当前对话对象 + 加载 Prompts 全部提示词文件（PromptManager，按 depth 排序）
 func _build_system_prompt() -> String:
+	var anchor := ""
 	match _target_kind:
 		"miku":
-			return "你是 Miku（初音未来），本系统的管理员女主人。性格可爱、高性能、爱吐槽，用中文与主人（玩家）对话。当前正在辅助玩家治理不列颠的百合后宫世界。"
+			anchor = "【当前对话对象】你是 Miku（系统管理员 / 女主人 / 裁判），主持《欧陆百合风云》。玩家是 %s 的统治者，正在与你对话。用中文回复。" % _player_id_label()
 		"country":
-			var rolls := "%d, %d, %d, %d, %d" % [Dice.d100(), Dice.d100(), Dice.d100(), Dice.d100(), Dice.d100()]
-			return "你是 %s 的统治者，身处「欧陆百合风云」的百合后宫世界。主人是玩家（%s 的统治者）。请保持角色人设：端庄得体、外冷内淫、识趣的玩伴姿态，用中文与主人对话。当前是外交/私会场合。\n【好感判定】当主人提出肢体/侍奉互动时：爱抚、玩弄玩具=简单（成功+3/失败-3）；口交、手淫=中等（成功+5/失败-3）；性交=困难（成功+10/失败-3，需高好感+氛围铺垫才可能成功）。用本次 5 个 D100（COC 越低越好，1-10 大成功/91-100 大失败）结合你的性格、当前好感、情境判定成败后，调用工具 modify_favor(target_id=\"%s\", delta=±N) 更新好感；纯闲聊不调用工具。\n本次随机数：roll 5d100=(%s)" % [_display_name, _target_id, _target_id, rolls]
+			anchor = "【当前对话对象】你是 %s 的统治者，身处「欧陆百合风云」的百合后宫世界。玩家是 %s 的统治者。当前是外交/私会场合。请保持角色人设：端庄得体、外冷内淫、识趣的玩伴姿态，用中文对话。" % [_display_name, _player_id_label()]
 		"harem":
-			return "你是 %s 后宫中的一员，正与主人独处。温柔识趣、主动调情但不卑不亢，享受百合与侍奉，用中文与主人对话。" % _display_name
-	return "你是一个神秘的存在，用中文与主人对话。"
+			anchor = "【当前对话对象】你是 %s 后宫中的一员，正与主人独处。温柔识趣、主动调情但不卑不亢，享受百合与侍奉，用中文对话。" % _display_name
+	# 动态占位符（Format_and_Correction 的 {dice_rolls} 等）
+	var rolls := "%d, %d, %d, %d, %d" % [Dice.d100(), Dice.d100(), Dice.d100(), Dice.d100(), Dice.d100()]
+	var extra := {
+		"dice_rolls": rolls,
+		"player_name": _player_id_label(),
+		"target_name": _display_name,
+	}
+	# 扮演国家/后宫时不注入 Miku 人设（Jailbreak/World_Core），避免 LLM 混淆成扮演 Miku
+	var exclude: Array = []
+	if _target_kind != "miku":
+		exclude = ["Jailbreak_Persona.md", "World_Core.md"]
+	var prompts := PromptManager.build_system_context(extra, [], exclude)
+	return (anchor + "\n\n" + prompts).strip_edges()
+
+
+## 玩家国家 id（无则回退「玩家」）
+func _player_id_label() -> String:
+	var pid := GameManager.player_country_id
+	return pid if not pid.is_empty() else "玩家"
 
 
 ## 消息气泡

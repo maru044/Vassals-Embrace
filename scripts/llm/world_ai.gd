@@ -79,15 +79,16 @@ func _is_player_action(tname: String, args: Dictionary) -> bool:
 
 
 func _system_prompt() -> String:
-	return "你是《欧陆百合风云》的「世界意志」（上帝视角），扮演所有 AI 国家的统治者（各国公主）。\
-你按她们的【性格、恩怨、好感和世界局势】决定每月的【外交动作】，只通过以下工具行动：\
-start_play(发起博弈+战争目标)、join_play(加入博弈某侧)、set_play_goal(改目标)、back_down(退缩认怂)、\
-declare_war(直接宣战)、join_war(加入战争某侧)。\
+	var rules := "你是《欧陆百合风云》的「世界意志」（上帝视角），扮演所有 AI 国家的统治者（各国公主）。\
+你按她们的【性格、恩怨、好感和世界局势】决定每月的【外交动作】。\
 规则：① 有正当理由（仇恨/野心/被威胁/扩张机会）才宣战或发起博弈；② 站队符合关系与利益，恩怨深才站敌对侧；\
 ③ 势弱、被围或目标不划算时可能退缩；④ 不要每月无脑宣战，克制、合理、有戏剧性；\
 ⑤ 玩家国家（标注「玩家」）由玩家自己决定，你不要替它做动作；\
 ⑥ 本月没有合适动作就【什么都不做】（不调用任何工具）。只调用工具，不要输出无关文字。\
 ⑦ 发起博弈/宣战时可用 cb 参数指定战争理由，AI 可自由选用通用 CB（附庸化/受保护国/夺取至高王/独立等），不受好感度限制。"
+	# 加载规则手册 + 工具手册（PromptManager，按 depth 排序；排除聊天专用的 Miku/格式文件）
+	var docs := PromptManager.build_system_context({}, ["Game_Mechanics.md", "System_Tools_Manual.md"])
+	return (rules + "\n\n" + docs).strip_edges()
 
 
 ## 打包世界状态（各国军队/威望 + 进行中的博弈 + 战争），供 LLM 决策
