@@ -40,6 +40,32 @@ func add_message(role: String, content: String) -> void:
 	history.append({"role": role, "content": content})
 
 
+## 注入用户消息（合并连续 user，避免 API 400；参考 Synthetica add_user_message）
+func add_user_message(text: String) -> void:
+	if history.size() > 0 and history.back().get("role") == "user":
+		var last: Dictionary = history.back()
+		history[history.size() - 1] = {"role": "user", "content": str(last.get("content", "")) + "\n" + text}
+	else:
+		history.append({"role": "user", "content": text})
+
+
+## 回填工具结果到历史（OpenAI 协议要求 tool_calls 后必须紧跟 role=tool 结果，否则下次请求 400）
+func add_tool_result(tool_call_id: String, name: String, result: Dictionary) -> void:
+	history.append({"role": "tool", "tool_call_id": tool_call_id, "name": name, "content": JSON.stringify(result)})
+
+
+## 回滚：先跳过尾部 system/tool 消息，再删最后一条 assistant，返回最后一条 user 文本（用于撤回重发）
+func rollback_history() -> String:
+	while history.size() > 0 and history.back().get("role") in ["system", "tool"]:
+		history.pop_back()
+	if history.size() > 0 and history.back().get("role") == "assistant":
+		history.pop_back()
+	if history.size() > 0 and history.back().get("role") == "user":
+		var user_msg: Dictionary = history.pop_back()
+		return str(user_msg.get("content", ""))
+	return ""
+
+
 ## 发送请求（带 PREFILL + 重试 + 日志）；完成后 request_finished(success, response)
 func send_request(tools: Array = []) -> void:
 	if _busy:

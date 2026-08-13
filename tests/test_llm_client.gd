@@ -40,6 +40,29 @@ func _initialize() -> void:
 	client.call("_on_request_completed", 0, 401, PackedStringArray(), PackedByteArray())
 	out.append("HTTP 401 -> finished(false): %s" % (holder2["ok"] == false))
 
+	# ⑤ add_user_message 合并连续 user（避免 API 400）
+	client.call("reset_history")
+	client.call("add_user_message", "第一句")
+	client.call("add_user_message", "第二句")
+	var h2: Array = client.get("history")
+	out.append("add_user_message merge consecutive: %s" % (h2.size() == 1 and str((h2[0] as Dictionary).get("content", "")).contains("第二句")))
+
+	# ⑥ add_tool_result 回填 role=tool（tool_calls 后必须紧跟 tool 结果）
+	client.call("reset_history")
+	client.call("add_message", "assistant", "思考")
+	client.call("add_tool_result", "call_x", "modify_favor", {"ok": true})
+	var h3: Array = client.get("history")
+	out.append("add_tool_result appends role=tool: %s" % (h3.size() == 2 and str((h3.back() as Dictionary).get("role", "")) == "tool"))
+
+	# ⑦ rollback_history 跳过尾部 tool/system，回到上一个 user
+	client.call("reset_history")
+	client.call("add_user_message", "原始提问")
+	client.call("add_message", "assistant", "回复")
+	client.call("add_tool_result", "call_x", "modify_favor", {"ok": true})
+	client.call("add_message", "system", "提醒")
+	var rolled := str(client.call("rollback_history"))
+	out.append("rollback skips tool/system returns last user: %s" % (rolled == "原始提问"))
+
 	out.append("TEST_DONE")
 	var f := FileAccess.open(RESULT_PATH, FileAccess.WRITE)
 	if f:

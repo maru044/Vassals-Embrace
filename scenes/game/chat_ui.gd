@@ -32,6 +32,7 @@ var _scroll: ScrollContainer
 var _vbox: VBoxContainer
 var _input: LineEdit
 var _send: Button
+var _rollback_btn: Button = null   # 撤回上一条（Master 8/13 容错）
 var _llm = null
 var _parser_script: GDScript = null
 var _tool_executor_script: GDScript = null
@@ -167,6 +168,17 @@ func _build_ui() -> void:
 	_send.pressed.connect(_on_send_pressed)
 	bottom.add_child(_send)
 
+	# 撤回上一条（Master 8/13 容错：回滚历史 + 填入输入框供修改重发）
+	_rollback_btn = Button.new()
+	_rollback_btn.text = "↺"
+	_rollback_btn.custom_minimum_size = Vector2(72, 0)
+	_rollback_btn.tooltip_text = "撤回上一条"
+	_rollback_btn.add_theme_font_size_override("font_size", 20)
+	_rollback_btn.add_theme_color_override("font_color", _INK)
+	_rollback_btn.add_theme_stylebox_override("normal", _make_stylebox(_PANEL_BG.lightened(0.04), _PANEL_BORDER, 12))
+	_rollback_btn.pressed.connect(_on_rollback_pressed)
+	bottom.add_child(_rollback_btn)
+
 	_parallax_shader = load(PARALLAX_SHADER)
 
 
@@ -243,7 +255,7 @@ func _on_send_pressed() -> void:
 	_input.clear()
 	_add_bubble("你", text, true)
 	if _llm:
-		_llm.add_message("user", text)
+		_llm.add_user_message(text)   # 修复①：合并连续 user，避免 API 400
 		_waiting = true
 		_send.disabled = true
 		_send.text = "思考中…"
@@ -251,6 +263,18 @@ func _on_send_pressed() -> void:
 			_llm.send_request(_tool_executor_script.TOOLS)   # 国家对话启用好感工具（modify_favor）
 		else:
 			_llm.send_request()
+
+
+## 撤回上一条：回滚 LLM 历史到上一个 user 前，填入输入框供修改重发（Master 8/13）
+func _on_rollback_pressed() -> void:
+	if _waiting or _llm == null:
+		return
+	var last_user := str(_llm.rollback_history())
+	if _vbox.get_child_count() > 0:
+		_vbox.get_child(_vbox.get_child_count() - 1).queue_free()
+	if not last_user.is_empty():
+		_input.text = last_user
+		_add_system_msg("已撤回，可修改后重发")
 
 
 func _on_llm_finished(success: bool, data: Dictionary) -> void:
@@ -279,14 +303,14 @@ func _on_llm_finished(success: bool, data: Dictionary) -> void:
 			_add_bubble(_display_name, "[i][color=#8a6d3b]" + str(parsed["cot"]) + "[/color][/i]\n" + display_text, false)
 		else:
 			_add_bubble(_display_name, display_text, false)
-	# 执行工具调用（submit_dialogue 已提取正文，跳过；好感度经 modify_favor 落地 → favor_changed → 外交面板即时刷新）
-	if not tool_calls.is_empty() and _tool_executor:
+	# 执行工具调用（含 submit_dialogue；好感度经 modify_favor 落地 → favor_changed → 外交面板即时刷新）
+	if not tool_calls.is_empty() and _tool_executor and _llm:
 		for tc in tool_calls:
 			var call: Dictionary = _parser_script.parse_tool_call(tc)
 			var tname := str(call.get("name", ""))
-			if tname == "submit_dialogue":
-				continue
 			var res: Dictionary = _tool_executor.execute(tname, call.get("arguments", {}))
+			# 修复②：回填 tool 结果到历史（OpenAI 协议要求 tool_calls 后紧跟 role=tool，否则下次请求 400）
+			_llm.add_tool_result(str(call.get("id", "")), tname, res)
 			if res.get("ok", false) and tname == "modify_favor":
 				var delta: int = res.get("delta", 0)
 				var favor: float = res.get("favor", 0.0)

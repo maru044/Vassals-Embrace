@@ -33,11 +33,12 @@ static func parse_response(data: Dictionary) -> Dictionary:
 
 
 static func parse_tool_call(tool_call: Dictionary) -> Dictionary:
-	## 把单个 tool_call 解析为 { name, arguments }
+	## 把单个 tool_call 解析为 { name, arguments, id }（id 用于回填 tool 结果，OpenAI 协议必需）
 	var fn: Dictionary = tool_call.get("function", {})
 	return {
 		"name": fn.get("name", ""),
 		"arguments": _parse_json_arguments(fn.get("arguments", "{}")),
+		"id": str(tool_call.get("id", "")),
 	}
 
 
