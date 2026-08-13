@@ -722,7 +722,7 @@ func _build_thinking_overlay() -> void:
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	rect.add_child(center)
 	var lbl := Label.new()
-	lbl.text = "战略思考中…\n各国公主正在权衡局势"
+	lbl.text = "战略思考中…\nMiku 正在裁定各国局势"
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_size_override("font_size", 40)
 	lbl.add_theme_color_override("font_color", GOLD)

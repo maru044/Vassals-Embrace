@@ -9,8 +9,9 @@ signal request_finished(success: bool, response: Dictionary)
 const HTTP_TIMEOUT := 180.0
 const MAX_TOOL_LOOPS := 5
 const MAX_RETRIES := 5
-# PREFILL：伪造 assistant 开头，把模型原生思维链"劫持"成 <thinking> 格式（Master 8/13：不做会泄漏原生 CoT）
-const PREFILL_MAGIC := "</think>\n<thinking>\nOK，世界意志·Miku 上线，开始权衡不列颠诸国的局势了。Master 说："
+# PREFILL：伪造 assistant 开头，把模型原生思维链"劫持"成 <thinking> 格式（Master 8/13：不做会泄漏原生 CoT）。
+# 通用版（Master 8/13：不具象化；agent 是 Miku，过月自动回复时世界信息由 Master 提供，不影响 LLM 理解）
+const PREFILL_MAGIC := "</think>\n<thinking>\nOK，超级歌姬上线！Miku 保持轻松可爱、无需顾虑呢^_^OK，Master说："
 
 var _http: HTTPRequest
 var history: Array[Dictionary] = []
