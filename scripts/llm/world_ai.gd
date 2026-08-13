@@ -40,10 +40,12 @@ func _on_month_advanced(_m: int, _y: int) -> void:
 	_llm.add_message("system", _system_prompt())
 	_llm.add_message("user", _world_state_text())
 	_llm.send_request(_tool_script.TOOLS)
+	EventBus.world_ai_thinking_started.emit()   # UI 全屏遮挡「战略思考中」，防止玩家操作冲突（Master 8/13）
 
 
 func _on_llm_finished(success: bool, data: Dictionary) -> void:
 	_busy = false
+	EventBus.world_ai_thinking_finished.emit()   # 思考结束（无论成功失败）→ 解除全屏遮挡
 	if not success:
 		return   # 失败降级：本月 AI 无动作
 	var parsed: Dictionary = _parser.parse_response(data)

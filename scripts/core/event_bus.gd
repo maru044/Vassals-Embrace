@@ -57,6 +57,8 @@ signal situation_changed(situation_id: String, value: int)
 signal llm_request_started
 signal llm_response_received(response: Dictionary)
 signal tool_executed(tool_name: String, result: Dictionary)
+signal world_ai_thinking_started                                 # 过月世界 AI（LLM）开始思考 → UI 全屏遮挡
+signal world_ai_thinking_finished                                # 世界 AI 思考结束 → 恢复操作
 
 # ---------- 8. 后宫 ----------
 signal harem_member_added(country_id: int, member_name: String)

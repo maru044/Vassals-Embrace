@@ -137,6 +137,7 @@ var _shield_buttons: Dictionary = {} # id -> TextureButton
 # ---- 游戏 UI 层节点（代码构建，占位）----
 var _game_root: Control = null
 var _top_country: Label = null
+var _thinking_overlay: ColorRect = null   # 过月世界 AI 思考全屏遮挡（Master 8/13）
 var _top_date: Label = null
 var _top_gold: Label = null
 var _top_prestige: Label = null
@@ -203,6 +204,9 @@ func _ready() -> void:
 	# 引擎⑥ 事件面板（居中弹窗）+ 事件通知
 	_build_event_ui()
 	EventBus.event_pending.connect(_show_event_panel)
+	# 过月世界 AI（LLM）思考 → 全屏遮挡「战略思考中」，思考期间拦截操作（Master 8/13）
+	EventBus.world_ai_thinking_started.connect(func() -> void: _set_thinking_overlay(true))
+	EventBus.world_ai_thinking_finished.connect(func() -> void: _set_thinking_overlay(false))
 
 
 func _load_countries() -> void:
@@ -701,6 +705,37 @@ func _build_game_layer() -> void:
 	_build_right_bar(root)
 	_build_bottom_bar(root)
 	_build_bottom_slide(root)   # 最后构建 → 模态弹窗层级最高
+	_build_thinking_overlay()   # 过月「战略思考中」全屏遮挡（CanvasLayer 200，盖住一切）
+
+
+## 过月「战略思考中」全屏遮挡（参考 Synthetica MainHUD loading_overlay）：LLM 思考期间拦截所有输入
+func _build_thinking_overlay() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 200
+	add_child(layer)
+	var rect := ColorRect.new()
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.color = Color(0.05, 0.03, 0.01, 0.82)
+	rect.visible = false
+	layer.add_child(rect)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.add_child(center)
+	var lbl := Label.new()
+	lbl.text = "战略思考中…\n各国公主正在权衡局势"
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", 40)
+	lbl.add_theme_color_override("font_color", GOLD)
+	lbl.add_theme_color_override("font_outline_color", GOLD_OUTLINE)
+	lbl.add_theme_constant_override("outline_size", 4)
+	center.add_child(lbl)
+	_thinking_overlay = rect
+
+
+## 显示/隐藏过月思考遮挡
+func _set_thinking_overlay(show: bool) -> void:
+	if _thinking_overlay != null:
+		_thinking_overlay.visible = show
 
 
 ## ===== 顶栏（两行：左盾徽通高；上栏 国名/月/金币/威望/军队；下栏 六图标）=====
