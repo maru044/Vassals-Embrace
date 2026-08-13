@@ -670,11 +670,43 @@ func _tick_cbs() -> void:
 		cb_timers.erase(key)
 
 
+## 防环（DAG 约束，Master 8/13 确认：宗主/附庸树应为有向无环，像 EU4 贸易图）：
+## 建立 actor→target（actor 成为 target 宗主）前，若 target 已是 actor 的宗主祖先（沿宗主链上行能到 target）→ 会成环
+func _would_create_liege_cycle(actor: String, target: String) -> bool:
+	if actor == target:
+		return true
+	var cur := actor
+	var seen := {}
+	while cur != "":
+		if cur == target:
+			return true
+		if seen.has(cur):
+			return true   # 防御：已存在环（正常不应发生）
+		seen[cur] = true
+		cur = _effective_liege(cur)
+	return false
+
+
+## 校验宗主/附庸图是否成环（静态 + 运行时 DAG 校验；有环返回 true）
+func liege_graph_has_cycle() -> bool:
+	for c in _country_list:
+		var cur: String = str(c.get("id", ""))
+		var seen := {}
+		while cur != "":
+			if seen.has(cur):
+				return true
+			seen[cur] = true
+			cur = _effective_liege(cur)
+	return false
+
+
 ## 要求被同意 → 建立运行时关系（vassalize→附庸 / protectorate→受保护国 / personal_union→联合统治）
 ## 注：完整附庸税/战时立场等机制属引擎⑤，这里先落地关系数据层 + 发事件刷新 UI
 func establish_requirement(actor: String, target: String, cb_id: String) -> Dictionary:
 	match cb_id:
 		"vassalize", "protectorate":
+			if _would_create_liege_cycle(actor, target):
+				return {"ok": false, "error": "建立该附庸关系会形成宗主/附庸环（DAG 约束）"}
 			runtime_liege[target] = actor
 			# 附庸税（Master 8/13）：附庸 -3 队上限 / 受保护国不扣；超上限直接降到上限
 			runtime_vassal_type[target] = "feudal" if cb_id == "vassalize" else "protectorate"
@@ -683,6 +715,7 @@ func establish_requirement(actor: String, target: String, cb_id: String) -> Dict
 			EventBus.diplomatic_relation_changed.emit(actor, target, rel)
 			return {"ok": true, "relation": rel, "liege": actor}
 		"personal_union":
+			# 联合统治不是国家从属（不参与宗主树），无需防环
 			runtime_union[target] = actor
 			EventBus.diplomatic_relation_changed.emit(actor, target, "union")
 			return {"ok": true, "relation": "union", "lead": actor}

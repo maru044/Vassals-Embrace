@@ -86,6 +86,18 @@ func _initialize() -> void:
 	gm.call("establish_requirement", "England", "Ulster", "protectorate")
 	out.append("vassal tax: Ulster protectorate cap = %d (expect 5, 受保护国不扣)" % int(gm.call("get_army_cap", "Ulster")))
 
+	# ⑨ 防环（DAG，Master 8/13）：宗主/附庸树应有向无环；运行时关系不能成环
+	gm.set("runtime_liege", {})
+	gm.set("runtime_vassal_type", {})
+	gm.set("runtime_union", {})
+	out.append("dag: static + empty runtime acyclic: %s" % (not gm.call("liege_graph_has_cycle")))
+	gm.call("establish_requirement", "The Isles", "Scotland", "vassalize")   # 群岛→苏格兰附庸 OK
+	var res_cyc: Dictionary = gm.call("establish_requirement", "Scotland", "The Isles", "vassalize")  # 苏格兰→群岛 会成环
+	out.append("dag: cycle attempt (Scotland->The Isles) rejected: %s" % (not res_cyc.get("ok", true)))
+	out.append("dag: still acyclic after reject: %s" % (not gm.call("liege_graph_has_cycle")))
+	var res_self: Dictionary = gm.call("establish_requirement", "The Isles", "The Isles", "vassalize")
+	out.append("dag: self-liege rejected: %s" % (not res_self.get("ok", true)))
+
 	root.remove_child(gm)
 	gm.free()
 	out.append("TEST_DONE")
