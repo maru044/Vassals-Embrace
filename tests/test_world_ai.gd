@@ -44,6 +44,21 @@ func _initialize() -> void:
 	wai.call("_on_llm_finished", false, {})
 	out.append("failure fallback (no change): %s" % ((gm.get("plays") as Array).size() == before))
 
+	# ⑤ 无配置降级（Master 8/13 修复 _busy 卡死）：has_valid_config()=false → _on_month_advanced 直接返回且不占 _busy
+	var cfg: Node = root.get_node("ConfigManager")
+	var sv_url: String = cfg.get("api_url")
+	var sv_key: String = cfg.get("api_key")
+	var sv_model: String = cfg.get("model")
+	cfg.set("api_url", "")
+	cfg.set("api_key", "")
+	cfg.set("model", "")
+	wai.set("_busy", false)
+	wai.call("_on_month_advanced", 1, 1400)
+	out.append("no-config _busy stays false: %s" % (wai.get("_busy") == false))
+	cfg.set("api_url", sv_url)
+	cfg.set("api_key", sv_key)
+	cfg.set("model", sv_model)
+
 	out.append("TEST_DONE")
 	var f := FileAccess.open(RESULT_PATH, FileAccess.WRITE)
 	if f:

@@ -33,6 +33,8 @@ func _ready() -> void:
 func _on_month_advanced(_m: int, _y: int) -> void:
 	if _busy or not GameManager.is_running:
 		return
+	if not ConfigManager.has_valid_config():
+		return   # LLM 未配置：本月 AI 无动作（不占 _busy，避免后续配置后卡死）
 	_busy = true
 	_llm.reset_history()
 	_llm.add_message("system", _system_prompt())
