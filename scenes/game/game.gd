@@ -180,9 +180,17 @@ func _ready() -> void:
 	AudioManager.play_menu_music()
 	# 下栏图标动态刷新：引擎状态变化（宣战/博弈/联统/组织成员）时随时重建
 	EventBus.war_started.connect(func(_w: int) -> void: _refresh_bottom_bar())
-	EventBus.war_ended.connect(func(_w: int) -> void: _refresh_bottom_bar())
+	EventBus.war_ended.connect(func(w: int) -> void:
+		_refresh_bottom_bar()
+		# 当前打开的战/博弈面板已结束 → 自动关闭（Master 8/13：退缩后图标消失导致无法退出）
+		if _bottom_open and _active_bottom == "war_%d" % w:
+			_close_bottom_slide())
 	EventBus.diplomatic_play_started.connect(func(_p: int) -> void: _refresh_bottom_bar())
-	EventBus.diplomatic_play_resolved.connect(func(_p: int) -> void: _refresh_bottom_bar())
+	EventBus.diplomatic_play_resolved.connect(func(p: int) -> void:
+		_refresh_bottom_bar()
+		# 当前打开的博弈面板已结束 → 自动关闭（Master 8/13：退缩后图标消失导致无法退出）
+		if _bottom_open and _active_bottom == "play_%d" % p:
+			_close_bottom_slide())
 	EventBus.union_changed.connect(func(_l: int, _m: int, _a: bool) -> void: _refresh_bottom_bar())
 	EventBus.organization_changed.connect(func(_o: int) -> void: _refresh_bottom_bar())
 	# 引擎①：过月后顶栏 + 左栏当前面板热更新（金币/威望/好感/经济即时刷新，无需关开面板）
