@@ -144,6 +144,8 @@ func start_new_game(country_id: String) -> void:
 		army_morale[cid] = get_total_morale(cid)   # 引擎③：士气满值
 		if cid != player_country_id:
 			player_favor[cid] = _initial_favor(cid)
+	# 引擎⑥（Master 8/13：事件在「回合开始」触发）→ 开局 1400.9 立即触发开局月事件
+	_tick_events()
 	EventBus.start_game.emit()
 
 
@@ -266,6 +268,8 @@ func change_favor(target_id: String, delta: float) -> void:
 func _on_end_month() -> void:
 	_settle_month()
 	_advance_time()
+	# 引擎⑥（Master 8/13：事件在「回合开始」触发）→ 新月份开始即触发该月事件（历史/脉冲/随机）
+	_tick_events()
 	EventBus.month_advanced.emit(month, year)
 
 
@@ -300,8 +304,7 @@ func _settle_month() -> void:
 	_tick_plays()
 	# 引擎④-CB：1 年要求 CB 计时 -1
 	_tick_cbs()
-	# 引擎⑥：事件结算（历史/脉冲/随机 → 玩家排队 / AI 自动；临时修正 -1）
-	_tick_events()
+	# 引擎⑥-事件触发已移至「回合开始」（_on_end_month 内 _advance_time 后 + start_new_game 开局），此处不再触发
 	# 引擎④-T5：AI 军队状态机决策（停战回 FREE / 首都沦陷解围 / 友军激战增援 / 默认围敌方首都，ZoC 阻挡先攻要塞）
 	_tick_ai_armies()
 	# 行军推进（每月最多 2 格，沿命令 BFS 最短路径；非战时无 ZoC）
