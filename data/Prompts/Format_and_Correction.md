@@ -55,6 +55,7 @@
 </thinking>
 
 思考结束后，直接通过函数调用 **submit_dialogue(content=...)** 输出正式正文。系统会自动提取 content 参数作为显示内容。不要再使用 <content> 标签，正文全部写进 content 参数。正文的字数注重质量，你觉得完整描述完成了即可。
+**每轮回复都必须调用 submit_dialogue 输出正文**；如需同时修改好感等数据，请在同一次回复中**并行调用**对应工具（如 modify_favor）与 submit_dialogue（可一次返回多个工具）。
 
 格式示例：
 <thinking>
