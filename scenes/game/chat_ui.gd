@@ -262,6 +262,11 @@ func _on_llm_finished(success: bool, data: Dictionary) -> void:
 		return
 	var parsed: Dictionary = _parser_script.parse_response(data)
 	var content: String = parsed.get("content", "")
+	# Master 8/13：LLM 只要响应了内容（含思考）就打印到控制台，方便调试
+	if str(parsed.get("cot", "")) != "":
+		print("【聊天·思考】", str(parsed["cot"]))
+	if content != "":
+		print("【聊天·正文】", content)
 	if parsed.get("cot", "") != "":
 		_add_bubble(_display_name, "[i][color=#8a6d3b]" + str(parsed["cot"]) + "[/color][/i]\n" + content, false)
 	else:

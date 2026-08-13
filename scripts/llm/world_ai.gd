@@ -47,6 +47,13 @@ func _on_llm_finished(success: bool, data: Dictionary) -> void:
 	if not success:
 		return   # 失败降级：本月 AI 无动作
 	var parsed: Dictionary = _parser.parse_response(data)
+	# Master 8/13：LLM 只要响应了内容（含回合末思考）就打印到控制台，方便观察 AI 决策依据
+	var cot: String = str(parsed.get("cot", ""))
+	var content: String = str(parsed.get("content", ""))
+	if not cot.is_empty():
+		print("【世界AI·思考】", cot)
+	if not content.is_empty():
+		print("【世界AI·正文】", content)
 	var tool_calls: Array = parsed.get("tool_calls", [])
 	var executed: Array[String] = []
 	for tc in tool_calls:
