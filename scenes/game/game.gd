@@ -1094,14 +1094,10 @@ func _refresh_diplo_country(country: String) -> void:
 	_open_diplomacy_country(country)
 
 
-## 附庸/宗主：直接宗主 + 【直接附庸】与【受保护国】分开展示（#33 占位；vassal_type 区分）
-## 嵌套超一层的附庸不显示；受保护国（vassal_type=protectorate）独立一栏，附「要求成为附庸」按钮
+## 附庸/宗主：直接宗主 + 【直接附庸】与【受保护国】分开展示
+## 引擎⑤：运行时附庸关系（要求X同意建立）也计入；受保护国独立一栏，附「要求成为附庸」按钮
 func _build_vassal_panel() -> void:
-	var my_liege := ""
-	for c in _countries:
-		if c.get("id", "") == _player_country_id:
-			my_liege = c.get("liege", "")
-			break
+	var my_liege := GameManager.effective_liege(_player_country_id)
 	if my_liege != "" and _country_index.has(my_liege):
 		var lrow := HBoxContainer.new()
 		lrow.add_theme_constant_override("separation", 8)
@@ -1117,9 +1113,10 @@ func _build_vassal_panel() -> void:
 	_left_body.add_child(_panel_label("直接附庸："))
 	var vassal_found := false
 	for c in _countries:
-		if c.get("liege", "") != _player_country_id:
+		var vcid: String = c.get("id", "")
+		if GameManager.effective_liege(vcid) != _player_country_id:
 			continue
-		if _vassal_type(c.get("id", "")) == "protectorate":
+		if GameManager.effective_vassal_type(vcid) == "protectorate":
 			continue
 		vassal_found = true
 		var row := HBoxContainer.new()
@@ -1136,9 +1133,10 @@ func _build_vassal_panel() -> void:
 	_left_body.add_child(_panel_label("受保护国："))
 	var prot_found := false
 	for c in _countries:
-		if c.get("liege", "") != _player_country_id:
+		var pcid: String = c.get("id", "")
+		if GameManager.effective_liege(pcid) != _player_country_id:
 			continue
-		if _vassal_type(c.get("id", "")) != "protectorate":
+		if GameManager.effective_vassal_type(pcid) != "protectorate":
 			continue
 		prot_found = true
 		var prows := HBoxContainer.new()
@@ -1816,12 +1814,9 @@ func _country_name(id: String) -> String:
 	return id
 
 
-## 附庸类型：countries.json vassal_type（无字段时默认 "feudal" 封臣附庸）
+## 附庸类型：运行时（要求X同意建立的附庸类型优先）；无则静态 countries.json（默认 "feudal"）
 func _vassal_type(cid: String) -> String:
-	var idx: int = _country_index.get(cid, -1)
-	if idx >= 0:
-		return str(_countries[idx].get("vassal_type", "feudal"))
-	return "feudal"
+	return GameManager.effective_vassal_type(cid)
 
 
 ## 附庸类型中文名

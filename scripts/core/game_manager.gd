@@ -594,6 +594,16 @@ func _effective_liege(cid: String) -> String:
 	return str(runtime_liege.get(cid, _country_liege(cid)))
 
 
+## 公开：运行时宗主（UI 附庸面板用）
+func effective_liege(cid: String) -> String:
+	return _effective_liege(cid)
+
+
+## 公开：运行时附庸类型（UI 附庸面板用）
+func effective_vassal_type(cid: String) -> String:
+	return _effective_vassal_type(cid)
+
+
 ## cid 是否为 liege 的附庸（运行时；受保护国不算附庸）
 func _is_vassal_of(cid: String, liege: String) -> bool:
 	return _effective_liege(cid) == liege and _effective_vassal_type(cid) != "protectorate"
