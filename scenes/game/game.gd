@@ -1936,9 +1936,13 @@ func _render_event_panel() -> void:
 	_event_layer.visible = true
 
 
-## 选项点击：落地 effects → 有下个事件继续显示，否则关闭
+## 选项点击：落地 effects → 立即刷新顶栏/左栏/地图兵牌 → 有下个事件继续显示，否则关闭
 func _on_event_option(idx: int) -> void:
 	GameManager.resolve_player_event(idx)
+	# 即时反馈（Master 8/13）：金币/威望/军队/好感落地后马上刷新 HUD，不等过月
+	_refresh_left_panel()
+	_refresh_top_bar()
+	_map_view.refresh_army(GameManager.army_position, GameManager.army_count)   # 事件加军队 → 地图兵牌数字即时更新
 	if GameManager.peek_player_event().is_empty():
 		_event_layer.visible = false
 	else:
