@@ -209,6 +209,8 @@ func open_chat(kind: String, id: String, display_name: String, requirement := ""
 func _close() -> void:
 	visible = false
 	_tachie_rect.visible = false
+	if _llm:
+		_llm.reset_history()   # 关闭对话即销毁历史+动态注入，防上下文串味（Master 8/13，参考女仆别墅 Panel Closed）
 
 
 ## 立绘加载（country → rulers/<id>；harem → harem/<name>；miku 无）
@@ -354,12 +356,19 @@ func _build_system_prompt() -> String:
 			anchor = "【当前对话对象】你是 %s 的统治者，身处「欧陆百合风云」的百合后宫世界。玩家是 %s 的统治者。当前是外交/私会场合。请保持角色人设：端庄得体、外冷内淫、识趣的玩伴姿态，用中文对话。" % [_display_name, _player_id_label()]
 		"harem":
 			anchor = "【当前对话对象】你是 %s 后宫中的一员，正与主人独处。温柔识趣、主动调情但不卑不亢，享受百合与侍奉，用中文对话。" % _display_name
-	# 动态占位符（Format_and_Correction 的 {dice_rolls} 等）
+	# 动态占位符（Format_and_Correction 的 {dice_rolls}、Dynamic_Status 的 {current_time}/{scene_context}/{target_favor} 等）
 	var rolls := "%d, %d, %d, %d, %d" % [Dice.d100(), Dice.d100(), Dice.d100(), Dice.d100(), Dice.d100()]
+	# 场景状态：普通对话 vs 外交要求（Master 8/13：不同按钮场景用系统提示词告知 LLM 当前状态）
+	var scene := "日常场合：随意的对话 / 私会调情"
+	if not _pending_requirement.is_empty():
+		scene = "外交场合：玩家正在向你提出【%s】，请结合你的性格、与玩家的关系与好感决定是否同意，并在回复末尾用【同意】或【拒绝】明确标注" % _pending_requirement_label
 	var extra := {
 		"dice_rolls": rolls,
 		"player_name": _player_id_label(),
 		"target_name": _display_name,
+		"current_time": "%d 年 %d 月" % [GameManager.year, GameManager.month],
+		"scene_context": scene,
+		"target_favor": int(GameManager.player_favor.get(_target_id, 0.0)),
 	}
 	# 扮演国家/后宫时不注入 Miku 人设（Jailbreak/World_Core），避免 LLM 混淆成扮演 Miku
 	var exclude: Array = []

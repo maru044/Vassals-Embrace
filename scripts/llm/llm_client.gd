@@ -144,11 +144,13 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 	if not tool_calls.is_empty():
 		clean_msg["tool_calls"] = tool_calls
 	history.append(clean_msg)
-	# 空内容（安全审查）→ 回滚刚 append 的空 assistant 消息再重试（避免历史累积脏数据，参考 Synthetica 排障总结）
+	# 空内容（安全审查/格式错误）→ 回滚空消息，注入格式纠正提醒再重试（Master 8/13：格式提醒仅在出错时发送一次）
 	if not has_content and tool_calls.is_empty():
 		history.pop_back()
-		print("[LLMClient] ❌ 模型返回空内容（可能安全审查），重试 %d/%d..." % [_retry_count + 1, MAX_RETRIES])
+		print("[LLMClient] ❌ 模型返回空内容（可能安全审查/格式错误），重试 %d/%d..." % [_retry_count + 1, MAX_RETRIES])
 		if _retry_count < MAX_RETRIES:
+			if _retry_count == 0:
+				history.append({"role": "system", "content": "[格式纠正] 你的上一条回复为空或格式错误。请直接通过 submit_dialogue(content=...) 输出正文，不要输出空内容、不要只调用工具而不给正文。"})
 			_retry_count += 1
 			_http.cancel_request()
 			await get_tree().create_timer(1.0).timeout
