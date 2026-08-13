@@ -38,6 +38,8 @@ var _tool_executor_script: GDScript = null
 var _tool_executor = null
 var _waiting := false
 var _parallax_smooth := Vector2.ZERO
+var _pending_requirement := ""        # 引擎④-CB：要求对话的 cb_id（非空=要求模式）
+var _pending_requirement_label := ""  # 要求对话展示名（如 要求附庸）
 
 
 func _ready() -> void:
@@ -169,7 +171,8 @@ func _build_ui() -> void:
 
 
 ## 打开聊天：kind = country / harem / miku
-func open_chat(kind: String, id: String, display_name: String) -> void:
+## requirement：引擎④-CB 要求对话（cb_id），requirement_label 为展示名；非空时注入要求系统消息
+func open_chat(kind: String, id: String, display_name: String, requirement := "", requirement_label := "") -> void:
 	_target_kind = kind
 	_target_id = id
 	_display_name = display_name
@@ -180,10 +183,15 @@ func open_chat(kind: String, id: String, display_name: String) -> void:
 	_waiting = false
 	_send.disabled = false
 	_send.text = "发送"
+	# 引擎④-CB：要求对话（LLM 同意→建立关系 / 拒绝→1年CB）
+	_pending_requirement = requirement
+	_pending_requirement_label = requirement_label
 	# 重置 LLM 上下文 + 注入对象人设
 	if _llm:
 		_llm.reset_history()
 		_llm.add_message("system", _build_system_prompt())
+		if not requirement.is_empty():
+			_llm.add_message("system", "（外交要求）玩家向你提出【%s】。请结合你的性格、与玩家的关系与好感，决定是否同意。你必须在回复末尾用【同意】或【拒绝】明确标注结果。" % requirement_label)
 
 
 func _close() -> void:
@@ -268,6 +276,33 @@ func _on_llm_finished(success: bool, data: Dictionary) -> void:
 				var delta: int = res.get("delta", 0)
 				var favor: float = res.get("favor", 0.0)
 				_add_system_msg("好感 %s%d → %d（%s）" % ["+" if delta >= 0 else "", delta, int(favor), _display_name])
+	# 引擎④-CB：要求对话结果落地（同意→建立关系 / 拒绝→1年CB）
+	if not _pending_requirement.is_empty():
+		_handle_requirement_result(content)
+		_pending_requirement = ""
+		_pending_requirement_label = ""
+
+
+## 引擎④-CB：解析要求对话结果（优先【同意】/【拒绝】标签，兜底关键词）
+func _handle_requirement_result(content: String) -> void:
+	var actor := GameManager.player_country_id
+	var target: String = _target_id
+	var cb_id: String = _pending_requirement
+	var label: String = _pending_requirement_label
+	var accepted := content.contains("【同意】")
+	var rejected := content.contains("【拒绝】")
+	if not accepted and not rejected:
+		var plain := content.replace("【同意】", "").replace("【拒绝】", "")
+		accepted = plain.contains("同意") and not plain.contains("拒绝")
+		rejected = not accepted and plain.contains("拒绝")
+	if accepted:
+		var res := GameManager.establish_requirement(actor, target, cb_id)
+		_add_system_msg("【%s】接受了%s → %s" % [_display_name, label, "已建立关系" if res.get("ok", false) else str(res.get("error", "失败"))])
+	elif rejected:
+		var res := GameManager.grant_requirement_cb(actor, target, cb_id)
+		_add_system_msg("【%s】拒绝了%s → 获得 1 年 CB（%d 回合）" % [_display_name, label, int(res.get("months", 0))])
+	else:
+		_add_system_msg("（未能从回复判断同意/拒绝，请再次明确表态）")
 
 
 ## 对象人设（引擎①⑨接入后补状态锚点）

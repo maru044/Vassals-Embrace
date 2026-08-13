@@ -155,10 +155,9 @@ var _bottom_title: Label = null
 var _bottom_body: Control = null
 var _bottom_notice: Label = null   # 下栏弹窗内占位按钮的反馈文本
 var _bottom_hbox: HBoxContainer = null   # 下栏图标容器（选国后重建，因为 _player_country_id 此时才确定）
-var _play_target_opt: OptionButton = null   # 外交博弈面板：目标国选择
-var _play_goal_edit: LineEdit = null        # 外交博弈面板：战争目标输入
-var _play_notice_msg: String = ""           # 外交博弈面板：动作反馈（重建后回填）
-var _diplo_goal_edit: LineEdit = null       # 外交国家视图：宣战目标输入
+var _play_notice_msg: String = ""           # 外交博弈面板：动作反馈（站队/退缩/改目标）
+var _play_goal_edit: LineEdit = null        # 外交博弈面板：修改我方目标输入框
+var _diplo_cb_opt: OptionButton = null      # 外交国家视图：宣战 CB 子菜单（引擎④-CB）
 var _diplo_notice_msg: String = ""          # 外交国家视图：发起博弈反馈
 var _chat_ui: ChatUI = null   # 全局聊天面板（羊皮纸 + 立绘视差；Miku 无立绘）
 
@@ -187,6 +186,10 @@ func _ready() -> void:
 		_map_view.refresh_army(GameManager.army_position, GameManager.army_count))  # 引擎②-B3-2b：军队移动后兵牌跟随
 	# 引擎⑨雏形：对话好感即时变化 → 外交面板即时刷新
 	EventBus.favor_changed.connect(func(_t: String, _v: float) -> void: _refresh_left_panel())
+	# 引擎④-CB：要求附庸/受保护国/联合统治关系建立 → 左栏 + 底栏即时刷新
+	EventBus.diplomatic_relation_changed.connect(func(_a: String, _t: String, _r: String) -> void:
+		_refresh_left_panel()
+		_refresh_bottom_bar())
 	# 聊天界面（参考 ChatUI 案例：左立绘+深度图视差，右对话区）
 	_chat_ui = ChatUI.new()
 	add_child(_chat_ui)
@@ -987,25 +990,48 @@ func _build_diplomacy_panel() -> void:
 		row.add_child(fl)
 
 
-## 进入某国外交子面板：显示该国 对话/联统/受保护国 按钮 + 返回（#33 占位）
-## 海盗（塞壬）国家可直接要求附庸他国（通用 CB），故按钮显示为「要求附庸」；其余国家为「要求成为受保护国」
+## 进入某国外交子面板：对话 / 要求X（按文化：诺斯=附庸、英格兰=受保护国、凯尔特=联合统治，好感>80 可用）
+## + 宣战（选 CB 子菜单，程序判定可用性）→ 发起博弈（引擎④-CB）
 func _open_diplomacy_country(country: String) -> void:
 	_left_title.text = "外交 · %s" % _country_name(country)
 	for c in _left_body.get_children():
 		c.queue_free()
 	_left_body.add_child(_panel_label("与「%s」的外交：" % _country_name(country)))
 	_build_gold_button(_left_body, "对话", _on_diplomacy_action.bind(country, "chat"))
-	_build_gold_button(_left_body, "提议联合统治", _on_diplomacy_action.bind(country, "union"))
-	if _country_government(_player_country_id) == "piracy":
-		_build_gold_button(_left_body, "要求附庸", _on_diplomacy_action.bind(country, "make_vassal"))
+	# 引擎④-CB：要求附庸/受保护国/联合统治（按玩家文化显示；好感>80 才可用，AI 不受限）
+	var pcult := GameManager.country_culture(_player_country_id)
+	var req_label := ""
+	var req_action := ""
+	if pcult == "norse":
+		req_label = "要求附庸"
+		req_action = "require_vassal"
+	elif pcult == "english":
+		req_label = "要求成为受保护国"
+		req_action = "require_protect"
+	elif pcult == "celtic":
+		req_label = "提议联合统治"
+		req_action = "require_union"
+	if req_label != "":
+		var req_btn := _build_gold_button(_left_body, req_label, _on_diplomacy_action.bind(country, req_action))
+		if not GameManager.can_require_favor(country):
+			req_btn.disabled = true
+			req_btn.tooltip_text = "好感度需高于 80"
+	# 引擎④-CB：宣战 = 选可用 CB（子菜单）→ 发起博弈（2 个月）
+	var cbs: Array = GameManager.get_available_cbs(_player_country_id, country)
+	if cbs.is_empty():
+		_left_body.add_child(_panel_label("对「%s」无可用的战争理由（CB）" % _country_name(country)))
 	else:
-		_build_gold_button(_left_body, "要求成为受保护国", _on_diplomacy_action.bind(country, "protect"))
-	# 引擎④：发起博弈（宣战）—— 填战争目标后发起，走 2 个月博弈
-	_diplo_goal_edit = LineEdit.new()
-	_diplo_goal_edit.placeholder_text = "战争目标（如：附庸化 / 吞并 洛锡安）"
-	_diplo_goal_edit.custom_minimum_size = Vector2(420, 40)
-	_left_body.add_child(_diplo_goal_edit)
-	_build_gold_button(_left_body, "发起博弈（宣战）", _on_diplo_declare_war.bind(country))
+		var cb_row := HBoxContainer.new()
+		cb_row.add_theme_constant_override("separation", 8)
+		cb_row.add_child(_panel_label("战争理由："))
+		_diplo_cb_opt = OptionButton.new()
+		_diplo_cb_opt.custom_minimum_size = Vector2(300, 40)
+		for c in cbs:
+			_diplo_cb_opt.add_item(str(c.get("name", c.get("id", ""))))
+			_diplo_cb_opt.set_item_metadata(_diplo_cb_opt.item_count - 1, str(c.get("id", "")))
+		cb_row.add_child(_diplo_cb_opt)
+		_left_body.add_child(cb_row)
+		_build_gold_button(_left_body, "发起博弈（宣战）", _on_diplo_declare_war.bind(country))
 	if not _diplo_notice_msg.is_empty():
 		_left_body.add_child(_panel_label(_diplo_notice_msg))
 	var spacer := Control.new()
@@ -1022,24 +1048,44 @@ func _back_to_diplomacy_list() -> void:
 	_build_diplomacy_panel()
 
 
-## 外交动作（#34 起接真实博弈 / CB；chat/vassal_chat 打开聊天）
+## 外交动作（chat/vassal_chat 打开聊天；require_* 打开要求对话 → LLM 同意/拒绝 → 引擎落地）
 func _on_diplomacy_action(country: String, action: String) -> void:
 	if action == "chat" or action == "vassal_chat":
 		if _chat_ui:
 			_chat_ui.open_chat("country", country, _country_name(country))
 		return
+	if action == "require_vassal":
+		_open_requirement_chat(country, "vassalize", "要求附庸")
+		return
+	if action == "require_protect":
+		_open_requirement_chat(country, "protectorate", "要求成为受保护国")
+		return
+	if action == "require_union":
+		_open_requirement_chat(country, "personal_union", "提议联合统治")
+		return
 	print("外交: ", action, " → ", country, "（占位）")
 
 
-## 发起博弈（宣战）：对外交视图中的国家，用目标框内容发起 2 个月博弈（引擎④）
+## 打开要求对话（引擎④-CB：LLM 同意→建立关系 / 拒绝→获得 1 年 CB）
+func _open_requirement_chat(country: String, cb_id: String, label: String) -> void:
+	if _chat_ui:
+		_chat_ui.open_chat("country", country, _country_name(country), cb_id, label)
+
+
+## 发起博弈（宣战）：用选中的 CB 名作为战争目标发起 2 个月博弈（引擎④-CB）
 func _on_diplo_declare_war(country: String) -> void:
-	if _diplo_goal_edit == null:
+	if _diplo_cb_opt == null:
 		return
-	var goal: String = _diplo_goal_edit.text.strip_edges()
-	if goal.is_empty():
-		_diplo_notice_msg = "请先填写战争目标"
+	var sel := _diplo_cb_opt.selected
+	if sel < 0:
+		_diplo_notice_msg = "请选择战争理由（CB）"
 		_refresh_diplo_country(country)
 		return
+	var cb_id: String = str(_diplo_cb_opt.get_item_metadata(sel))
+	var cb := GameManager.get_cb(cb_id)
+	var goal: String = str(cb.get("name", cb_id))
+	if cb.get("allow_annex", false):
+		goal += "（含目标省）"   # 吞并类 CB：目标省选择后续补
 	var res := GameManager.start_play(_player_country_id, country, goal)
 	_diplo_notice_msg = "发起博弈：%s" % ("成功" if res.get("ok", false) else str(res.get("error", "失败")))
 	_refresh_diplo_country(country)
@@ -1552,28 +1598,16 @@ func _build_diplomacy_play_content(vbox: VBoxContainer) -> void:
 			if str(p.get("initiator", "")) == _player_country_id or str(p.get("target", "")) == _player_country_id:
 				_build_gold_button(actions, "修改我方目标", _on_edit_my_goal.bind(pid))
 		vbox.add_child(actions)
-	# 发起博弈
-	vbox.add_child(_panel_label("— 发起博弈 —"))
-	var pick_row := HBoxContainer.new()
-	pick_row.add_theme_constant_override("separation", 8)
-	pick_row.add_child(_panel_label("目标国："))
-	_play_target_opt = OptionButton.new()
-	_play_target_opt.custom_minimum_size = Vector2(240, 40)
-	for c in _countries:
-		var cid: String = str(c.get("id", ""))
-		if cid == _player_country_id or _country_in_war(cid) or _country_in_play(cid):
-			continue
-		_play_target_opt.add_item(str(c.get("name", cid)))
-		_play_target_opt.set_item_metadata(_play_target_opt.item_count - 1, cid)
-	if _play_target_opt.item_count == 0:
-		_play_target_opt.add_item("（无可用目标）")
-	pick_row.add_child(_play_target_opt)
-	vbox.add_child(pick_row)
+	# 发起博弈已移至外交国家视图的宣战按钮（引擎④-CB），此处仅保留站队/退缩/改目标
+	# 修改我方目标输入框（参与博弈时填入新目标）
+	var edit_row := HBoxContainer.new()
+	edit_row.add_theme_constant_override("separation", 8)
+	edit_row.add_child(_panel_label("修改我方目标："))
 	_play_goal_edit = LineEdit.new()
-	_play_goal_edit.placeholder_text = "战争目标（如：附庸化 / 吞并 洛锡安 / 联合统治）"
-	_play_goal_edit.custom_minimum_size = Vector2(560, 40)
-	vbox.add_child(_play_goal_edit)
-	_build_gold_button(vbox, "发起博弈", _on_start_play_pressed)
+	_play_goal_edit.placeholder_text = "新目标（如：附庸化 / 吞并 洛锡安）"
+	_play_goal_edit.custom_minimum_size = Vector2(320, 40)
+	edit_row.add_child(_play_goal_edit)
+	vbox.add_child(edit_row)
 	_bottom_notice = _panel_label(_play_notice_msg)
 	vbox.add_child(_bottom_notice)
 
@@ -1611,27 +1645,6 @@ func _country_in_play(cid: String) -> bool:
 		if (p.get("sides", {}).get("A", []) as Array).has(cid) or (p.get("sides", {}).get("B", []) as Array).has(cid):
 			return true
 	return false
-
-
-## 发起博弈
-func _on_start_play_pressed() -> void:
-	if _play_target_opt == null or _play_goal_edit == null:
-		return
-	var sel := _play_target_opt.selected
-	if sel < 0 or _play_target_opt.get_item_metadata(sel) == null:
-		_play_notice_msg = "请选择目标国"
-		_refresh_diplomacy_panel()
-		return
-	var target: String = str(_play_target_opt.get_item_metadata(sel))
-	var goal: String = _play_goal_edit.text.strip_edges()
-	if goal.is_empty():
-		_play_notice_msg = "请填写战争目标"
-		_refresh_diplomacy_panel()
-		return
-	var res := GameManager.start_play(_player_country_id, target, goal)
-	var msg: String = "成功" if res.get("ok", false) else str(res.get("error", "失败"))
-	_play_notice_msg = "发起博弈：%s" % msg
-	_refresh_diplomacy_panel()
 
 
 ## 站队

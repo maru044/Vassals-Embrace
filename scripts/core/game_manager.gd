@@ -79,6 +79,15 @@ const PLAY_DURATION := 2         # 博弈持续 2 个月（单阶段，经两次
 const PRESTIGE_BACKDOWN := 10.0  # 退缩方失威望
 var plays := []                  # 每项 {id, initiator, target, init_goal, targ_goal, deadline, sides:{A,B}, state}
 var _next_play_id := 1
+# ---- 引擎④-CB 战争理由（Master 8/13：先做通用 CB；特殊/事件 CB 待事件/国际组织/任务树）----
+const CB_PATH := "res://data/cb.json"
+const REQUIRE_CB_DURATION := 12      # 要求被拒 → 获得 1 年（12 回合）CB
+const REQUIRE_FAVOR_MIN := 80.0      # 要求附庸/受保护国/联合统治需好感度 >80
+const INDEPENDENCE_FAVOR_MAX := 40.0 # 附庸独立 CB：对宗主好感度 <40 可用
+var _cb_list := []                   # cb.json（懒加载）
+var cb_timers := {}                  # "actor:target:cb_id" -> 剩余月数（1年CB）
+var runtime_liege := {}              # target -> liege（要求X同意后运行时附庸关系；完整机制引擎⑤）
+var runtime_union := {}              # target -> lead（要求联合统治同意后运行时联统；引擎⑧完整）
 
 var _country_list: Array = []   # countries.json（读 liege 关系，用于初始好感）
 
@@ -113,6 +122,9 @@ func start_new_game(country_id: String) -> void:
 	_next_war_id = 1
 	plays.clear()                # 引擎④：新档无外交博弈
 	_next_play_id = 1
+	cb_timers.clear()            # 引擎④-CB：新档无 1 年要求 CB
+	runtime_liege.clear()        # 引擎④-CB：新档无运行时附庸关系
+	runtime_union.clear()        # 引擎④-CB：新档无运行时联统关系
 	for cid in _all_country_ids():
 		country_gold[cid] = START_GOLD
 		country_prestige[cid] = START_PRESTIGE
@@ -258,6 +270,8 @@ func _settle_month() -> void:
 	_refresh_return_provinces()
 	# 引擎④：外交博弈推进（deadline -1，到期开战）
 	_tick_plays()
+	# 引擎④-CB：1 年要求 CB 计时 -1
+	_tick_cbs()
 	# 引擎④-T5：AI 军队状态机决策（停战回 FREE / 首都沦陷解围 / 友军激战增援 / 默认围敌方首都，ZoC 阻挡先攻要塞）
 	_tick_ai_armies()
 	# 行军推进（每月最多 2 格，沿命令 BFS 最短路径；非战时无 ZoC）
@@ -346,13 +360,13 @@ func _are_allies(a: String, b: String) -> bool:
 	return int(wa["war_id"]) == int(wb["war_id"]) and wa["side"] == wb["side"]
 
 
-## 宣战：attacker 对 defender 开战（后续可加入盟友/附庸）
-func declare_war(attacker: String, defender: String) -> Dictionary:
+## 宣战：attacker 对 defender 开战（cb=战争理由，AI 可自由选通用 CB，玩家走博弈/宣战 UI）
+func declare_war(attacker: String, defender: String, cb := "") -> Dictionary:
 	if attacker == defender:
 		return {"ok": false, "error": "不能对自己宣战"}
 	if _are_at_war(attacker, defender):
 		return {"ok": false, "error": "双方已处于战争状态"}
-	wars.append({"id": _next_war_id, "attacker": [attacker], "defender": [defender]})
+	wars.append({"id": _next_war_id, "attacker": [attacker], "defender": [defender], "cb": cb})
 	var wid := _next_war_id
 	_next_war_id += 1
 	EventBus.war_started.emit(wid)
@@ -407,16 +421,20 @@ func _in_play(cid: String) -> bool:
 
 
 ## 发起外交博弈：initiator 对 target 提进攻目标（如 "附庸化" / "吞并 Lothian" / "独立" / "联合统治"）
-func start_play(initiator: String, target: String, init_goal: String) -> Dictionary:
+## cb=战争理由（AI 自由选通用 CB；init_goal 为空时用 cb 名作目标）
+func start_play(initiator: String, target: String, init_goal: String, cb := "") -> Dictionary:
 	if initiator == target:
 		return {"ok": false, "error": "不能对自己发起博弈"}
 	if _in_war(initiator) or _in_war(target):
 		return {"ok": false, "error": "不能对已在战争中的国家发起博弈"}
 	if _in_play(initiator) or _in_play(target):
 		return {"ok": false, "error": "已有进行中的博弈"}
+	var goal := init_goal
+	if goal.is_empty() and not cb.is_empty():
+		goal = str(get_cb(cb).get("name", cb))
 	plays.append({
 		"id": _next_play_id, "initiator": initiator, "target": target,
-		"init_goal": init_goal, "targ_goal": "保持现状",
+		"init_goal": goal, "targ_goal": "保持现状", "cb": cb,
 		"deadline": PLAY_DURATION, "sides": {"A": [initiator], "B": [target]}, "state": "playing",
 	})
 	var pid := _next_play_id
@@ -511,6 +529,139 @@ func get_active_plays() -> Array:
 		if p["state"] == "playing":
 			out.append(p.duplicate(true))
 	return out
+
+
+# ===== 引擎④-CB 战争理由（Master 8/13：先做通用 CB；特殊/事件 CB 待事件/国际组织/任务树）=====
+
+## 懒加载 CB 表（cb.json）
+func _ensure_cbs() -> bool:
+	if not _cb_list.is_empty():
+		return true
+	var f := FileAccess.open(CB_PATH, FileAccess.READ)
+	if f == null:
+		return false
+	var data: Variant = JSON.parse_string(f.get_as_text())
+	if data is Dictionary:
+		_cb_list = data.get("cb", [])
+	return not _cb_list.is_empty()
+
+
+## 取 CB 定义（无则 {}）
+func get_cb(cb_id: String) -> Dictionary:
+	if not _ensure_cbs():
+		return {}
+	for c in _cb_list:
+		if str(c.get("id", "")) == cb_id:
+			return c
+	return {}
+
+
+## 国家文化（Master 8/13 判定：piracy=诺斯 / tribal=凯尔特(爱尔兰) / 其余=英格兰）
+## 注：countries.json 无 culture 字段，按政体推导（统治者档案：海盗3=塞壬诺斯、爱尔兰16=犬娘凯尔特、其余=英格兰系）
+func country_culture(cid: String) -> String:
+	for c in _country_list:
+		if c.get("id", "") == cid:
+			return _culture_from_government(str(c.get("government", "")))
+	return "english"
+
+
+func _culture_from_government(gov: String) -> String:
+	if gov == "piracy":
+		return "norse"
+	if gov == "tribal":
+		return "celtic"
+	return "english"
+
+
+## 运行时宗主（runtime_liege 覆盖静态 countries.json liege；要求X同意后生效）
+func _effective_liege(cid: String) -> String:
+	return str(runtime_liege.get(cid, _country_liege(cid)))
+
+
+## cid 是否为 liege 的附庸（运行时；受保护国不算附庸）
+func _is_vassal_of(cid: String, liege: String) -> bool:
+	return _effective_liege(cid) == liege and _country_vassal_type(cid) != "protectorate"
+
+
+## 玩家对某国是否可发起要求（好感度 >80，仅玩家侧判定）
+func can_require_favor(target: String) -> bool:
+	return player_favor.get(target, 0.0) > REQUIRE_FAVOR_MIN
+
+
+## 玩家（或 AI）对 target 当前可用的通用 CB 列表（引擎只判 CB 条件；战争状态由 start_play 兜底）
+func get_available_cbs(actor: String, target: String) -> Array:
+	var out: Array = []
+	if not _ensure_cbs():
+		return out
+	var cult := country_culture(actor)
+	for c in _cb_list:
+		var cid: String = str(c.get("id", ""))
+		# 联合统治（事件 CB）：仅「要求联合统治」被拒获得 1 年 CB 后可用（Master 8/13）
+		if cid == "personal_union":
+			if has_cb(actor, target, "personal_union"):
+				out.append(c)
+			continue
+		if str(c.get("type", "general")) != "general":
+			continue   # 其余特殊/事件 CB（威尔士起义/珀西叛乱）待事件系统
+		match cid:
+			"vassalize":
+				if cult == "norse":
+					out.append(c)
+			"protectorate":
+				if cult == "english":
+					out.append(c)
+			"seize_leadership":
+				if cult == "celtic" and country_culture(target) == "celtic":
+					out.append(c)
+			"independence":
+				if _is_vassal_of(actor, target):
+					if actor == player_country_id:
+						if player_favor.get(target, 0.0) < INDEPENDENCE_FAVOR_MAX:
+							out.append(c)   # 玩家：需对宗主好感度很低
+					else:
+						out.append(c)       # AI 附庸独立由 LLM 判断合理性
+			_:
+				pass   # 收复失地/领土宣称/解放同族：需核心/宣称数据，数据就绪后补
+	return out
+
+
+## 授予 1 年要求 CB（要求被拒后）：vassalize / protectorate / personal_union
+func grant_requirement_cb(actor: String, target: String, cb_id: String) -> Dictionary:
+	cb_timers["%s:%s:%s" % [actor, target, cb_id]] = REQUIRE_CB_DURATION
+	EventBus.tool_executed.emit("grant_requirement_cb", {"actor": actor, "target": target, "cb_id": cb_id, "months": REQUIRE_CB_DURATION})
+	return {"ok": true, "actor": actor, "target": target, "cb_id": cb_id, "months": REQUIRE_CB_DURATION}
+
+
+## 是否持有某 CB（计时 >0）
+func has_cb(actor: String, target: String, cb_id: String) -> bool:
+	return int(cb_timers.get("%s:%s:%s" % [actor, target, cb_id], 0)) > 0
+
+
+## 每月 CB 计时 -1（_settle_month 调用）；归零清除
+func _tick_cbs() -> void:
+	var expired: Array[String] = []
+	for key in cb_timers:
+		cb_timers[key] = int(cb_timers[key]) - 1
+		if int(cb_timers[key]) <= 0:
+			expired.append(key)
+	for key in expired:
+		cb_timers.erase(key)
+
+
+## 要求被同意 → 建立运行时关系（vassalize→附庸 / protectorate→受保护国 / personal_union→联合统治）
+## 注：完整附庸税/战时立场等机制属引擎⑤，这里先落地关系数据层 + 发事件刷新 UI
+func establish_requirement(actor: String, target: String, cb_id: String) -> Dictionary:
+	match cb_id:
+		"vassalize", "protectorate":
+			runtime_liege[target] = actor
+			var rel: String = "vassal" if cb_id == "vassalize" else "protectorate"
+			EventBus.diplomatic_relation_changed.emit(actor, target, rel)
+			return {"ok": true, "relation": rel, "liege": actor}
+		"personal_union":
+			runtime_union[target] = actor
+			EventBus.diplomatic_relation_changed.emit(actor, target, "union")
+			return {"ok": true, "relation": "union", "lead": actor}
+	return {"ok": false, "error": "未知关系类型"}
 
 
 ## ---- 交战结算（Master 8/12：只在战争状态触发；盟友按同侧合并对敌）----

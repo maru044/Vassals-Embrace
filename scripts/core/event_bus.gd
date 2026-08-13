@@ -43,6 +43,7 @@ signal diplomatic_play_resolved(play_id: int)
 signal vassal_changed(liege_id: int, vassal_id: int, relation: String)
 signal union_changed(lead_id: int, member_id: int, active: bool)
 signal organization_changed(org_id: int)
+signal diplomatic_relation_changed(actor: String, target: String, relation: String)   # 引擎④-CB：要求X同意后附庸/受保护国/联合统治关系建立
 
 # ---------- 6. 系统 ----------
 signal event_triggered(event_id: String)

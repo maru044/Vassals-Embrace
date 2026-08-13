@@ -53,12 +53,13 @@ const TOOLS: Array = [
 		"type": "function",
 		"function": {
 			"name": "declare_war",
-			"description": "国家宣战：attacker 对 defender 直接开战（引擎④战争）。一般先走外交博弈，LLM 认为时机成熟也可直接宣战。",
+			"description": "国家宣战：attacker 对 defender 直接开战（引擎④战争）。一般先走外交博弈，LLM 认为时机成熟也可直接宣战。cb 为可选战争理由（通用 CB：reconquest/claim/liberation/vassalize/protectorate/seize_leadership/independence；AI 可自由选用，不受好感度限制）。",
 			"parameters": {
 				"type": "object",
 				"properties": {
 					"attacker": {"type": "string", "description": "宣战国 id（如 Scotland）"},
 					"defender": {"type": "string", "description": "被宣战国 id（如 England）"},
+					"cb": {"type": "string", "description": "战争理由 CB id（可选）"},
 				},
 				"required": ["attacker", "defender"],
 			},
@@ -84,13 +85,14 @@ const TOOLS: Array = [
 		"type": "function",
 		"function": {
 			"name": "start_play",
-			"description": "发起外交博弈：initiator 对 target 提战争目标（如 附庸化 / 吞并 X省 / 独立 / 联合统治），持续 2 个月，期间可站队/改目标/退缩",
+			"description": "发起外交博弈：initiator 对 target 提战争目标（如 附庸化 / 吞并 X省 / 独立 / 联合统治），持续 2 个月，期间可站队/改目标/退缩。cb 为可选战争理由（通用 CB：reconquest/claim/liberation/vassalize/protectorate/seize_leadership/independence；AI 可自由选用，不受好感度限制）。",
 			"parameters": {
 				"type": "object",
 				"properties": {
 					"initiator": {"type": "string", "description": "发起国 id"},
 					"target": {"type": "string", "description": "被发起国 id"},
-					"goal": {"type": "string", "description": "进攻目标（如 附庸化 / 吞并 Lothian）"},
+					"goal": {"type": "string", "description": "进攻目标（如 附庸化 / 吞并 Lothian）；留空时用 cb 名"},
+					"cb": {"type": "string", "description": "战争理由 CB id（可选）"},
 				},
 				"required": ["initiator", "target", "goal"],
 			},
@@ -200,8 +202,9 @@ func _trigger_event(args: Dictionary) -> Dictionary:
 func _declare_war(args: Dictionary) -> Dictionary:
 	var attacker: String = str(args.get("attacker", ""))
 	var defender: String = str(args.get("defender", ""))
-	var res := GameManager.declare_war(attacker, defender)
-	EventBus.tool_executed.emit("declare_war", {"attacker": attacker, "defender": defender})
+	var cb: String = str(args.get("cb", ""))
+	var res := GameManager.declare_war(attacker, defender, cb)
+	EventBus.tool_executed.emit("declare_war", {"attacker": attacker, "defender": defender, "cb": cb})
 	return res
 
 
@@ -218,8 +221,9 @@ func _start_play(args: Dictionary) -> Dictionary:
 	var initiator: String = str(args.get("initiator", ""))
 	var target: String = str(args.get("target", ""))
 	var goal: String = str(args.get("goal", ""))
-	var res := GameManager.start_play(initiator, target, goal)
-	EventBus.tool_executed.emit("start_play", {"initiator": initiator, "target": target, "goal": goal})
+	var cb: String = str(args.get("cb", ""))
+	var res := GameManager.start_play(initiator, target, goal, cb)
+	EventBus.tool_executed.emit("start_play", {"initiator": initiator, "target": target, "goal": goal, "cb": cb})
 	return res
 
 
