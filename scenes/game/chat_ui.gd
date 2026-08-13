@@ -345,7 +345,8 @@ func _build_system_prompt() -> String:
 	var exclude: Array = []
 	if _target_kind != "miku":
 		exclude = ["Jailbreak_Persona.md", "World_Core.md"]
-	var prompts := PromptManager.build_system_context(extra, [], exclude)
+	var pm := get_node("/root/PromptManager")
+	var prompts: String = pm.call("build_system_context", extra, [], exclude)
 	return (anchor + "\n\n" + prompts).strip_edges()
 
 

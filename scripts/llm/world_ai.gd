@@ -98,7 +98,9 @@ func _system_prompt() -> String:
 ⑥ 只调用工具，不要输出无关文字。\
 ⑦ 发起博弈/宣战时可用 cb 参数指定战争理由，AI 可自由选用通用 CB（附庸化/受保护国/夺取至高王/独立等），不受好感度限制。"
 	# 加载规则手册 + 工具手册（PromptManager，按 depth 排序；排除聊天专用的 Miku/格式文件）
-	var docs := PromptManager.build_system_context({}, ["Game_Mechanics.md", "System_Tools_Manual.md"])
+	# 经 /root/PromptManager 访问，避免编辑器对 autoload 全局名的静态解析告警
+	var pm := get_node("/root/PromptManager")
+	var docs: String = pm.call("build_system_context", {}, ["Game_Mechanics.md", "System_Tools_Manual.md"])
 	return (rules + "\n\n" + docs).strip_edges()
 
 
