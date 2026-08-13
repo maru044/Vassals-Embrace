@@ -145,6 +145,21 @@ const TOOLS: Array = [
 			},
 		},
 	},
+	# ---- 聊天正文输出（Master 8/13：正文走函数调用，不靠 <content> 标签解析，更可靠）----
+	{
+		"type": "function",
+		"function": {
+			"name": "submit_dialogue",
+			"description": "提交角色对话/播报正文（聊天时的正式回复内容，系统会自动提取参数显示）。思考过程放 <thinking>，正文全部写进 content 参数。",
+			"parameters": {
+				"type": "object",
+				"properties": {
+					"content": {"type": "string", "description": "对话/播报的完整正文（含角色台词、动作与内心描写）"},
+				},
+				"required": ["content"],
+			},
+		},
+	},
 ]
 
 
@@ -168,6 +183,8 @@ func execute(tool_name: String, args: Dictionary) -> Dictionary:
 			return _set_play_goal(args)
 		"back_down":
 			return _back_down(args)
+		"submit_dialogue":
+			return _submit_dialogue(args)
 		_:
 			return {"ok": false, "error": "未知工具: %s" % tool_name}
 
@@ -195,6 +212,13 @@ func _trigger_event(args: Dictionary) -> Dictionary:
 	EventBus.event_triggered.emit(event_id)
 	EventBus.tool_executed.emit("trigger_event", {"event_id": event_id})
 	return {"ok": true, "event_id": event_id}
+
+
+## 聊天正文输出（Master 8/13：正文走函数调用而非 <content> 标签解析）；引擎不落地，仅回传正文
+func _submit_dialogue(args: Dictionary) -> Dictionary:
+	var content := str(args.get("content", ""))
+	EventBus.tool_executed.emit("submit_dialogue", {"content": content})
+	return {"ok": true, "content": content}
 
 
 # ---- 引擎④ 外交 / 战争工具（过家家模式：AI 决策由 LLM 落地）----

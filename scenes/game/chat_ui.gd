@@ -261,29 +261,43 @@ func _on_llm_finished(success: bool, data: Dictionary) -> void:
 		_add_system_msg("（网络/解析错误，请检查 API 配置）")
 		return
 	var parsed: Dictionary = _parser_script.parse_response(data)
-	var content: String = parsed.get("content", "")
-	# Master 8/13：LLM 只要响应了内容（含思考）就打印到控制台，方便调试
+	var tool_calls: Array = parsed.get("tool_calls", [])
+	# Master 8/13：正文优先从 submit_dialogue 工具参数提取（不靠 <content> 标签解析，更可靠）；兜底用 content 文本
+	var display_text := str(parsed.get("content", ""))
+	if not tool_calls.is_empty():
+		for tc in tool_calls:
+			var tcall: Dictionary = _parser_script.parse_tool_call(tc)
+			if str(tcall.get("name", "")) == "submit_dialogue":
+				var dtext := str(tcall.get("arguments", {}).get("content", ""))
+				if dtext != "":
+					display_text = dtext
+				break
+	# 控制台打印（思考 + 正文）
 	if str(parsed.get("cot", "")) != "":
 		print("【聊天·思考】", str(parsed["cot"]))
-	if content != "":
-		print("【聊天·正文】", content)
-	if parsed.get("cot", "") != "":
-		_add_bubble(_display_name, "[i][color=#8a6d3b]" + str(parsed["cot"]) + "[/color][/i]\n" + content, false)
-	else:
-		_add_bubble(_display_name, content, false)
-	# 执行工具调用（好感度经 modify_favor 落地 → favor_changed → 外交面板即时刷新）
-	var tool_calls: Array = parsed.get("tool_calls", [])
+	if display_text != "":
+		print("【聊天·正文】", display_text)
+	# 显示气泡
+	if display_text != "":
+		if str(parsed.get("cot", "")) != "":
+			_add_bubble(_display_name, "[i][color=#8a6d3b]" + str(parsed["cot"]) + "[/color][/i]\n" + display_text, false)
+		else:
+			_add_bubble(_display_name, display_text, false)
+	# 执行工具调用（submit_dialogue 已提取正文，跳过；好感度经 modify_favor 落地 → favor_changed → 外交面板即时刷新）
 	if not tool_calls.is_empty() and _tool_executor:
 		for tc in tool_calls:
 			var call: Dictionary = _parser_script.parse_tool_call(tc)
-			var res: Dictionary = _tool_executor.execute(call.get("name", ""), call.get("arguments", {}))
-			if res.get("ok", false) and call.get("name", "") == "modify_favor":
+			var tname := str(call.get("name", ""))
+			if tname == "submit_dialogue":
+				continue
+			var res: Dictionary = _tool_executor.execute(tname, call.get("arguments", {}))
+			if res.get("ok", false) and tname == "modify_favor":
 				var delta: int = res.get("delta", 0)
 				var favor: float = res.get("favor", 0.0)
 				_add_system_msg("好感 %s%d → %d（%s）" % ["+" if delta >= 0 else "", delta, int(favor), _display_name])
 	# 引擎④-CB：要求对话结果落地（同意→建立关系 / 拒绝→1年CB）
 	if not _pending_requirement.is_empty():
-		_handle_requirement_result(content)
+		_handle_requirement_result(display_text)
 		_pending_requirement = ""
 		_pending_requirement_label = ""
 

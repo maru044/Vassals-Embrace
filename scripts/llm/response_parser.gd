@@ -19,6 +19,11 @@ static func parse_response(data: Dictionary) -> Dictionary:
 	if ts != -1 and te != -1 and te > ts:
 		result["cot"] += "\n" + content.substr(ts + 11, te - ts - 11)
 		content = content.substr(te + 12)
+	# 容错：正文已改走 submit_dialogue 工具输出（不靠 <content> 标签），此处仅清理旧格式残留
+	var cs := content.find("<content>")
+	var ce := content.find("</content>")
+	if cs != -1 and ce != -1 and ce > cs:
+		content = content.substr(cs + 9, ce - cs - 9)
 	result["content"] = content.strip_edges()
 
 	# 工具调用
