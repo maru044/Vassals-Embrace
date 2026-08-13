@@ -47,15 +47,9 @@ func _on_llm_finished(success: bool, data: Dictionary) -> void:
 	_busy = false
 	EventBus.world_ai_thinking_finished.emit()   # 思考结束（无论成功失败）→ 解除全屏遮挡
 	if not success:
-		return   # 失败降级：本月 AI 无动作
+		return   # 失败降级：本月 AI 无动作（llm_client 已打印错误/日志）
 	var parsed: Dictionary = _parser.parse_response(data)
-	# Master 8/13：LLM 只要响应了内容（含回合末思考）就打印到控制台，方便观察 AI 决策依据
-	var cot: String = str(parsed.get("cot", ""))
-	var content: String = str(parsed.get("content", ""))
-	if not cot.is_empty():
-		print("【世界AI·思考】", cot)
-	if not content.is_empty():
-		print("【世界AI·正文】", content)
+	# 注意：CoT/正文/ToolCall 已由 llm_client 统一打印控制台日志（🧠CoT/💬正文/🔧ToolCall），此处不再重复
 	var tool_calls: Array = parsed.get("tool_calls", [])
 	var executed: Array[String] = []
 	for tc in tool_calls:

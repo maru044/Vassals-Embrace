@@ -263,6 +263,7 @@ func _on_llm_finished(success: bool, data: Dictionary) -> void:
 	var parsed: Dictionary = _parser_script.parse_response(data)
 	var tool_calls: Array = parsed.get("tool_calls", [])
 	# Master 8/13：正文优先从 submit_dialogue 工具参数提取（不靠 <content> 标签解析，更可靠）；兜底用 content 文本
+	# 注：CoT/正文/ToolCall 已由 llm_client 统一打印控制台日志（🧠CoT/💬正文/🔧ToolCall），此处不再重复
 	var display_text := str(parsed.get("content", ""))
 	if not tool_calls.is_empty():
 		for tc in tool_calls:
@@ -272,11 +273,6 @@ func _on_llm_finished(success: bool, data: Dictionary) -> void:
 				if dtext != "":
 					display_text = dtext
 				break
-	# 控制台打印（思考 + 正文）
-	if str(parsed.get("cot", "")) != "":
-		print("【聊天·思考】", str(parsed["cot"]))
-	if display_text != "":
-		print("【聊天·正文】", display_text)
 	# 显示气泡
 	if display_text != "":
 		if str(parsed.get("cot", "")) != "":

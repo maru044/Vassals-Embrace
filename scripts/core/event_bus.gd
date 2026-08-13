@@ -59,6 +59,9 @@ signal llm_response_received(response: Dictionary)
 signal tool_executed(tool_name: String, result: Dictionary)
 signal world_ai_thinking_started                                 # 过月世界 AI（LLM）开始思考 → UI 全屏遮挡
 signal world_ai_thinking_finished                                # 世界 AI 思考结束 → 恢复操作
+signal llm_response_started                                      # LLM 请求开始 → UI 加载态（Synthetica 式）
+signal llm_response_finished(content: String)                    # LLM 最终回复完成（正文）
+signal system_error_occurred(error_msg: String)                  # LLM/系统错误 → UI 错误提示
 
 # ---------- 8. 后宫 ----------
 signal harem_member_added(country_id: int, member_name: String)
