@@ -62,14 +62,16 @@ func _ready() -> void:
 
 
 func _build_ui() -> void:
-	# 全屏半透明遮罩（点击关闭）
+	# 全屏半透明遮罩（左键点击关闭；滚轮放行给地图缩放，Master 8/13：滚向远景误关对话）
 	_shade = ColorRect.new()
 	_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_shade.color = Color(0, 0, 0, 0.55)
+	_shade.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(_shade)
 	_shade.gui_input.connect(func(ev: InputEvent) -> void:
-		if ev is InputEventMouseButton and ev.pressed:
-			_close())
+		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+			_close()
+			get_viewport().set_input_as_handled())
 
 	# 羊皮纸面板（居中大窗）
 	_panel = PanelContainer.new()
