@@ -118,8 +118,9 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 	if not tool_calls.is_empty():
 		clean_msg["tool_calls"] = tool_calls
 	history.append(clean_msg)
-	# 空内容（安全审查）→ 重试
+	# 空内容（安全审查）→ 回滚刚 append 的空 assistant 消息再重试（避免历史累积脏数据，参考 Synthetica 排障总结）
 	if not has_content and tool_calls.is_empty():
+		history.pop_back()
 		print("[LLMClient] ❌ 模型返回空内容（可能安全审查），重试 %d/%d..." % [_retry_count + 1, MAX_RETRIES])
 		if _retry_count < MAX_RETRIES:
 			_retry_count += 1
