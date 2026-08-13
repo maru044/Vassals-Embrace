@@ -1444,7 +1444,7 @@ func _build_bottom_slide(parent: Control) -> void:
 
 
 ## ===== 下栏（EU5 式：居中大图标，有状态就显示、无则隐藏）=====
-## 业务逻辑：按玩家国家实际状态显示下栏图标（国际组织成员 / 战争 / 博弈 / 联统）
+## 业务逻辑：每个进行中的外交博弈 / 战争各一个独立图标（互不干扰，Master 8/13）
 func _bottom_icon_slots() -> Array:
 	var slots: Array = []
 	var gov := _country_government(_player_country_id)
@@ -1452,11 +1452,30 @@ func _bottom_icon_slots() -> Array:
 		slots.append("org_pirate_league")   # 塞壬三栖姬（群岛/奥克尼/设得兰）→ 海盗联盟
 	elif gov == "tribal":
 		slots.append("org_high_kingdom")    # 爱尔兰犬娘诸部（蒂龙等）→ 爱尔兰至高王国
-	# 外交博弈（引擎④）：仅在有进行中的博弈时显示（发起走左栏外交，此处查看/站队/退缩）
-	if not GameManager.get_active_plays().is_empty():
-		slots.append("diplomacy_play")
-	# 战争 / 联合统治：引擎③④⑧接入后按运行态增补
+	# 引擎④：每个进行中的外交博弈一个独立图标
+	for p in GameManager.get_active_plays():
+		slots.append("play_%d" % int(p.get("id", 0)))
+	# 引擎③：每个进行中的战争一个独立图标
+	for w in GameManager.wars:
+		slots.append("war_%d" % int(w.get("id", 0)))
 	return slots
+
+
+## 下栏图标标签（动态：博弈/战争按实例显示双方；静态走 STATUS_CN）
+func _bottom_icon_label(icon_id: String) -> String:
+	if icon_id.begins_with("play_"):
+		var pid := int(icon_id.trim_prefix("play_"))
+		for p in GameManager.get_active_plays():
+			if int(p.get("id", 0)) == pid:
+				return "博弈#%d：%s vs %s" % [pid, _country_name(str(p.get("initiator", ""))), _country_name(str(p.get("target", "")))]
+		return "外交博弈"
+	if icon_id.begins_with("war_"):
+		var wid := int(icon_id.trim_prefix("war_"))
+		for w in GameManager.wars:
+			if int(w.get("id", 0)) == wid:
+				return "战争#%d：%s vs %s" % [wid, _side_names(w.get("attacker", [])), _side_names(w.get("defender", []))]
+		return "战争"
+	return STATUS_CN.get(icon_id, BOTTOM_CN.get(icon_id, icon_id))
 
 
 func _build_bottom_bar(parent: Control) -> void:
@@ -1485,7 +1504,7 @@ func _refresh_bottom_bar() -> void:
 	for c in _bottom_hbox.get_children():
 		c.queue_free()
 	for s in _bottom_icon_slots():
-		_bottom_hbox.add_child(_make_bottom_status_icon(s, STATUS_CN.get(s, s)))
+		_bottom_hbox.add_child(_make_bottom_status_icon(s, _bottom_icon_label(s)))
 
 
 ## 下栏状态大图标：透明无背景，128×128 归一化大图，悬停注明名称。
@@ -1518,7 +1537,7 @@ func _on_bottom_icon_pressed(icon_id: String) -> void:
 		_close_bottom_slide()
 		return
 	_active_bottom = icon_id
-	_bottom_title.text = STATUS_CN.get(icon_id, BOTTOM_CN.get(icon_id, icon_id))
+	_bottom_title.text = _bottom_icon_label(icon_id)
 	for c in _bottom_body.get_children():
 		c.queue_free()
 	_build_bottom_content(icon_id)
@@ -1543,13 +1562,19 @@ func _close_bottom_slide() -> void:
 	tw.tween_property(_bottom_slide, "modulate:a", 0.0, 0.18)
 
 
-## 下栏弹窗内容（#34 占位：国际组织 / 外交博弈 / 战争，战争内放和平条约按钮；引擎③④⑥⑧接真实数值）
+## 下栏弹窗内容：play_<id> / war_<id> 单实例面板（互不干扰）；org_* 组织占位
 func _build_bottom_content(icon_id: String) -> void:
 	var vbox := VBoxContainer.new()
 	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
 	vbox.add_theme_constant_override("separation", 10)
 	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_bottom_body.add_child(vbox)
+	if icon_id.begins_with("play_"):
+		_build_single_play_content(vbox, int(icon_id.trim_prefix("play_")))
+		return
+	if icon_id.begins_with("war_"):
+		_build_single_war_content(vbox, int(icon_id.trim_prefix("war_")))
+		return
 	match icon_id:
 		"org_pirate_league":
 			_build_org_content(vbox, "海盗联盟", ["群岛领地", "奥克尼", "设得兰"],
@@ -1560,12 +1585,8 @@ func _build_bottom_content(icon_id: String) -> void:
 		"org_union":
 			_build_org_content(vbox, "联合统治", [],
 				"多成员共享后宫 · 主导国可变更，关系松散（引擎⑧）")
-		"diplomacy_play":
-			_build_diplomacy_play_content(vbox)
-		"war":
-			_build_war_content(vbox)
 		_:
-			vbox.add_child(_panel_label("「%s」建设中…" % STATUS_CN.get(icon_id, BOTTOM_CN.get(icon_id, icon_id))))
+			vbox.add_child(_panel_label("「%s」建设中…" % _bottom_icon_label(icon_id)))
 
 
 ## 国际组织通用占位：标题 + 成员列表 + 说明（引擎⑧接入凝聚力/成员/主导国）
@@ -1579,34 +1600,46 @@ func _build_org_content(vbox: VBoxContainer, title: String, members: Array, note
 	vbox.add_child(_panel_label("—— 引擎⑧接入凝聚力 / 成员管理 ——"))
 
 
-## 外交博弈面板（引擎④）：进行中博弈列表（站队 / 退缩 / 改目标）+ 发起博弈
-func _build_diplomacy_play_content(vbox: VBoxContainer) -> void:
-	vbox.add_child(_panel_label("外交博弈（单阶段 · 持续 2 个月）"))
-	var plays: Array = GameManager.get_active_plays()
-	if plays.is_empty():
-		vbox.add_child(_panel_label("　当前无进行中的博弈"))
-	for p in plays:
-		var pid: int = int(p.get("id", 0))
-		vbox.add_child(_panel_label("博弈 #%d：%s(%s) vs %s(%s) · 剩 %d 月" % [
-			pid,
-			_country_name(str(p.get("initiator", ""))), str(p.get("init_goal", "")),
-			_country_name(str(p.get("target", ""))), str(p.get("targ_goal", "")),
-			int(p.get("deadline", 0))]))
-		vbox.add_child(_panel_label("　站队：%s / %s" % [
-			_side_names(p.get("sides", {}).get("A", [])),
-			_side_names(p.get("sides", {}).get("B", []))]))
-		var my_side := _my_play_side(p)
-		var actions := HBoxContainer.new()
-		actions.add_theme_constant_override("separation", 8)
-		if my_side == "":
-			_build_gold_button(actions, "加入发起方", _on_join_play.bind(pid, "A"))
-			_build_gold_button(actions, "加入防守方", _on_join_play.bind(pid, "B"))
-		else:
-			_build_gold_button(actions, "退缩（失威望）", _on_back_down.bind(pid, my_side))
-			if str(p.get("initiator", "")) == _player_country_id or str(p.get("target", "")) == _player_country_id:
-				_build_gold_button(actions, "修改我方目标", _on_edit_my_goal.bind(pid))
-		vbox.add_child(actions)
-	# 发起博弈已移至外交国家视图的宣战按钮（引擎④-CB），此处仅保留站队/退缩/改目标
+## 按 id 找进行中的博弈（无则 {}）
+func _find_play(play_id: int) -> Dictionary:
+	for p in GameManager.get_active_plays():
+		if int(p.get("id", 0)) == play_id:
+			return p
+	return {}
+
+
+## 按 id 找进行中的战争（无则 {}）
+func _find_war(war_id: int) -> Dictionary:
+	for w in GameManager.wars:
+		if int(w.get("id", 0)) == war_id:
+			return w
+	return {}
+
+
+## 单个外交博弈面板（引擎④）：该博弈详情 + 站队/退缩/改目标（Master 8/13：一实例一图标，互不干扰）
+func _build_single_play_content(vbox: VBoxContainer, play_id: int) -> void:
+	var p: Dictionary = _find_play(play_id)
+	if p.is_empty():
+		vbox.add_child(_panel_label("博弈 #%d 已结束" % play_id))
+		return
+	vbox.add_child(_panel_label("外交博弈 #%d（单阶段 · 持续 2 个月）" % play_id))
+	vbox.add_child(_panel_label("%s(%s) vs %s(%s) · 剩 %d 月" % [
+		_country_name(str(p.get("initiator", ""))), str(p.get("init_goal", "")),
+		_country_name(str(p.get("target", ""))), str(p.get("targ_goal", "")),
+		int(p.get("deadline", 0))]))
+	vbox.add_child(_panel_label("站队：%s / %s" % [
+		_side_names(p.get("sides", {}).get("A", [])), _side_names(p.get("sides", {}).get("B", []))]))
+	var my_side := _my_play_side(p)
+	var actions := HBoxContainer.new()
+	actions.add_theme_constant_override("separation", 8)
+	if my_side == "":
+		_build_gold_button(actions, "加入发起方", _on_join_play.bind(play_id, "A"))
+		_build_gold_button(actions, "加入防守方", _on_join_play.bind(play_id, "B"))
+	else:
+		_build_gold_button(actions, "退缩（失威望）", _on_back_down.bind(play_id, my_side))
+		if str(p.get("initiator", "")) == _player_country_id or str(p.get("target", "")) == _player_country_id:
+			_build_gold_button(actions, "修改我方目标", _on_edit_my_goal.bind(play_id))
+	vbox.add_child(actions)
 	# 修改我方目标输入框（参与博弈时填入新目标）
 	var edit_row := HBoxContainer.new()
 	edit_row.add_theme_constant_override("separation", 8)
@@ -1686,31 +1719,38 @@ func _on_edit_my_goal(play_id: int) -> void:
 	_refresh_diplomacy_panel()
 
 
-## 重建外交博弈面板（动作后刷新；_play_notice_msg 回填到新 notice）
+## 重建当前外交博弈面板（动作后刷新；_play_notice_msg 回填到新 notice）
 func _refresh_diplomacy_panel() -> void:
-	if _active_bottom != "diplomacy_play":
+	if not _bottom_open or not str(_active_bottom).begins_with("play_"):
 		return
 	for c in _bottom_body.get_children():
 		c.queue_free()
-	_build_bottom_content("diplomacy_play")
+	_build_bottom_content(_active_bottom)
 
 
-## 战争占位（引擎③④）：攻破首都=无条件投降；其余议和走 LLM 聊天（提条件·同意即和平）
-func _build_war_content(vbox: VBoxContainer) -> void:
-	vbox.add_child(_panel_label("战争（Battle Fuck · 引擎③④接入）"))
-	vbox.add_child(_panel_label("当前战争：无"))
-	vbox.add_child(_panel_label("议和规则：攻破对方首都 → 无条件投降"))
-	vbox.add_child(_panel_label("其余情况 → 与敌国公主聊天，随意提出条件，同意即和平"))
-	_build_gold_button(vbox, "与敌国公主议和", _on_peace_treaty_pressed)
+## 单个战争面板（引擎③④，Master 8/13：一战争一图标互不干扰）：双方 + 议和聊天入口
+func _build_single_war_content(vbox: VBoxContainer, war_id: int) -> void:
+	var w: Dictionary = _find_war(war_id)
+	if w.is_empty():
+		vbox.add_child(_panel_label("战争 #%d 已结束" % war_id))
+		return
+	vbox.add_child(_panel_label("战争 #%d（Battle Fuck）" % war_id))
+	vbox.add_child(_panel_label("A方（进攻）：%s" % _side_names(w.get("attacker", []))))
+	vbox.add_child(_panel_label("B方（防守）：%s" % _side_names(w.get("defender", []))))
+	vbox.add_child(_panel_label("议和规则：攻破对方首都 → 无条件投降；其余 → 与敌国公主聊天提条件，同意即和平"))
+	_build_gold_button(vbox, "与敌国公主议和", _on_peace_treaty_pressed.bind(war_id))
 	_bottom_notice = _panel_label("")
 	vbox.add_child(_bottom_notice)
-	vbox.add_child(_panel_label("—— 引擎③④接入战斗；议和走聊天 ——"))
 
 
-## 议和：引擎④接入后打开与当前敌国公主的聊天（LLM 谈条件，同意即和平）
-func _on_peace_treaty_pressed() -> void:
+## 议和：提示从外交面板找对方公主聊天（LLM 谈条件，同意即和平）
+func _on_peace_treaty_pressed(war_id: int = 0) -> void:
 	if _bottom_notice:
-		_bottom_notice.text = "当前无战争可议和（有战争时从这里找对方公主聊天提条件）"
+		var w := _find_war(war_id)
+		if w.is_empty():
+			_bottom_notice.text = "当前无战争可议和（有战争时从外交面板找对方公主聊天提条件）"
+		else:
+			_bottom_notice.text = "战争 #%d：请从左栏外交面板点对方公主「对话」议和（LLM 谈条件）" % war_id
 
 
 ## ===== 主题样式 =====
