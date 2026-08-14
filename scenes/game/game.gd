@@ -684,7 +684,7 @@ const SITUATION_BAR_CFG := {
 	"hundred_years_war": {"fw": 600, "fh": 69, "tw": 449, "th": 32, "ox": 76, "oy": 18},
 	"unify_ireland":     {"fw": 600, "fh": 72, "tw": 459, "th": 31, "ox": 71, "oy": 21},
 	# 达勒姆内框偏下（Master 8/14 实测）：加宽 + 下移
-	"corruption_durham": {"fw": 600, "fh": 72, "tw": 482, "th": 33, "ox": 59, "oy": 27},
+	"corruption_durham": {"fw": 600, "fh": 72, "tw": 482, "th": 33, "ox": 59, "oy": 25},
 }
 const SITUATION_FRAME_W := 600   # 兼容：默认画框宽（未配置局势的兜底宽度）
 const PORTRAIT_DIR := "res://assets/portraits/"   # 立绘资产库（rulers/<id>.png 384×720、harem/*.png 384×720）
@@ -824,10 +824,9 @@ func _build_left_slide(parent: Control) -> void:
 	var wrap := Control.new()
 	wrap.set_anchors_preset(Control.PRESET_LEFT_WIDE)
 	wrap.offset_top = TOP_BAR_H
+	wrap.offset_right = 640   # 左栏宽 640（旧 320 的 2 倍）
 	wrap.offset_bottom = -64
-	# 初始完全在左外（offset_left=-640, offset_right=0 → 宽度 0，右边缘 0，彻底出屏）
-	wrap.offset_left = -640
-	wrap.offset_right = 0
+	wrap.position.x = -660   # 初始在左外，点击图标滑入
 	wrap.visible = false      # 选国阶段隐藏：防止 root 在屏幕右外时左栏从右侧露出
 	parent.add_child(wrap)
 	_left_slide = wrap
@@ -875,9 +874,7 @@ func _open_left_slide() -> void:
 		return
 	_left_open = true
 	var tw := create_tween()
-	tw.set_parallel(true)
-	tw.tween_property(_left_slide, "offset_left", 0.0, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.tween_property(_left_slide, "offset_right", 640.0, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_left_slide, "position:x", 0.0, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 
 func _close_left_slide() -> void:
@@ -885,11 +882,7 @@ func _close_left_slide() -> void:
 		return
 	_left_open = false
 	var tw := create_tween()
-	tw.set_parallel(true)
-	# 关键修复（Master 8/14）：锚定 LEFT_WIDE 右边缘固定 offset_right，只 tween position 会把栏拉宽、
-	# 右边缘留在屏上 → 未完全缩出。改为 offset_left→-640 且 offset_right→0（宽度归零，彻底出屏）。
-	tw.tween_property(_left_slide, "offset_left", -640.0, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-	tw.tween_property(_left_slide, "offset_right", 0.0, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tw.tween_property(_left_slide, "position:x", -660.0, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 
 
 ## ===== 左栏各子界面占位 UI（#33；数据引擎接入后填真实值）=====
