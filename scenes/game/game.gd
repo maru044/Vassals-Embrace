@@ -75,7 +75,7 @@ const INITIAL_FORTS := {
 	"Lothian": 2, "Northumberland": 2, "Yorkshire": 2, "Wales": 2, "Tyrone": 2, "Offaly": 2, "Desmond": 2,
 }
 
-# 三文化五役后宫模板（容量固定 5；role=役名，name=职业名，portrait=harem 资产文件名，不带 .png）
+# 三文化后宫模板（容量固定 5；role=役名，name=职业名，portrait=harem 资产文件名，不带 .png）
 # A 人类宫廷（英格兰/苏格兰 english） / B 凯尔特犬娘（爱尔兰/威尔士 celtic） / C 诺斯塞壬（群岛/奥克尼/设得兰 norse）
 # 对应资产：assets/portraits/harem/<portrait>.png + depth/harem/<portrait>_depth.png（已生成，见 refer/img/README.md）
 const _HAREM_ROLES := {
@@ -1017,7 +1017,7 @@ func _build_court_panel() -> void:
 		_left_body.add_child(_panel_label("　（立绘缺失）"))
 
 	# 下方：后宫按钮独立容器，固定高 200（非 EXPAND，勿吃满剩余空间）→ 5 按钮内容超出必出滚动条
-	_left_body.add_child(_panel_label("后宫（容量 5 / 五役）："))
+	_left_body.add_child(_panel_label("后宫（容量 5）："))
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size = Vector2(0, 190)   # 固定按钮区高度，内容超出即可滚动
 	_left_body.add_child(scroll)
@@ -1025,7 +1025,7 @@ func _build_court_panel() -> void:
 	btn_col.add_theme_constant_override("separation", 8)
 	btn_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(btn_col)
-	# 按玩家国家文化组取五役（english/celtic/norse），职业名 + 对应立绘资产文件名
+	# 按玩家国家文化组取后宫模板（english/celtic/norse），职业名 + 对应立绘资产文件名
 	var roles: Array = _HAREM_ROLES.get(_country_culture_group(_player_country_id), _HAREM_ROLES["english"])
 	for r in roles:
 		var role: String = r["role"]
@@ -2314,7 +2314,7 @@ func _country_title(cid: String) -> String:
 	return ""
 
 
-## 文化组：countries.json culture_group（english/celtic/norse，决定后宫五役模板）
+## 文化组：countries.json culture_group（english/celtic/norse，决定后宫模板）
 func _country_culture_group(cid: String) -> String:
 	var idx: int = _country_index.get(cid, -1)
 	if idx >= 0:
