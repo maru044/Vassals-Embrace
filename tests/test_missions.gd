@@ -108,6 +108,17 @@ func _initialize() -> void:
 	var res_gb: Dictionary = gm.call("complete_mission", "scotland_great_britain")
 	out.append("⑨ great_britain done (终局): %s" % bool(res_gb.get("ok", false)))
 
+	# ⑩ 建筑条件/奖励（Master 8/14）：building_level（单省/全国总等级）+ upgrade_building（免费升级）
+	gm.set("province_owner", {"伦敦": "Scotland", "格拉斯哥": "Scotland", "York": "England"})
+	gm.set("province_buildings", {"伦敦": {"farm": 2, "market": 1, "brothel": 3, "fort": 1}, "格拉斯哥": {"brothel": 2}, "York": {"brothel": 4}})
+	out.append("⑩ building_level 单省 gte 达标: %s" % gm.call("_check_mission_cond", {"building_level": {"province": "伦敦", "building": "brothel", "gte": 3}}))
+	out.append("⑩ building_level 单省 gte 不达标: %s" % (not gm.call("_check_mission_cond", {"building_level": {"province": "伦敦", "building": "brothel", "gte": 4}})))
+	out.append("⑩ building_total 全国妓院≥5: %s" % gm.call("_check_mission_cond", {"building_level": {"building": "brothel", "gte_total": 5}}))
+	gm.call("_apply_effects_dict", "Scotland", {"upgrade_building": {"province": "伦敦", "building": "brothel"}})
+	out.append("⑩ upgrade_building 伦敦妓院 3->4: %s" % (int(gm.get("province_buildings").get("伦敦", {}).get("brothel", 0)) == 4))
+	gm.call("_apply_effects_dict", "Scotland", {"upgrade_building": {"province": "格拉斯哥", "building": "fort"}})
+	out.append("⑩ upgrade_building 要塞不可升: %s" % (int(gm.get("province_buildings").get("格拉斯哥", {}).get("fort", 0)) == 0))
+
 	root.remove_child(gm)
 	gm.free()
 	out.append("TEST_DONE")

@@ -955,6 +955,17 @@ func _check_mission_cond(cond: Dictionary) -> bool:
 		return is_mission_completed(str(cond["mission_completed"]))
 	if cond.has("flag_set"):
 		return bool(mission_flags.get(str(cond["flag_set"]), false))
+	if cond.has("building_level"):
+		# 建筑达标（Master 8/14）：{province, building, gte} 单省某建筑 ≥ N；或 {building, gte_total} 全国某类建筑总等级 ≥ N
+		var bl: Dictionary = cond["building_level"]
+		var bname: String = str(bl.get("building", "farm"))
+		if bl.has("province"):
+			return int(province_buildings.get(str(bl["province"]), {}).get(bname, 0)) >= int(bl.get("gte", 1))
+		var total := 0
+		for prov in province_owner:
+			if str(province_owner[prov]) == player_country_id:
+				total += int(province_buildings.get(prov, {}).get(bname, 0))
+		return total >= int(bl.get("gte_total", 1))
 	return false   # alliance_with / war_goal 等未实现键（老同盟已改事件、进军爱尔兰已改附庸化）→ 不满足
 
 
@@ -984,20 +995,9 @@ func complete_mission(mission_id: String) -> Dictionary:
 	return {"ok": true, "mission_id": mission_id}
 
 
-## 落地任务奖励：reward_effects（grant_cb 限时 CB 统一 3 年 / prestige / gold）
+## 落地任务奖励（Master 8/14：统一走效果引擎 _apply_effects_dict，支持 gold/prestige/army/grant_cb/upgrade_building/modifiers 等全部效果）
 func _grant_mission_rewards(m: Dictionary) -> void:
-	var fx: Dictionary = m.get("reward_effects", {})
-	if fx.has("prestige"):
-		country_prestige[player_country_id] = maxf(0.0, country_prestige.get(player_country_id, 0.0) + float(fx["prestige"]))
-	if fx.has("gold"):
-		country_gold[player_country_id] = country_gold.get(player_country_id, 0.0) + float(fx["gold"])
-	if fx.has("grant_cb"):
-		var gc: Dictionary = fx["grant_cb"]
-		var cbid: String = str(gc.get("cb", ""))
-		var months: int = int(gc.get("duration_months", 36))
-		for tid in _mission_scope_ids(str(gc.get("scope", ""))):
-			cb_timers["%s:%s:%s" % [player_country_id, tid, cbid]] = months
-			EventBus.tool_executed.emit("grant_mission_cb", {"actor": player_country_id, "target": tid, "cb_id": cbid, "months": months})
+	_apply_effects_dict(player_country_id, m.get("reward_effects", {}))
 
 
 ## 事件选项置位任务 flag（effects.flags，如老同盟缔结 → scotland_auld_alliance_done）
@@ -1227,7 +1227,13 @@ func _pick_weighted_option(opts: Array) -> int:
 
 ## 落地选项效果（金币/威望/军队/好感/CB/发起博弈/临时修正；军队超上限由 _clamp_army_to_cap 收敛）
 func _apply_option_effects(cid: String, option: Dictionary, event_id: String) -> void:
-	var fx: Dictionary = option.get("effects", {})
+	_apply_effects_dict(cid, option.get("effects", {}))
+	_clamp_army_to_cap(cid)
+	EventBus.event_resolved.emit(event_id)
+
+
+## 统一效果字典落地（Master 8/14：事件选项 + 任务 reward_effects 共用同一套效果引擎）
+func _apply_effects_dict(cid: String, fx: Dictionary) -> void:
 	if fx.has("gold"):
 		country_gold[cid] = country_gold.get(cid, 0.0) + float(fx["gold"])
 	if fx.has("prestige"):
@@ -1251,8 +1257,18 @@ func _apply_option_effects(cid: String, option: Dictionary, event_id: String) ->
 	for m in fx.get("modifiers", []):
 		var mtarget: String = str(m.get("target", ""))
 		_add_modifier(mtarget if mtarget != "" else cid, str(m.get("type", "")), float(m.get("value", 0.0)), int(m.get("months", 1)))
-	_clamp_army_to_cap(cid)
-	EventBus.event_resolved.emit(event_id)
+	# 引擎⑦-奖励（Master 8/14）：grant_cb 授予限时 CB（cb/scope/duration_months，覆盖 scope 全目标，统一 3 年）
+	if fx.has("grant_cb"):
+		var gc: Dictionary = fx["grant_cb"]
+		var cbid: String = str(gc.get("cb", ""))
+		var months: int = int(gc.get("duration_months", 36))
+		for tid in _mission_scope_ids(str(gc.get("scope", ""))):
+			cb_timers["%s:%s:%s" % [cid, tid, cbid]] = months
+			EventBus.tool_executed.emit("grant_mission_cb", {"actor": cid, "target": tid, "cb_id": cbid, "months": months})
+	# 引擎⑦-建筑（Master 8/14）：upgrade_building 免费升级某省某建筑（上限 LV4，任务/事件通用）
+	if fx.has("upgrade_building"):
+		var ub: Dictionary = fx["upgrade_building"]
+		_free_upgrade_building(str(ub.get("province", "")), str(ub.get("building", "farm")))
 
 
 ## 玩家待处理事件队首（UI 显示用）；无则 {}
@@ -1482,6 +1498,18 @@ func upgrade_building(province: String, building: String) -> Dictionary:
 	country_gold[player_country_id] -= cost
 	b[building] = lv + 1
 	return {"ok": true, "cost": cost, "level": lv + 1}
+
+
+## 免费升级某省某建筑（Master 8/14：任务奖励/事件效果 upgrade_building 用；上限 LV4，不扣款）
+func _free_upgrade_building(province: String, building: String) -> void:
+	if building == "fort" or province == "":
+		return
+	var b: Dictionary = province_buildings.get(province, {})
+	if not province_buildings.has(province):
+		province_buildings[province] = b
+	var lv: int = int(b.get(building, 0))
+	if lv < BUILDING_MAX_LEVEL:
+		b[building] = lv + 1
 
 
 ## 贷款一笔（+10 金，贷款总额 +10；保留到主动偿还）
