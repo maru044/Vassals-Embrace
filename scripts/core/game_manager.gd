@@ -950,7 +950,14 @@ func _check_mission_cond(cond: Dictionary) -> bool:
 		return false
 	if cond.has("situation"):
 		var sid: String = str(cond["situation"])
-		return player_owns_situation(sid) and get_situation_value(sid) >= int(cond.get("value_gte", 100))
+		if not player_owns_situation(sid):
+			return false
+		var sval: int = get_situation_value(sid)
+		if cond.has("value_gte"):
+			return sval >= int(cond["value_gte"])
+		if cond.has("value_lte"):
+			return sval <= int(cond["value_lte"])
+		return false
 	if cond.has("mission_completed"):
 		return is_mission_completed(str(cond["mission_completed"]))
 	if cond.has("flag_set"):

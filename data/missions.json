@@ -143,6 +143,115 @@
         ]
       },
       "reward": "终局：成立大不列颠"
+    },
+    {
+      "id": "england_capital_market",
+      "country": "England",
+      "name": "都城市集",
+      "pos": [110, 110],
+      "parents": [],
+      "desc": "把伦敦经营成繁华商埠，市集与商铺络绎不绝。",
+      "requirements": {
+        "all": [
+          {"building_level": {"province": "London", "building": "market", "gte": 2}}
+        ]
+      },
+      "reward": "金币 +30",
+      "reward_effects": {"gold": 30}
+    },
+    {
+      "id": "england_brothel_network",
+      "country": "England",
+      "name": "销金窟网络",
+      "pos": [110, 330],
+      "parents": ["england_capital_market"],
+      "desc": "让销金窟的灯火照亮英格兰的每一座城池，夜夜笙歌。",
+      "requirements": {
+        "all": [
+          {"building_level": {"building": "brothel", "gte_total": 8}}
+        ]
+      },
+      "reward": "免费升级伦敦妓院",
+      "reward_effects": {"upgrade_building": {"province": "London", "building": "brothel"}}
+    },
+    {
+      "id": "england_subdue_wales",
+      "country": "England",
+      "name": "镇压威尔士",
+      "pos": [430, 110],
+      "parents": [],
+      "desc": "让反叛的威尔士重新臣服于兰开斯特玫瑰之下。",
+      "requirements": {
+        "all": [
+          {"subject_of": "Wales"}
+        ]
+      },
+      "reward": "威望 +10",
+      "reward_effects": {"prestige": 10}
+    },
+    {
+      "id": "england_northern_loyalty",
+      "country": "England",
+      "name": "北境归心",
+      "pos": [430, 330],
+      "parents": ["england_subdue_wales"],
+      "desc": "让诺森伯兰、威斯特摩兰与约克北境三藩心向王室。",
+      "requirements": {
+        "all": [
+          {"favor_greater_than": 60, "target": "Northumberland"},
+          {"favor_greater_than": 60, "target": "Westmorland"},
+          {"favor_greater_than": 60, "target": "York"}
+        ]
+      },
+      "reward": "获得英格兰全附庸 CB（持续 3 年）",
+      "reward_effects": {"grant_cb": {"cb": "vassalize", "scope": "england_subject", "duration_months": 36}}
+    },
+    {
+      "id": "england_hundred_years",
+      "country": "England",
+      "name": "百年战争优势",
+      "pos": [540, 330],
+      "parents": [],
+      "desc": "让百年战争的天平向英国倾斜，压过海峡对岸。",
+      "requirements": {
+        "all": [
+          {"situation": "hundred_years_war", "value_lte": 20}
+        ]
+      },
+      "reward": "威望 +15",
+      "reward_effects": {"prestige": 15}
+    },
+    {
+      "id": "england_france_claim",
+      "country": "England",
+      "name": "法兰西王位",
+      "pos": [540, 550],
+      "parents": ["england_hundred_years"],
+      "desc": "百年战争英国占优后，罗莎蒙德剑指法兰西王位。",
+      "requirements": {
+        "all": [
+          {"mission_completed": "england_hundred_years"}
+        ]
+      },
+      "reward": "威望 +20，军队 +5",
+      "reward_effects": {"prestige": 20, "army": 5}
+    },
+    {
+      "id": "england_britain_lord",
+      "country": "England",
+      "name": "不列颠之主",
+      "pos": [330, 750],
+      "parents": ["england_brothel_network", "england_northern_loyalty", "england_france_claim"],
+      "desc": "内政繁华、北境归心、法兰西王位在望——英格兰成为不列颠无可撼动的主人。",
+      "requirements": {
+        "all": [
+          {"mission_completed": "england_brothel_network"},
+          {"mission_completed": "england_northern_loyalty"},
+          {"mission_completed": "england_france_claim"}
+        ]
+      },
+      "reward": "终局：威望 +50",
+      "reward_effects": {"prestige": 50}
     }
   ]
 }

@@ -119,6 +119,34 @@ func _initialize() -> void:
 	gm.call("_apply_effects_dict", "Scotland", {"upgrade_building": {"province": "格拉斯哥", "building": "fort"}})
 	out.append("⑩ upgrade_building 要塞不可升: %s" % (int(gm.get("province_buildings").get("格拉斯哥", {}).get("fort", 0)) == 0))
 
+	# ⑪ 英格兰任务树（Master 8/14 样板）：建筑/附庸/好感/局势(value_lte) 条件 + 完整链路至「不列颠之主」终局
+	gm.set("player_country_id", "England")
+	var eng_missions: Array = gm.call("get_player_missions")
+	out.append("⑪ England player missions = 7: %s" % (eng_missions.size() == 7))
+	gm.set("province_owner", {"London": "England", "Southwest": "England", "Wessex": "England", "York": "England", "格拉斯哥": "Scotland"})
+	gm.set("province_buildings", {"London": {"farm": 1, "market": 2, "brothel": 3, "fort": 1}, "Southwest": {"brothel": 2}, "Wessex": {"brothel": 2}, "York": {"brothel": 1}})
+	# 无前置任务的三条先断言（条件满足 → available）
+	out.append("⑪ capital_market available (London market≥2): %s" % (gm.call("mission_state", "england_capital_market") == "available"))
+	gm.set("runtime_liege", {"Wales": "England"})
+	out.append("⑪ subdue_wales available: %s" % (gm.call("mission_state", "england_subdue_wales") == "available"))
+	gm.set("situation_value", {"hundred_years_war": 15})
+	out.append("⑪ hundred_years available (value_lte≤20): %s" % (gm.call("mission_state", "england_hundred_years") == "available"))
+	# 先完成无前置任务，再断言有前置的子任务
+	gm.call("complete_mission", "england_capital_market")
+	gm.call("complete_mission", "england_subdue_wales")
+	gm.call("complete_mission", "england_hundred_years")
+	out.append("⑪ brothel_network available after parent (total≥8): %s" % (gm.call("mission_state", "england_brothel_network") == "available"))
+	gm.set("player_favor", {"Northumberland": 65.0, "Westmorland": 65.0, "York": 65.0})
+	out.append("⑪ northern_loyalty available after parent: %s" % (gm.call("mission_state", "england_northern_loyalty") == "available"))
+	# 完整链路 → 不列颠之主终局
+	gm.call("complete_mission", "england_brothel_network")
+	gm.call("complete_mission", "england_northern_loyalty")
+	gm.call("complete_mission", "england_france_claim")
+	out.append("⑪ britain_lord available: %s" % (gm.call("mission_state", "england_britain_lord") == "available"))
+	var res_e: Dictionary = gm.call("complete_mission", "england_britain_lord")
+	out.append("⑪ britain_lord done (终局): %s" % bool(res_e.get("ok", false)))
+	out.append("⑪ brothel reward upgraded London 3->4: %s" % (int(gm.get("province_buildings").get("London", {}).get("brothel", 0)) == 4))
+
 	root.remove_child(gm)
 	gm.free()
 	out.append("TEST_DONE")
