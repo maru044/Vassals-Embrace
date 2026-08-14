@@ -43,7 +43,11 @@
           {"flag_set": "scotland_auld_alliance_done"}
         ]
       },
-      "reward": "与法兰西缔结老同盟（事件演出）：威望 +10，金币 +25"
+      "reward": "与法兰西缔结老同盟（事件演出）：威望 +10，金币 +25",
+      "reward_effects": {
+        "prestige": 10,
+        "gold": 25
+      }
     },
     {
       "id": "scotland_march_into_ireland",

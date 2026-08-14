@@ -101,6 +101,11 @@ var _fired_historical := {}            # event_id -> true（历史事件一次�
 var _pulse_last := {}                  # event_id -> "年.月"（脉冲上次触发）
 var modifiers := {}                    # 受影响国 cid -> [{type, value, months}] 临时修正
 var player_event_queue := []           # 玩家待处理事件 [{event_id, root, from}]（逐个弹出）
+# ---- 引擎⑦ 任务树（Master 8/14：玩家专属；程序判定 + LLM flag 兜底；三态：完成/可做/锁定）----
+const MISSIONS_PATH := "res://data/missions.json"
+var _mission_list := []                # missions.json（懒加载）
+var completed_missions := {}           # mission_id -> true（已完成并领奖）
+var mission_flags := {}                # flag -> true（事件 effects.flags 置位，如老同盟缔结）
 
 var _country_list: Array = []   # countries.json（读 liege 关系，用于初始好感）
 
@@ -146,6 +151,8 @@ func start_new_game(country_id: String) -> void:
 	situation_value.clear()      # 引擎⑥-局势：新档按 initial_stage 重置
 	high_king_id = "Tyrone"      # 引擎⑥-局势：初始爱尔兰至高王 = 蒂龙（Master 8/14）
 	_init_situations()           # 引擎⑥-局势：新档初始化所有局势值
+	completed_missions.clear()   # 引擎⑦-任务：新档无已完成任务
+	mission_flags.clear()        # 引擎⑦-任务：新档无任务 flag
 	for cid in _all_country_ids():
 		country_gold[cid] = START_GOLD
 		country_prestige[cid] = START_PRESTIGE
@@ -821,6 +828,183 @@ func get_player_situations() -> Array:
 	return out
 
 
+# ===== 引擎⑦ 任务树（Master 8/14：玩家专属；程序判定 + LLM flag 兜底；三态：完成/可做/锁定）=====
+
+## 懒加载任务表（missions.json）
+func _ensure_missions() -> bool:
+	if not _mission_list.is_empty():
+		return true
+	var f := FileAccess.open(MISSIONS_PATH, FileAccess.READ)
+	if f == null:
+		push_warning("任务表加载失败: %s" % MISSIONS_PATH)
+		return false
+	var data: Variant = JSON.parse_string(f.get_as_text())
+	if not (data is Dictionary and data.get("missions") is Array):
+		push_warning("任务表格式错误: %s" % MISSIONS_PATH)
+		return false
+	_mission_list = data["missions"]
+	return true
+
+
+## 取任务定义（无则 {}）
+func get_mission(mission_id: String) -> Dictionary:
+	if not _ensure_missions():
+		return {}
+	for m in _mission_list:
+		if str(m.get("id", "")) == mission_id:
+			return m
+	return {}
+
+
+## 玩家国家的任务列表（UI 渲染用）
+func get_player_missions() -> Array:
+	var out: Array = []
+	if not _ensure_missions():
+		return out
+	for m in _mission_list:
+		if str(m.get("country", "")) == player_country_id:
+			out.append(m)
+	return out
+
+
+## 是否已完成（已领奖）
+func is_mission_completed(mission_id: String) -> bool:
+	return bool(completed_missions.get(mission_id, false))
+
+
+## 前置任务是否全部完成（解锁判定）
+func _mission_parents_done(m: Dictionary) -> bool:
+	for p in m.get("parents", []):
+		if not is_mission_completed(str(p)):
+			return false
+	return true
+
+
+## 任务三态：completed（已完成/暗）/ available（前置完成+条件满足/金光可领）/ locked（其余/灰）
+func mission_state(mission_id: String) -> String:
+	var m := get_mission(mission_id)
+	if m.is_empty():
+		return "locked"
+	if is_mission_completed(mission_id):
+		return "completed"
+	if not _mission_parents_done(m):
+		return "locked"
+	return "available" if _check_mission_requirements(m) else "locked"
+
+
+## 任务 scope → 国家 id 列表（ireland_clan=爱尔兰诸部[政体tribal] / england_subject=英格兰全部附庸+受保护国[运行时] / 其他=单个国家id）
+func _mission_scope_ids(scope: String) -> Array:
+	var out: Array = []
+	match str(scope):
+		"ireland_clan":
+			for c in _country_list:
+				if str(c.get("government", "")) == "tribal":
+					out.append(str(c.get("id", "")))
+		"england_subject":
+			for c in _country_list:
+				var cid: String = str(c.get("id", ""))
+				if cid != "" and _effective_liege(cid) == "England":
+					out.append(cid)
+		_:
+			out.append(str(scope))
+	return out
+
+
+## 单条完成条件判定（Master 8/14：附庸化=附庸国+受保护国均算，subject 语义用「有宗主」判定）
+func _check_mission_cond(cond: Dictionary) -> bool:
+	if cond.has("subject_of"):
+		var targets: Array = cond["subject_of"] if cond["subject_of"] is Array else [cond["subject_of"]]
+		for t in targets:
+			if _effective_liege(str(t)) != player_country_id:
+				return false
+		return true
+	if cond.has("favor_greater_than"):
+		var thr: float = float(cond["favor_greater_than"])
+		if cond.has("target"):
+			return player_favor.get(str(cond["target"]), 0.0) > thr
+		# 无 target：玩家全部附庸（subject）平均好感 ≥ 阈值（群岛守护用）
+		var favs: Array = []
+		for c in _country_list:
+			var cid: String = str(c.get("id", ""))
+			if cid != "" and _effective_liege(cid) == player_country_id:
+				favs.append(player_favor.get(cid, 0.0))
+		if favs.is_empty():
+			return false
+		var total := 0.0
+		for fv in favs:
+			total += float(fv)
+		return total / float(favs.size()) >= thr
+	if cond.has("army_limit"):
+		return get_army_cap(player_country_id) >= int(cond["army_limit"])
+	if cond.has("vassalize_all"):
+		for cid in _mission_scope_ids(str(cond["vassalize_all"])):
+			if _effective_liege(cid) != player_country_id:
+				return false
+		return true
+	if cond.has("vassalize_any"):
+		for cid in _mission_scope_ids(str(cond["vassalize_any"])):
+			if _effective_liege(cid) == player_country_id:
+				return true
+		return false
+	if cond.has("situation"):
+		var sid: String = str(cond["situation"])
+		return player_owns_situation(sid) and get_situation_value(sid) >= int(cond.get("value_gte", 100))
+	if cond.has("mission_completed"):
+		return is_mission_completed(str(cond["mission_completed"]))
+	if cond.has("flag_set"):
+		return bool(mission_flags.get(str(cond["flag_set"]), false))
+	return false   # alliance_with / war_goal 等未实现键（老同盟已改事件、进军爱尔兰已改附庸化）→ 不满足
+
+
+## 任务 requirements 全判定（all 数组逐条）
+func _check_mission_requirements(m: Dictionary) -> bool:
+	var reqs: Variant = m.get("requirements", {})
+	if not (reqs is Dictionary and reqs.get("all") is Array):
+		return false
+	for cond in reqs["all"]:
+		if not (cond is Dictionary) or not _check_mission_cond(cond):
+			return false
+	return true
+
+
+## 完成任务：校验可完成 → 落地奖励 → 标记完成 + emit（UI 三态刷新）
+func complete_mission(mission_id: String) -> Dictionary:
+	var m := get_mission(mission_id)
+	if m.is_empty():
+		return {"ok": false, "error": "任务不存在"}
+	if is_mission_completed(mission_id):
+		return {"ok": false, "error": "任务已完成"}
+	if mission_state(mission_id) != "available":
+		return {"ok": false, "error": "任务条件未满足或未解锁"}
+	_grant_mission_rewards(m)
+	completed_missions[mission_id] = true
+	EventBus.mission_completed.emit(mission_id)
+	return {"ok": true, "mission_id": mission_id}
+
+
+## 落地任务奖励：reward_effects（grant_cb 限时 CB 统一 3 年 / prestige / gold）
+func _grant_mission_rewards(m: Dictionary) -> void:
+	var fx: Dictionary = m.get("reward_effects", {})
+	if fx.has("prestige"):
+		country_prestige[player_country_id] = maxf(0.0, country_prestige.get(player_country_id, 0.0) + float(fx["prestige"]))
+	if fx.has("gold"):
+		country_gold[player_country_id] = country_gold.get(player_country_id, 0.0) + float(fx["gold"])
+	if fx.has("grant_cb"):
+		var gc: Dictionary = fx["grant_cb"]
+		var cbid: String = str(gc.get("cb", ""))
+		var months: int = int(gc.get("duration_months", 36))
+		for tid in _mission_scope_ids(str(gc.get("scope", ""))):
+			cb_timers["%s:%s:%s" % [player_country_id, tid, cbid]] = months
+			EventBus.tool_executed.emit("grant_mission_cb", {"actor": player_country_id, "target": tid, "cb_id": cbid, "months": months})
+
+
+## 事件选项置位任务 flag（effects.flags，如老同盟缔结 → scotland_auld_alliance_done）
+func set_mission_flag(flag: String) -> void:
+	if flag == "":
+		return
+	mission_flags[flag] = true
+
+
 # ===== 引擎⑥ 事件系统 + 临时修正（Master 8/13：历史/脉冲/随机三类 + [Root.*] 变量 + effects/modifiers）=====
 
 ## 懒加载事件表（events.json）
@@ -1059,6 +1243,9 @@ func _apply_option_effects(cid: String, option: Dictionary, event_id: String) ->
 	# 引擎⑥-局势（Master 8/14）：effects.situations 落地，仅玩家拥有者生效
 	for sit in fx.get("situations", []):
 		change_situation(str(sit.get("id", "")), float(sit.get("delta", 0.0)))
+	# 引擎⑦-任务（Master 8/14）：effects.flags 置位任务 flag（如老同盟「缔结」→ 完成【老同盟】任务）
+	for fl in fx.get("flags", []):
+		set_mission_flag(str(fl))
 	for m in fx.get("modifiers", []):
 		var mtarget: String = str(m.get("target", ""))
 		_add_modifier(mtarget if mtarget != "" else cid, str(m.get("type", "")), float(m.get("value", 0.0)), int(m.get("months", 1)))

@@ -214,6 +214,11 @@ func _ready() -> void:
 	# 引擎⑥ 事件面板（居中弹窗）+ 事件通知
 	_build_event_ui()
 	EventBus.event_pending.connect(_show_event_panel)
+	# 引擎⑦ 任务（Master 8/14）：任务完成 → 若任务面板开着则重建（三态刷新）+ 顶栏金币/威望刷新
+	EventBus.mission_completed.connect(func(_mid: String) -> void:
+		if _left_open and _active_panel == "mission":
+			_refresh_left_panel()
+		_refresh_top_bar())
 	# 过月世界 AI（LLM）思考 → 全屏遮挡「战略思考中」，思考期间拦截操作（Master 8/13）
 	EventBus.world_ai_thinking_started.connect(func() -> void: _set_thinking_overlay(true))
 	EventBus.world_ai_thinking_finished.connect(func() -> void: _set_thinking_overlay(false))
@@ -1232,11 +1237,10 @@ func _build_vassal_panel() -> void:
 		_left_body.add_child(_panel_label("　（无受保护国）"))
 
 
-## 任务：任务树渲染壳（数据驱动）。当前只实现苏格兰任务树（plan/任务树.md v3）；
-## 引擎⑦接入前：节点全部「可接」占位，可点击弹详情，画布可滚轮滚动。
+## 任务：任务树渲染（引擎⑦ 数据驱动 + 三态染色）。当前只实现苏格兰任务树（plan/任务树.md v3）。
 func _build_mission_panel() -> void:
 	if _player_country_id != "Scotland":
-		_left_body.add_child(_panel_label("任务树建设中…（引擎⑦接入）"))
+		_left_body.add_child(_panel_label("该国家暂无任务树"))
 		return
 	var missions := _missions_for_country(_player_country_id)
 	if missions.is_empty():
@@ -1320,17 +1324,46 @@ func _add_mission_group_label(canvas: Control, text: String, pos: Vector2) -> vo
 	canvas.add_child(l)
 
 
-## 任务节点按钮（图标占位 = 任务名；点击弹详情）
+## 任务节点按钮（引擎⑦：三态染色——已完成暗 / 可完成金光 / 锁定灰；点击弹详情）
 func _build_mission_node(m: Dictionary) -> Button:
 	var b := Button.new()
-	b.text = str(m.get("name", m.get("id", "")))
+	var st: String = GameManager.mission_state(str(m.get("id", "")))
+	var label := str(m.get("name", m.get("id", "")))
+	if st == "completed":
+		label = "✓ " + label
+	elif st == "available":
+		label = "✦ " + label
+	else:
+		label = "🔒 " + label
+	b.text = label
 	b.custom_minimum_size = Vector2(MISSION_NODE_W, MISSION_NODE_H)
 	b.add_theme_font_size_override("font_size", 13)
-	b.add_theme_color_override("font_color", INK)
-	b.add_theme_stylebox_override("normal", _make_panel_stylebox())
-	b.add_theme_stylebox_override("hover", _make_panel_stylebox(true))
-	b.add_theme_stylebox_override("pressed", _make_panel_stylebox(true))
-	b.tooltip_text = str(m.get("desc", ""))
+	match st:
+		"completed":
+			b.add_theme_color_override("font_color", Color(0.5, 0.47, 0.4))
+			var sb := _make_mission_stylebox(Color(0.62, 0.58, 0.5, 0.85), false)
+			b.add_theme_stylebox_override("normal", sb)
+			b.add_theme_stylebox_override("hover", sb)
+			b.add_theme_stylebox_override("pressed", sb)
+		"available":
+			b.add_theme_color_override("font_color", INK)
+			b.add_theme_stylebox_override("normal", _make_mission_stylebox(Color(0.96, 0.84, 0.55, 0.98), true))
+			b.add_theme_stylebox_override("hover", _make_mission_stylebox(Color(1.0, 0.9, 0.66, 1.0), true))
+			b.add_theme_stylebox_override("pressed", _make_mission_stylebox(Color(0.9, 0.78, 0.5, 1.0), true))
+		_:
+			b.add_theme_color_override("font_color", Color(0.5, 0.47, 0.4))
+			var sb := _make_mission_stylebox(Color(0.68, 0.63, 0.52, 0.82), false)
+			b.add_theme_stylebox_override("normal", sb)
+			b.add_theme_stylebox_override("hover", sb)
+			b.add_theme_stylebox_override("pressed", sb)
+	var tip := str(m.get("desc", ""))
+	if st == "completed":
+		tip += "\n（已完成）"
+	elif st == "available":
+		tip += "\n（✦ 可完成，点击领取奖励）"
+	else:
+		tip += "\n（未满足完成条件）"
+	b.tooltip_text = tip
 	b.pressed.connect(_open_mission_detail.bind(m))
 	return b
 
@@ -1385,6 +1418,21 @@ func _open_mission_detail(m: Dictionary) -> void:
 	vbox.add_child(_mission_detail_line("描述", str(m.get("desc", "—"))))
 	vbox.add_child(_mission_detail_line("完成条件", _mission_req_text(m)))
 	vbox.add_child(_mission_detail_line("奖励", str(m.get("reward", "—"))))
+
+	# 引擎⑦：可完成任务 → 金光「完成任务」按钮（领奖 + 置完成 + 刷新）
+	if GameManager.mission_state(str(m.get("id", ""))) == "available":
+		var claim := Button.new()
+		claim.text = "✦ 完成任务"
+		claim.custom_minimum_size = Vector2(220, 42)
+		claim.add_theme_font_size_override("font_size", 17)
+		claim.add_theme_color_override("font_color", INK)
+		claim.add_theme_stylebox_override("normal", _make_mission_stylebox(Color(0.96, 0.84, 0.55, 0.98), true))
+		claim.add_theme_stylebox_override("hover", _make_mission_stylebox(Color(1.0, 0.9, 0.66, 1.0), true))
+		claim.add_theme_stylebox_override("pressed", _make_mission_stylebox(Color(0.9, 0.78, 0.5, 1.0), true))
+		claim.pressed.connect(func() -> void:
+			GameManager.complete_mission(str(m.get("id", "")))
+			overlay.queue_free())
+		vbox.add_child(claim)
 
 	var close := Button.new()
 	close.text = "关闭"
@@ -1981,6 +2029,29 @@ func _make_panel_stylebox(hover: bool = false) -> StyleBoxFlat:
 	sb.border_color = GOLD_OUTLINE
 	sb.shadow_color = Color(0, 0, 0, 0.28)
 	sb.shadow_size = 4
+	sb.content_margin_left = 10
+	sb.content_margin_right = 10
+	sb.content_margin_top = 6
+	sb.content_margin_bottom = 6
+	return sb
+
+
+## 任务节点三态样式（引擎⑦）：glow=金光（可完成）/ 否则灰暗（已完成或锁定）
+func _make_mission_stylebox(bg: Color, glow: bool) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.set_corner_radius_all(8)
+	sb.border_width_left = 2
+	sb.border_width_top = 2
+	sb.border_width_right = 2
+	sb.border_width_bottom = 2
+	sb.border_color = Color(0.85, 0.71, 0.45) if glow else Color(0.55, 0.45, 0.28, 0.8)
+	if glow:
+		sb.shadow_color = Color(0.95, 0.8, 0.45, 0.55)
+		sb.shadow_size = 8
+	else:
+		sb.shadow_color = Color(0, 0, 0, 0.28)
+		sb.shadow_size = 4
 	sb.content_margin_left = 10
 	sb.content_margin_right = 10
 	sb.content_margin_top = 6
