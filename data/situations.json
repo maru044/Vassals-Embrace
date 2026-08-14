@@ -15,14 +15,14 @@
     {
       "id": "unify_ireland",
       "name": "统一爱尔兰",
-      "scope_country": ["Tyrone"],
+      "scope_high_king": true,
       "stages": 5,
       "initial_stage": 1,
       "initial_zero": true,
       "value_0": "分裂",
       "value_100": "统一",
       "stage_names": ["四分五裂", "暗流涌动", "诸部呼应", "众望所归", "天下一统"],
-      "desc": "爱尔兰至高王凝聚诸部（开局分裂）：凝聚力满即可统一，统一消耗凝聚力"
+      "desc": "爱尔兰至高王凝聚诸部（开局分裂）：拥有者=当前至高王（动态，初始蒂龙；诸部可夺取至高王）"
     },
     {
       "id": "corruption_durham",

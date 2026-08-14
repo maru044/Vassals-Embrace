@@ -95,6 +95,8 @@ var _event_list := []                  # events.json（懒加载）
 const SITUATIONS_PATH := "res://data/situations.json"
 var _situation_list := []              # situations.json（懒加载）
 var situation_value := {}              # id -> int（0~100），玩家拥有局势的当前值
+# 动态拥有者（Master 8/14）：爱尔兰至高王——初始蒂龙 Tyrone，诸部可夺取（引擎⑧ 完整机制，局势系统先用）
+var high_king_id := ""
 var _fired_historical := {}            # event_id -> true（历史事件一次性）
 var _pulse_last := {}                  # event_id -> "年.月"（脉冲上次触发）
 var modifiers := {}                    # 受影响国 cid -> [{type, value, months}] 临时修正
@@ -142,6 +144,7 @@ func start_new_game(country_id: String) -> void:
 	runtime_union.clear()        # 引擎④-CB：新档无运行时联统关系
 	runtime_vassal_type.clear()  # 引擎④-CB：新档无运行时附庸类型
 	situation_value.clear()      # 引擎⑥-局势：新档按 initial_stage 重置
+	high_king_id = "Tyrone"      # 引擎⑥-局势：初始爱尔兰至高王 = 蒂龙（Master 8/14）
 	_init_situations()           # 引擎⑥-局势：新档初始化所有局势值
 	for cid in _all_country_ids():
 		country_gold[cid] = START_GOLD
@@ -763,13 +766,25 @@ func get_situation(situation_id: String) -> Dictionary:
 	return {}
 
 
-## 玩家是否拥有该局势（scope_country 含玩家操作国；AI 无局势）
+## 玩家是否拥有该局势（scope_country 含玩家操作国；scope_high_king = 当前至高王；AI 无局势）
 func player_owns_situation(situation_id: String) -> bool:
 	var s := get_situation(situation_id)
 	if s.is_empty():
 		return false
+	if bool(s.get("scope_high_king", false)):
+		return player_country_id == high_king_id   # 动态拥有者：当前爱尔兰至高王（初始蒂龙）
 	var scopes: Array = s.get("scope_country", [])
 	return scopes.has(player_country_id)
+
+
+## 设置/变更爱尔兰至高王（Master 8/14：初始蒂龙，诸部可夺取——引擎⑧ 完整选举机制接入时调用）
+func set_high_king(cid: String) -> void:
+	if high_king_id == cid:
+		return
+	high_king_id = cid
+	if player_owns_situation("unify_ireland"):
+		EventBus.situation_changed.emit("unify_ireland", get_situation_value("unify_ireland"))   # 拥有者变化 → 左栏局势面板刷新
+	EventBus.organization_changed.emit(0)
 
 
 ## 局势当前值（0~100；未初始化补初始值）

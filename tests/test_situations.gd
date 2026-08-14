@@ -28,8 +28,15 @@ func _initialize() -> void:
 	# ③ 玩家拥有判定：England 拥有百年战争（scope 含 England/Scotland），不拥有统一爱尔兰
 	out.append("England owns hundred_years_war: %s" % gm.call("player_owns_situation", "hundred_years_war"))
 	out.append("England NOT own unify_ireland: %s" % (not gm.call("player_owns_situation", "unify_ireland")))
+	# 动态至高王（Master 8/14）：初始蒂龙拥有统一爱尔兰；夺取至高王后拥有者切换
+	gm.set("high_king_id", "Tyrone")
 	gm.set("player_country_id", "Tyrone")
-	out.append("Tyrone owns unify_ireland: %s" % gm.call("player_owns_situation", "unify_ireland"))
+	out.append("Tyrone (initial high king) owns unify_ireland: %s" % gm.call("player_owns_situation", "unify_ireland"))
+	gm.call("set_high_king", "Ulster")   # Ulster 夺取至高王
+	gm.set("player_country_id", "Ulster")
+	out.append("Ulster (new high king) owns unify_ireland: %s" % gm.call("player_owns_situation", "unify_ireland"))
+	gm.set("player_country_id", "Tyrone")
+	out.append("Tyrone lost high king -> NOT own: %s" % (not gm.call("player_owns_situation", "unify_ireland")))
 
 	# ④ change_situation：百年战争 +15 → 65；clamp 到 100；非拥有者（Durham 堕落在 Tyrone 视角）不生效
 	gm.set("player_country_id", "England")
