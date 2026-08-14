@@ -37,6 +37,39 @@ func _initialize() -> void:
 	out.append("retreater Scotland prestige 50->%d (expect 40)" % int(gm.get("country_prestige").get("Scotland", 0.0)))
 	out.append("play resolved (active=0): %s" % ((gm.call("get_active_plays") as Array).size() == 0))
 
+	# ④b 退缩落地（Master 8/14 修正：V3 规则，一方退缩自动实现对方战争目标）
+	#     发起方 vassalize（附庸化）→ 防守方英格兰退缩 → 英格兰成为苏格兰附庸
+	gm.set("plays", [])
+	gm.set("_next_play_id", 10)
+	gm.set("runtime_liege", {})
+	gm.set("runtime_vassal_type", {})
+	gm.call("start_play", "Scotland", "England", "附庸化", "vassalize")
+	var bd2: Dictionary = gm.call("back_down", 10, "B")
+	out.append("back_down B ok winner=A: %s" % (bd2.get("ok", false) and str(bd2.get("winner_side", "")) == "A"))
+	out.append("vassalize backdown -> England liege = Scotland: %s" % (
+		gm.get("runtime_liege").get("England", "") == "Scotland"))
+	out.append("vassalize backdown -> England vassal_type feudal: %s" % (
+		gm.get("runtime_vassal_type").get("England", "") == "feudal"))
+	# 联统退缩落地：发起方 personal_union → 防守方退缩 → 建立联统
+	gm.set("plays", [])
+	gm.set("_next_play_id", 11)
+	gm.set("runtime_union", {})
+	gm.call("start_play", "Wales", "England", "联合统治", "personal_union")
+	gm.call("back_down", 11, "B")
+	out.append("personal_union backdown -> runtime_union England lead Wales: %s" % (
+		gm.get("runtime_union").get("England", "") == "Wales"))
+	# 独立退缩落地：附庸独立 CB，附庸方发起 → 宗主退缩 → 附庸解除宗主
+	gm.set("plays", [])
+	gm.set("_next_play_id", 12)
+	gm.set("runtime_liege", {"Scotland": "England", "England": ""})
+	gm.set("runtime_vassal_type", {"Scotland": "feudal", "England": ""})
+	gm.call("start_play", "Scotland", "England", "独立", "independence")
+	gm.call("back_down", 12, "B")   # 宗主英格兰退缩 → 苏格兰独立
+	out.append("independence backdown -> Scotland liege cleared: %s" % (
+		not gm.get("runtime_liege").has("Scotland")))
+	gm.set("runtime_liege", {})
+	gm.set("runtime_vassal_type", {})
+
 	# ⑤ 到期开战：新博弈 → 两次 tick → 战争 + 站队国入战
 	gm.set("plays", [])
 	gm.set("wars", [])

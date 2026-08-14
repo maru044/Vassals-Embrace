@@ -1139,7 +1139,8 @@ func _on_diplo_declare_war(country: String) -> void:
 	var cb_id: String = str(_diplo_cb_opt.get_item_metadata(sel))
 	var cb := GameManager.get_cb(cb_id)
 	var goal: String = str(cb.get("name", cb_id))
-	var res := GameManager.start_play(_player_country_id, country, goal)
+	# Master 8/14：cb_id 一并传入博弈（退缩落地时按 CB 类型实现对方战争目标）
+	var res := GameManager.start_play(_player_country_id, country, goal, cb_id)
 	_diplo_notice_msg = "发起博弈：%s" % ("成功" if res.get("ok", false) else str(res.get("error", "失败")))
 	_refresh_diplo_country(country)
 
@@ -1679,6 +1680,8 @@ func _build_single_play_content(vbox: VBoxContainer, play_id: int) -> void:
 	vbox.add_child(_panel_label("站队：%s / %s" % [
 		_side_names(p.get("sides", {}).get("A", [])), _side_names(p.get("sides", {}).get("B", []))]))
 	var my_side := _my_play_side(p)
+	# 战争目标只有「战争盟主」（发起方/防守方 initiator/target）能提；站队/旁观玩家只能选边（Master 8/14）
+	var is_principal := str(p.get("initiator", "")) == _player_country_id or str(p.get("target", "")) == _player_country_id
 	var actions := HBoxContainer.new()
 	actions.add_theme_constant_override("separation", 8)
 	if my_side == "":
@@ -1686,18 +1689,19 @@ func _build_single_play_content(vbox: VBoxContainer, play_id: int) -> void:
 		_build_gold_button(actions, "加入防守方", _on_join_play.bind(play_id, "B"))
 	else:
 		_build_gold_button(actions, "退缩（失威望）", _on_back_down.bind(play_id, my_side))
-		if str(p.get("initiator", "")) == _player_country_id or str(p.get("target", "")) == _player_country_id:
+		if is_principal:
 			_build_gold_button(actions, "修改我方目标", _on_edit_my_goal.bind(play_id))
 	vbox.add_child(actions)
-	# 修改我方目标输入框（参与博弈时填入新目标）
-	var edit_row := HBoxContainer.new()
-	edit_row.add_theme_constant_override("separation", 8)
-	edit_row.add_child(_panel_label("修改我方目标："))
-	_play_goal_edit = LineEdit.new()
-	_play_goal_edit.placeholder_text = "新目标（如：附庸化 / 吞并 洛锡安）"
-	_play_goal_edit.custom_minimum_size = Vector2(320, 40)
-	edit_row.add_child(_play_goal_edit)
-	vbox.add_child(edit_row)
+	# 修改我方目标输入框（仅博弈方 initiator/target 可见，Master 8/14：非盟主不能提战争目标）
+	if is_principal:
+		var edit_row := HBoxContainer.new()
+		edit_row.add_theme_constant_override("separation", 8)
+		edit_row.add_child(_panel_label("修改我方目标："))
+		_play_goal_edit = LineEdit.new()
+		_play_goal_edit.placeholder_text = "新目标（如：附庸化 / 吞并 洛锡安）"
+		_play_goal_edit.custom_minimum_size = Vector2(320, 40)
+		edit_row.add_child(_play_goal_edit)
+		vbox.add_child(edit_row)
 	_bottom_notice = _panel_label(_play_notice_msg)
 	vbox.add_child(_bottom_notice)
 

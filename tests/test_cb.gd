@@ -27,16 +27,26 @@ func _initialize() -> void:
 	out.append("culture Tyrone(celtic): %s" % (gm.call("country_culture", "Tyrone") == "celtic"))
 	out.append("culture England(english): %s" % (gm.call("country_culture", "England") == "english"))
 
-	# ② 通用 CB 可用性：诺斯→附庸化 / 英格兰→受保护国 / 凯尔特对凯尔特→夺取至高王
+	# ② 通用 CB 可用性：Master 8/14 修正——vassalize/protectorate 不是无条件可用，
+	#    需好感>80「要求」被拒获得 1 年 CB 后才可用；seize_leadership 凯尔特对凯尔特可用
 	var cbs_norse: Array = gm.call("get_available_cbs", "The Isles", "England")
-	out.append("norse actor -> vassalize: %s" % _has_cb(cbs_norse, "vassalize"))
+	out.append("norse vassalize NOT auto (before CB): %s" % (not _has_cb(cbs_norse, "vassalize")))
+	gm.call("grant_requirement_cb", "The Isles", "England", "vassalize")
+	var cbs_norse2: Array = gm.call("get_available_cbs", "The Isles", "England")
+	out.append("norse vassalize after 1y CB: %s" % _has_cb(cbs_norse2, "vassalize"))
 	var cbs_eng: Array = gm.call("get_available_cbs", "England", "The Isles")
-	out.append("english actor -> protectorate: %s" % _has_cb(cbs_eng, "protectorate"))
+	out.append("english protectorate NOT auto (before CB): %s" % (not _has_cb(cbs_eng, "protectorate")))
+	gm.call("grant_requirement_cb", "England", "The Isles", "protectorate")
+	var cbs_eng2: Array = gm.call("get_available_cbs", "England", "The Isles")
+	out.append("english protectorate after 1y CB: %s" % _has_cb(cbs_eng2, "protectorate"))
 	var cbs_celt: Array = gm.call("get_available_cbs", "Tyrone", "Ulster")
 	out.append("celtic actor vs celtic -> seize_leadership: %s" % _has_cb(cbs_celt, "seize_leadership"))
-	# ⑧ 附庸也能用通用 CB（附庸嵌套，Master 确认：英格兰 + 其附庸都能用受保护国 CB）
+	# ⑧ 附庸也能用通用 CB（附庸嵌套，Master 确认：英格兰 + 其附庸都能用受保护国 CB；同样需先授 CB）
 	var cbs_north: Array = gm.call("get_available_cbs", "Northumberland", "Ulster")
-	out.append("english vassal Northumberland -> protectorate (附庸嵌套): %s" % _has_cb(cbs_north, "protectorate"))
+	out.append("vassal Northumberland protectorate NOT auto: %s" % (not _has_cb(cbs_north, "protectorate")))
+	gm.call("grant_requirement_cb", "Northumberland", "Ulster", "protectorate")
+	var cbs_north2: Array = gm.call("get_available_cbs", "Northumberland", "Ulster")
+	out.append("vassal Northumberland protectorate after CB (附庸嵌套): %s" % _has_cb(cbs_north2, "protectorate"))
 
 	# ③ 附庸独立（Master 8/13）：独立 CB 通用，附庸随时可独立（不受好感度限制；叛乱与否交 LLM）
 	gm.set("player_country_id", "Scotland")

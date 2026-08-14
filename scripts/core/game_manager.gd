@@ -526,9 +526,32 @@ func back_down(play_id: int, side: String) -> Dictionary:
 	return {"ok": false, "error": "博弈不存在或已结束"}
 
 
-## 退缩后目标落地（引擎⑤⑧ 未就绪：附庸化/吞并先记录，联合统治交 LLM 叙事）
+## 退缩后目标落地（Master 8/14 修正：V3 规则，一方退缩自动实现对方战争目标）
+## 按 CB 类型落地：vassalize→附庸 / protectorate→受保护国 / personal_union→联统 /
+## independence→附庸独立（解除宗主）；吞并/夺至高王/未知仅记录 winner_goal（数据就绪后补）
 func _apply_play_goal(p: Dictionary, winner_side: String) -> void:
 	p["winner_goal"] = p["init_goal"] if winner_side == "A" else p["targ_goal"]
+	var winner: String = p["initiator"] if winner_side == "A" else p["target"]
+	var loser: String = p["target"] if winner_side == "A" else p["initiator"]
+	var cb: String = str(p.get("cb", ""))
+	match cb:
+		"vassalize", "protectorate":
+			# winner 使 loser 成为附庸 / 受保护国（走既有建立流程，含 DAG 防环 + 附庸税）
+			var rel: Dictionary = establish_requirement(winner, loser, cb)
+			p["goal_applied"] = rel.get("ok", false)
+		"personal_union":
+			# winner 与 loser 建立联合统治（引擎⑧ 数据层已支持）
+			var rel_u: Dictionary = establish_requirement(winner, loser, "personal_union")
+			p["goal_applied"] = rel_u.get("ok", false)
+		"independence":
+			# 独立：附庸（winner）从宗主（loser）脱离
+			if _effective_liege(winner) == loser:
+				runtime_liege.erase(winner)
+				runtime_vassal_type.erase(winner)
+				EventBus.diplomatic_relation_changed.emit(winner, loser, "independence")
+				p["goal_applied"] = true
+		_:
+			p["goal_applied"] = false   # 吞并/夺取至高王：记录 winner_goal，数据就绪后补落地
 
 
 ## 每月博弈推进：deadline -1；到期仍未退缩 → 开战（主国宣战 + 站队国入战）
@@ -648,10 +671,12 @@ func get_available_cbs(actor: String, target: String) -> Array:
 			continue   # 其余特殊/事件 CB（威尔士起义/珀西叛乱）待事件系统
 		match cid:
 			"vassalize":
-				if cult == "norse":
+				# Master 8/14 修正：附庸化不是无条件可发——需好感>80「要求附庸」→ LLM 拒绝后获 1 年 CB 才可用
+				if has_cb(actor, target, "vassalize"):
 					out.append(c)
 			"protectorate":
-				if cult == "english":
+				# Master 8/14 修正：受保护国同理，需好感>80「要求成为受保护国」→ LLM 拒绝后获 1 年 CB 才可用
+				if has_cb(actor, target, "protectorate"):
 					out.append(c)
 			"seize_leadership":
 				if cult == "celtic" and country_culture(target) == "celtic":
