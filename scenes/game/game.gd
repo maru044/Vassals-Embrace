@@ -16,6 +16,9 @@ const MISSION_GROUPS := {
 	"England": [["内政·繁华", Vector2(25, 50)], ["平叛·战争", Vector2(365, 50)]],
 	"Wales": [["独立·武装", Vector2(25, 50)], ["内政·复仇", Vector2(365, 50)]],
 	"Durham": [["堕落线", Vector2(25, 50)], ["圣洁·内政", Vector2(365, 50)]],
+	"The Isles": [["劫掠线", Vector2(25, 50)], ["巢穴·掠夺", Vector2(365, 50)]],
+	"Orkney": [["劫掠线", Vector2(25, 50)], ["巢穴·掠夺", Vector2(365, 50)]],
+	"Shetland": [["劫掠线", Vector2(25, 50)], ["巢穴·掠夺", Vector2(365, 50)]],
 }
 const SHIELD_DIR := "res://assets/shields/"
 const BUILDING_ORDER := ["farm", "market", "brothel", "fort"]   # 省份面板建筑展示顺序

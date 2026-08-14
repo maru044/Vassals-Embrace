@@ -106,6 +106,7 @@ const MISSIONS_PATH := "res://data/missions.json"
 var _mission_list := []                # missions.json（懒加载）
 var completed_missions := {}           # mission_id -> true（已完成并领奖）
 var mission_flags := {}                # flag -> true（事件 effects.flags 置位，如老同盟缔结）
+var raid_count := 0                    # 引擎⑦：玩家海盗劫掠次数（塞壬任务条件；引擎⑧海盗联盟/事件胜利时 add_raid 增长）
 
 var _country_list: Array = []   # countries.json（读 liege 关系，用于初始好感）
 
@@ -153,6 +154,7 @@ func start_new_game(country_id: String) -> void:
 	_init_situations()           # 引擎⑥-局势：新档初始化所有局势值
 	completed_missions.clear()   # 引擎⑦-任务：新档无已完成任务
 	mission_flags.clear()        # 引擎⑦-任务：新档无任务 flag
+	raid_count = 0               # 引擎⑦-任务：新档无海盗劫掠
 	for cid in _all_country_ids():
 		country_gold[cid] = START_GOLD
 		country_prestige[cid] = START_PRESTIGE
@@ -978,6 +980,9 @@ func _check_mission_cond(cond: Dictionary) -> bool:
 	if cond.has("independent"):
 		# 独立（Master 8/14）：玩家国家无宗主（威尔士独立战争胜利后即为任务完成条件，而非奖励）
 		return _effective_liege(player_country_id) == ""
+	if cond.has("raids_gte"):
+		# 海盗劫掠次数达标（Master 8/14：塞壬任务条件，引擎⑧海盗联盟/事件胜利时 add_raid 增长）
+		return raid_count >= int(cond["raids_gte"])
 	return false   # alliance_with / war_goal 等未实现键（老同盟已改事件、进军爱尔兰已改附庸化）→ 不满足
 
 
@@ -1017,6 +1022,12 @@ func set_mission_flag(flag: String) -> void:
 	if flag == "":
 		return
 	mission_flags[flag] = true
+
+
+## 记录海盗劫掠次数（Master 8/14：塞壬劫掠任务条件；引擎⑧海盗联盟/事件胜利时调用）
+func add_raid(n: int = 1) -> void:
+	raid_count += maxi(n, 1)
+	EventBus.tool_executed.emit("add_raid", {"count": raid_count})
 
 
 # ===== 引擎⑥ 事件系统 + 临时修正（Master 8/13：历史/脉冲/随机三类 + [Root.*] 变量 + effects/modifiers）=====

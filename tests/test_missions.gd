@@ -210,6 +210,35 @@ func _initialize() -> void:
 	var res_d: Dictionary = gm.call("complete_mission", "durham_saint_or_sinner")
 	out.append("⑬ durham_saint_or_sinner done (终局): %s" % bool(res_d.get("ok", false)))
 
+	# ⑭ 塞壬群岛任务树（Master 8/14：海盗劫掠 raids_gte 条件，与海盗联盟国际组织无关）
+	gm.set("player_country_id", "The Isles")
+	var isles_missions: Array = gm.call("get_player_missions")
+	out.append("⑭ The Isles player missions = 7: %s" % (isles_missions.size() == 7))
+	gm.set("province_owner", {"The Isles": "The Isles"})
+	gm.set("province_buildings", {"The Isles": {"brothel": 2, "market": 2, "fort": 1}})
+	# 劫掠线：raids_gte（add_raid 累计）
+	gm.call("add_raid", 5)
+	out.append("⑭ first_raid available (raids≥3): %s" % (gm.call("mission_state", "isles_first_raid") == "available"))
+	gm.call("complete_mission", "isles_first_raid")
+	gm.call("add_raid", 5)
+	out.append("⑭ sea_king available (raids≥8): %s" % (gm.call("mission_state", "isles_sea_king") == "available"))
+	# 巢穴线：建筑
+	out.append("⑭ isles_tavern available (brothel≥2): %s" % (gm.call("mission_state", "isles_tavern") == "available"))
+	gm.call("complete_mission", "isles_tavern")
+	out.append("⑭ isles_market_cove available (market≥2): %s" % (gm.call("mission_state", "isles_market_cove") == "available"))
+	# 掠夺线：附庸爱尔兰
+	gm.set("runtime_liege", {"Kildare": "The Isles"})
+	out.append("⑭ isles_celtic_raid available: %s" % (gm.call("mission_state", "isles_celtic_raid") == "available"))
+	# 完整链路 → 北海霸主终局
+	gm.call("complete_mission", "isles_sea_king")
+	gm.call("add_raid", 10)
+	gm.call("complete_mission", "isles_grand_loot")
+	gm.call("complete_mission", "isles_market_cove")
+	gm.call("complete_mission", "isles_celtic_raid")
+	out.append("⑭ isles_north_sea_lord available: %s" % (gm.call("mission_state", "isles_north_sea_lord") == "available"))
+	var res_n: Dictionary = gm.call("complete_mission", "isles_north_sea_lord")
+	out.append("⑭ isles_north_sea_lord done (终局): %s" % bool(res_n.get("ok", false)))
+
 	root.remove_child(gm)
 	gm.free()
 	out.append("TEST_DONE")

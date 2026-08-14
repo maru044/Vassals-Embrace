@@ -465,6 +465,327 @@
       },
       "reward": "终局：威望 +40",
       "reward_effects": {"prestige": 40}
+    },
+    {
+      "id": "isles_first_raid",
+      "country": "The Isles",
+      "name": "初试锋芒",
+      "pos": [110, 110],
+      "parents": [],
+      "desc": "扬帆出航，让海峡对岸知道塞壬的獠牙已经出鞘（累计劫掠 3 次）。",
+      "requirements": {
+        "all": [
+          {"raids_gte": 3}
+        ]
+      },
+      "reward": "金币 +30",
+      "reward_effects": {"gold": 30}
+    },
+    {
+      "id": "isles_sea_king",
+      "country": "The Isles",
+      "name": "海疆之王",
+      "pos": [110, 330],
+      "parents": ["isles_first_raid"],
+      "desc": "每一次劫掠都在扩大塞壬的猎场（累计劫掠 8 次）。",
+      "requirements": {
+        "all": [
+          {"raids_gte": 8}
+        ]
+      },
+      "reward": "威望 +20",
+      "reward_effects": {"prestige": 20}
+    },
+    {
+      "id": "isles_grand_loot",
+      "country": "The Isles",
+      "name": "无上战利品",
+      "pos": [110, 550],
+      "parents": ["isles_sea_king"],
+      "desc": "沉甸甸的战利品堆满船舱，塞壬的威名随潮水传遍北海（累计劫掠 15 次）。",
+      "requirements": {
+        "all": [
+          {"raids_gte": 15}
+        ]
+      },
+      "reward": "威望 +25",
+      "reward_effects": {"prestige": 25}
+    },
+    {
+      "id": "isles_tavern",
+      "country": "The Isles",
+      "name": "礁石酒馆",
+      "pos": [430, 110],
+      "parents": [],
+      "desc": "在礁石间的酒馆里，让上岸的水手心甘情愿掏空钱袋。",
+      "requirements": {
+        "all": [
+          {"building_level": {"province": "The Isles", "building": "brothel", "gte": 2}}
+        ]
+      },
+      "reward": "金币 +25",
+      "reward_effects": {"gold": 25}
+    },
+    {
+      "id": "isles_market_cove",
+      "country": "The Isles",
+      "name": "销赃海湾",
+      "pos": [430, 330],
+      "parents": ["isles_tavern"],
+      "desc": "把劫掠来的货物在隐秘海湾转手，牟取暴利。",
+      "requirements": {
+        "all": [
+          {"building_level": {"province": "The Isles", "building": "market", "gte": 2}}
+        ]
+      },
+      "reward": "免费升级群岛妓院",
+      "reward_effects": {"upgrade_building": {"province": "The Isles", "building": "brothel"}}
+    },
+    {
+      "id": "isles_celtic_raid",
+      "country": "The Isles",
+      "name": "掠夺凯尔特",
+      "pos": [540, 110],
+      "parents": [],
+      "desc": "塞壬的歌声飘向爱尔兰海岸，把犬娘诸部收进战利品的名单。",
+      "requirements": {
+        "all": [
+          {"vassalize_any": "ireland_clan"}
+        ]
+      },
+      "reward": "获得爱尔兰附庸 CB（持续 3 年）",
+      "reward_effects": {"grant_cb": {"cb": "vassalize", "scope": "ireland_clan", "duration_months": 36}}
+    },
+    {
+      "id": "isles_north_sea_lord",
+      "country": "The Isles",
+      "name": "北海霸主",
+      "pos": [330, 750],
+      "parents": ["isles_grand_loot", "isles_market_cove", "isles_celtic_raid"],
+      "desc": "劫掠、销赃与收服三路并进，北海再无塞壬攻不下的海岸。",
+      "requirements": {
+        "all": [
+          {"mission_completed": "isles_grand_loot"},
+          {"mission_completed": "isles_market_cove"},
+          {"mission_completed": "isles_celtic_raid"}
+        ]
+      },
+      "reward": "终局：威望 +40",
+      "reward_effects": {"prestige": 40}
+    },
+    {
+      "id": "orkney_first_raid",
+      "country": "Orkney",
+      "name": "初试锋芒",
+      "pos": [110, 110],
+      "parents": [],
+      "desc": "扬帆出航，让海峡对岸知道塞壬的獠牙已经出鞘（累计劫掠 3 次）。",
+      "requirements": {
+        "all": [
+          {"raids_gte": 3}
+        ]
+      },
+      "reward": "金币 +30",
+      "reward_effects": {"gold": 30}
+    },
+    {
+      "id": "orkney_sea_king",
+      "country": "Orkney",
+      "name": "海疆之王",
+      "pos": [110, 330],
+      "parents": ["orkney_first_raid"],
+      "desc": "每一次劫掠都在扩大塞壬的猎场（累计劫掠 8 次）。",
+      "requirements": {
+        "all": [
+          {"raids_gte": 8}
+        ]
+      },
+      "reward": "威望 +20",
+      "reward_effects": {"prestige": 20}
+    },
+    {
+      "id": "orkney_grand_loot",
+      "country": "Orkney",
+      "name": "无上战利品",
+      "pos": [110, 550],
+      "parents": ["orkney_sea_king"],
+      "desc": "沉甸甸的战利品堆满船舱，塞壬的威名随潮水传遍北海（累计劫掠 15 次）。",
+      "requirements": {
+        "all": [
+          {"raids_gte": 15}
+        ]
+      },
+      "reward": "威望 +25",
+      "reward_effects": {"prestige": 25}
+    },
+    {
+      "id": "orkney_tavern",
+      "country": "Orkney",
+      "name": "礁石酒馆",
+      "pos": [430, 110],
+      "parents": [],
+      "desc": "在礁石间的酒馆里，让上岸的水手心甘情愿掏空钱袋。",
+      "requirements": {
+        "all": [
+          {"building_level": {"province": "Orkney", "building": "brothel", "gte": 2}}
+        ]
+      },
+      "reward": "金币 +25",
+      "reward_effects": {"gold": 25}
+    },
+    {
+      "id": "orkney_market_cove",
+      "country": "Orkney",
+      "name": "销赃海湾",
+      "pos": [430, 330],
+      "parents": ["orkney_tavern"],
+      "desc": "把劫掠来的货物在隐秘海湾转手，牟取暴利。",
+      "requirements": {
+        "all": [
+          {"building_level": {"province": "Orkney", "building": "market", "gte": 2}}
+        ]
+      },
+      "reward": "免费升级奥克尼妓院",
+      "reward_effects": {"upgrade_building": {"province": "Orkney", "building": "brothel"}}
+    },
+    {
+      "id": "orkney_celtic_raid",
+      "country": "Orkney",
+      "name": "掠夺凯尔特",
+      "pos": [540, 110],
+      "parents": [],
+      "desc": "塞壬的歌声飘向爱尔兰海岸，把犬娘诸部收进战利品的名单。",
+      "requirements": {
+        "all": [
+          {"vassalize_any": "ireland_clan"}
+        ]
+      },
+      "reward": "获得爱尔兰附庸 CB（持续 3 年）",
+      "reward_effects": {"grant_cb": {"cb": "vassalize", "scope": "ireland_clan", "duration_months": 36}}
+    },
+    {
+      "id": "orkney_north_sea_lord",
+      "country": "Orkney",
+      "name": "北海霸主",
+      "pos": [330, 750],
+      "parents": ["orkney_grand_loot", "orkney_market_cove", "orkney_celtic_raid"],
+      "desc": "劫掠、销赃与收服三路并进，北海再无塞壬攻不下的海岸。",
+      "requirements": {
+        "all": [
+          {"mission_completed": "orkney_grand_loot"},
+          {"mission_completed": "orkney_market_cove"},
+          {"mission_completed": "orkney_celtic_raid"}
+        ]
+      },
+      "reward": "终局：威望 +40",
+      "reward_effects": {"prestige": 40}
+    },
+    {
+      "id": "shetland_first_raid",
+      "country": "Shetland",
+      "name": "初试锋芒",
+      "pos": [110, 110],
+      "parents": [],
+      "desc": "扬帆出航，让海峡对岸知道塞壬的獠牙已经出鞘（累计劫掠 3 次）。",
+      "requirements": {
+        "all": [
+          {"raids_gte": 3}
+        ]
+      },
+      "reward": "金币 +30",
+      "reward_effects": {"gold": 30}
+    },
+    {
+      "id": "shetland_sea_king",
+      "country": "Shetland",
+      "name": "海疆之王",
+      "pos": [110, 330],
+      "parents": ["shetland_first_raid"],
+      "desc": "每一次劫掠都在扩大塞壬的猎场（累计劫掠 8 次）。",
+      "requirements": {
+        "all": [
+          {"raids_gte": 8}
+        ]
+      },
+      "reward": "威望 +20",
+      "reward_effects": {"prestige": 20}
+    },
+    {
+      "id": "shetland_grand_loot",
+      "country": "Shetland",
+      "name": "无上战利品",
+      "pos": [110, 550],
+      "parents": ["shetland_sea_king"],
+      "desc": "沉甸甸的战利品堆满船舱，塞壬的威名随潮水传遍北海（累计劫掠 15 次）。",
+      "requirements": {
+        "all": [
+          {"raids_gte": 15}
+        ]
+      },
+      "reward": "威望 +25",
+      "reward_effects": {"prestige": 25}
+    },
+    {
+      "id": "shetland_tavern",
+      "country": "Shetland",
+      "name": "礁石酒馆",
+      "pos": [430, 110],
+      "parents": [],
+      "desc": "在礁石间的酒馆里，让上岸的水手心甘情愿掏空钱袋。",
+      "requirements": {
+        "all": [
+          {"building_level": {"province": "Shetland", "building": "brothel", "gte": 2}}
+        ]
+      },
+      "reward": "金币 +25",
+      "reward_effects": {"gold": 25}
+    },
+    {
+      "id": "shetland_market_cove",
+      "country": "Shetland",
+      "name": "销赃海湾",
+      "pos": [430, 330],
+      "parents": ["shetland_tavern"],
+      "desc": "把劫掠来的货物在隐秘海湾转手，牟取暴利。",
+      "requirements": {
+        "all": [
+          {"building_level": {"province": "Shetland", "building": "market", "gte": 2}}
+        ]
+      },
+      "reward": "免费升级设得兰妓院",
+      "reward_effects": {"upgrade_building": {"province": "Shetland", "building": "brothel"}}
+    },
+    {
+      "id": "shetland_celtic_raid",
+      "country": "Shetland",
+      "name": "掠夺凯尔特",
+      "pos": [540, 110],
+      "parents": [],
+      "desc": "塞壬的歌声飘向爱尔兰海岸，把犬娘诸部收进战利品的名单。",
+      "requirements": {
+        "all": [
+          {"vassalize_any": "ireland_clan"}
+        ]
+      },
+      "reward": "获得爱尔兰附庸 CB（持续 3 年）",
+      "reward_effects": {"grant_cb": {"cb": "vassalize", "scope": "ireland_clan", "duration_months": 36}}
+    },
+    {
+      "id": "shetland_north_sea_lord",
+      "country": "Shetland",
+      "name": "北海霸主",
+      "pos": [330, 750],
+      "parents": ["shetland_grand_loot", "shetland_market_cove", "shetland_celtic_raid"],
+      "desc": "劫掠、销赃与收服三路并进，北海再无塞壬攻不下的海岸。",
+      "requirements": {
+        "all": [
+          {"mission_completed": "shetland_grand_loot"},
+          {"mission_completed": "shetland_market_cove"},
+          {"mission_completed": "shetland_celtic_raid"}
+        ]
+      },
+      "reward": "终局：威望 +40",
+      "reward_effects": {"prestige": 40}
     }
   ]
 }
