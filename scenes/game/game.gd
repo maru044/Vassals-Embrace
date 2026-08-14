@@ -2083,9 +2083,18 @@ func _render_event_panel() -> void:
 	else:
 		_event_image.visible = false
 	var opts: Array = e.get("options", [])
+	# 阵营局势（如百年战争 England/Scotland 都拥有、两边期望相反）：按当前玩家国家识别「我方阵营」，
+	# 给我方有利选项加〔我方〕前缀，让玩家一眼看清该推哪边（Master 8/14；AI 无局势，纯玩家 UI 识别）
+	var my_side: String = ""
+	var ev_sides: Dictionary = e.get("sides", {})
+	if ev_sides.has(GameManager.player_country_id):
+		my_side = str(ev_sides[GameManager.player_country_id])
 	for i in opts.size():
 		var o: Dictionary = opts[i]
-		var b := _build_gold_button(_event_opts_box, str(o.get("text", "…")), _on_event_option.bind(i))
+		var label: String = str(o.get("text", "…"))
+		if my_side != "" and str(o.get("side", "")) == my_side:
+			label = "〔我方〕" + label
+		var b := _build_gold_button(_event_opts_box, label, _on_event_option.bind(i))
 		b.tooltip_text = _event_effects_text(o.get("effects", {}))
 	_event_layer.visible = true
 

@@ -369,11 +369,12 @@
       "type": "situation",
       "name": "法国进逼",
       "trigger": {"situation": "hundred_years_war", "weight": 8},
+      "sides": {"England": "england", "Scotland": "france"},
       "text": "海峡对岸传来消息：老同盟的法国正在集结重兵，百年战争的天平缓缓倾斜。",
       "options": [
-        {"text": "资助法国（倾向法国）", "weight": 6, "effects": {"gold": -20, "situations": [{"id": "hundred_years_war", "delta": 15}]}},
-        {"text": "资助英格兰（倾向英国）", "weight": 3, "effects": {"gold": -15, "situations": [{"id": "hundred_years_war", "delta": -10}]}},
-        {"text": "坐观其变", "weight": 3, "effects": {"situations": [{"id": "hundred_years_war", "delta": 3}]}}
+        {"text": "资助法国（倾向法国）", "side": "france", "weight": 6, "effects": {"gold": -20, "situations": [{"id": "hundred_years_war", "delta": 15}]}},
+        {"text": "资助英格兰（倾向英国）", "side": "england", "weight": 3, "effects": {"gold": -15, "situations": [{"id": "hundred_years_war", "delta": -10}]}},
+        {"text": "坐观其变", "side": "neutral", "weight": 3, "effects": {"situations": [{"id": "hundred_years_war", "delta": 3}]}}
       ]
     },
     {
@@ -381,11 +382,12 @@
       "type": "situation",
       "name": "英格兰反击",
       "trigger": {"situation": "hundred_years_war", "weight": 8},
+      "sides": {"England": "england", "Scotland": "france"},
       "text": "英格兰的骑士团誓言反攻，百年战争的风向开始逆转。",
       "options": [
-        {"text": "资助英格兰（倾向英国）", "weight": 6, "effects": {"gold": -20, "situations": [{"id": "hundred_years_war", "delta": -15}]}},
-        {"text": "资助法国（倾向法国）", "weight": 3, "effects": {"gold": -15, "situations": [{"id": "hundred_years_war", "delta": 10}]}},
-        {"text": "坐观其变", "weight": 3, "effects": {"situations": [{"id": "hundred_years_war", "delta": -3}]}}
+        {"text": "资助英格兰（倾向英国）", "side": "england", "weight": 6, "effects": {"gold": -20, "situations": [{"id": "hundred_years_war", "delta": -15}]}},
+        {"text": "资助法国（倾向法国）", "side": "france", "weight": 3, "effects": {"gold": -15, "situations": [{"id": "hundred_years_war", "delta": 10}]}},
+        {"text": "坐观其变", "side": "neutral", "weight": 3, "effects": {"situations": [{"id": "hundred_years_war", "delta": -3}]}}
       ]
     },
     {
@@ -393,10 +395,11 @@
       "type": "situation",
       "name": "决战时刻",
       "trigger": {"situation": "hundred_years_war", "weight": 4},
+      "sides": {"England": "england", "Scotland": "france"},
       "text": "双方主力汇聚，百年战争迎来决定性一役。",
       "options": [
-        {"text": "投入全部资源（倾向法国）", "weight": 5, "effects": {"gold": -30, "prestige": 5, "situations": [{"id": "hundred_years_war", "delta": 25}]}},
-        {"text": "投入全部资源（倾向英国）", "weight": 4, "effects": {"gold": -30, "prestige": 5, "situations": [{"id": "hundred_years_war", "delta": -25}]}}
+        {"text": "投入全部资源（倾向法国）", "side": "france", "weight": 5, "effects": {"gold": -30, "prestige": 5, "situations": [{"id": "hundred_years_war", "delta": 25}]}},
+        {"text": "投入全部资源（倾向英国）", "side": "england", "weight": 4, "effects": {"gold": -30, "prestige": 5, "situations": [{"id": "hundred_years_war", "delta": -25}]}}
       ]
     },
     {

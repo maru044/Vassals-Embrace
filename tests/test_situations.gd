@@ -91,6 +91,19 @@ func _initialize() -> void:
 		if str(ev.get("trigger", {}).get("situation", "")) != ev_cfg[eid]:
 			all_ok = false
 	out.append("situation events all type=situation + bound correctly: %s" % all_ok)
+	# ⑦b 阵营映射验证（Master 8/14）：百年战争双方拥有者阵营相反（England→英国胜利0 / Scotland→法国胜利100，老同盟）
+	var hw_sides_ok := true
+	var hw_opts_ok := true
+	for eid in ["hw_france_push", "hw_england_push", "hw_decisive"]:
+		var ev: Dictionary = gm.call("get_event", eid)
+		var s: Dictionary = ev.get("sides", {})
+		if str(s.get("England", "")) != "england" or str(s.get("Scotland", "")) != "france":
+			hw_sides_ok = false
+		for o in ev.get("options", []):
+			if not o.has("side"):
+				hw_opts_ok = false
+	out.append("hw_* sides map England->england / Scotland->france: %s" % hw_sides_ok)
+	out.append("hw_* all options have side tag: %s" % hw_opts_ok)
 	# 拥有者判定驱动的触发范围：England 拥有百年战争（不拥有统一爱尔兰/堕落度）
 	gm.set("player_country_id", "England")
 	out.append("England owns hundred_years_war (triggerable): %s" % gm.call("player_owns_situation", "hundred_years_war"))
