@@ -683,7 +683,8 @@ const SITUATION_BAR_DIR := "res://assets/ui/situation_bars/"
 const SITUATION_BAR_CFG := {
 	"hundred_years_war": {"fw": 600, "fh": 69, "tw": 449, "th": 32, "ox": 76, "oy": 18},
 	"unify_ireland":     {"fw": 600, "fh": 72, "tw": 459, "th": 31, "ox": 71, "oy": 21},
-	"corruption_durham": {"fw": 600, "fh": 72, "tw": 466, "th": 33, "ox": 67, "oy": 19},
+	# 达勒姆内框偏下（Master 8/14 实测）：加宽 + 下移
+	"corruption_durham": {"fw": 600, "fh": 72, "tw": 482, "th": 33, "ox": 59, "oy": 25},
 }
 const SITUATION_FRAME_W := 600   # 兼容：默认画框宽（未配置局势的兜底宽度）
 const PORTRAIT_DIR := "res://assets/portraits/"   # 立绘资产库（rulers/<id>.png 384×720、harem/*.png 384×720）
