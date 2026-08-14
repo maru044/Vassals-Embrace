@@ -1790,6 +1790,7 @@ func _open_bottom_slide() -> void:
 	if _bottom_open:
 		return
 	_bottom_open = true
+	_bottom_slide.visible = true   # Master 8/14：重新可见（关闭时已 hidden，否则透明控件仍捕获鼠标 I-beam）
 	_bottom_panel.mouse_filter = Control.MOUSE_FILTER_STOP   # 弹窗打开：接收点击
 	var tw := create_tween()
 	tw.tween_property(_bottom_slide, "modulate:a", 1.0, 0.18)
@@ -1802,6 +1803,9 @@ func _close_bottom_slide() -> void:
 	_bottom_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE  # 弹窗关闭：穿透（不挡地图）
 	var tw := create_tween()
 	tw.tween_property(_bottom_slide, "modulate:a", 0.0, 0.18)
+	# Master 8/14 修复：父面板 IGNORE 不影响子控件(LineEdit 仍 STOP)，透明控件仍参与鼠标命中 →
+	# 淡出完成后彻底隐藏，避免鼠标停留在博弈目标输入框位置仍显示文字输入 I-beam
+	tw.tween_callback(func() -> void: _bottom_slide.visible = false)
 
 
 ## 下栏弹窗内容：play_<id> / war_<id> 单实例面板（互不干扰）；org_* 组织占位
