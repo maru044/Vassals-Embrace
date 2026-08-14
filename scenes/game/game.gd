@@ -1943,6 +1943,15 @@ func _side_names(list: Array) -> String:
 	return "、".join(names)
 
 
+## 该阵营已投降的国家中文名（"、" 连接）
+func _surrender_names(list: Array) -> String:
+	var names: Array[String] = []
+	for cid in list:
+		if GameManager.surrender_flag.get(str(cid), false):
+			names.append(_country_name(str(cid)))
+	return "、".join(names)
+
+
 ## 该国是否在战争中（引擎④：博弈面板可用性）
 func _country_in_war(cid: String) -> bool:
 	for w in GameManager.wars:
@@ -2010,6 +2019,12 @@ func _build_single_war_content(vbox: VBoxContainer, war_id: int) -> void:
 	vbox.add_child(_panel_label("战争 #%d（Battle Fuck）" % war_id))
 	vbox.add_child(_panel_label("A方（进攻）：%s" % _side_names(w.get("attacker", []))))
 	vbox.add_child(_panel_label("B方（防守）：%s" % _side_names(w.get("defender", []))))
+	var a_surr := _surrender_names(w.get("attacker", []))
+	var b_surr := _surrender_names(w.get("defender", []))
+	if not a_surr.is_empty():
+		vbox.add_child(_panel_label("A方已投降：%s（可提全面条款）" % a_surr))
+	if not b_surr.is_empty():
+		vbox.add_child(_panel_label("B方已投降：%s（可提全面条款）" % b_surr))
 	vbox.add_child(_panel_label("议和规则：攻破对方首都 → 无条件投降；其余 → 与敌国公主聊天提条件，同意即和平"))
 	_build_gold_button(vbox, "与敌国公主议和", _on_peace_treaty_pressed.bind(war_id))
 	_bottom_notice = _panel_label("")

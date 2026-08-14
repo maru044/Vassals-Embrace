@@ -66,7 +66,7 @@ func _initialize() -> void:
 	gm.call("start_play", "Scotland", "England", "独立", "independence")
 	gm.call("back_down", 12, "B")   # 宗主英格兰退缩 → 苏格兰独立
 	out.append("independence backdown -> Scotland liege cleared: %s" % (
-		not gm.get("runtime_liege").has("Scotland")))
+		gm.get("runtime_liege").get("Scotland", "") == ""))
 	gm.set("runtime_liege", {})
 	gm.set("runtime_vassal_type", {})
 

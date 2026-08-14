@@ -145,6 +145,22 @@ const TOOLS: Array = [
 			},
 		},
 	},
+	{
+		"type": "function",
+		"function": {
+			"name": "sign_peace",
+			"description": "签和平条约：议和双方谈妥条件后，由胜方经此工具落地条款并结束战争。winner_side 为和平赢家阵营（A=进攻方 / B=防守方）。战争分数由你（LLM）自行估算：占领敌方省份数量、敌方首都是否被攻破、敌方是否已投降（无条件）决定你能提多少条款——不能一次提出远超你军事优势的条款。玩家方战败求和建议由 AI 方裁决同意后以 AI 方为 winner_side 落地。",
+			"parameters": {
+				"type": "object",
+				"properties": {
+					"war_id": {"type": "integer", "description": "战争 id"},
+					"winner_side": {"type": "string", "description": "和平赢家阵营 A / B"},
+					"terms": {"type": "array", "description": "和平条款数组，每项 {type, target?, value?}：vassalize 附庸化 / protectorate 受保护国 / personal_union 联合统治 / annex 吞并（target=被吞国）/ independence 独立（target=独立方）/ province 割地（value=省名）/ gold 赔款（value=金额）/ release 释放附庸（value=附庸国）"},
+				},
+				"required": ["war_id", "winner_side", "terms"],
+			},
+		},
+	},
 	# ---- 聊天正文输出（Master 8/13：正文走函数调用，不靠 <content> 标签解析，更可靠）----
 	{
 		"type": "function",
@@ -183,6 +199,8 @@ func execute(tool_name: String, args: Dictionary) -> Dictionary:
 			return _set_play_goal(args)
 		"back_down":
 			return _back_down(args)
+		"sign_peace":
+			return _sign_peace(args)
 		"submit_dialogue":
 			return _submit_dialogue(args)
 		_:
@@ -274,4 +292,13 @@ func _back_down(args: Dictionary) -> Dictionary:
 	var side: String = str(args.get("side", ""))
 	var res := GameManager.back_down(play_id, side)
 	EventBus.tool_executed.emit("back_down", {"play_id": play_id, "side": side})
+	return res
+
+
+func _sign_peace(args: Dictionary) -> Dictionary:
+	var war_id: int = args.get("war_id", 0)
+	var winner_side: String = str(args.get("winner_side", ""))
+	var terms: Array = args.get("terms", [])
+	var res := GameManager.sign_peace(war_id, winner_side, terms)
+	EventBus.tool_executed.emit("sign_peace", {"war_id": war_id, "winner_side": winner_side, "terms": terms})
 	return res

@@ -449,6 +449,72 @@ func end_war(war_id: int) -> Dictionary:
 	return {"ok": false, "error": "战争不存在"}
 
 
+## 按 id 找进行中的战争（无则 {}）
+func find_war(war_id: int) -> Dictionary:
+	for w in wars:
+		if int(w.get("id", 0)) == war_id:
+			return w
+	return {}
+
+
+# ===== 引擎④ 和平条约（Master 8/14：战争分数由 LLM 按提示词规则自行估算，引擎只落地条款 + 结束战争）=====
+
+## 签和平条约：LLM 在议和对话谈妥后经 sign_peace 工具落地条款并结束战争。
+## 战争分数规则不在此硬算——由 LLM 按 System_Tools_Manual 提示词自行判断：
+##   占领敌方省份数量 / 敌方首都是否被攻破 / 敌方是否已投降（无条件）→ 决定能提多少条款，
+##   不能一次提出远超自身军事优势的条款。
+## terms = [{type, target, value}]：
+##   vassalize/protectorate/personal_union/annex/independence（target=国家）/
+##   province（value=省名）/ gold（value=金额）/ release（value=被释放附庸）
+func sign_peace(war_id: int, winner_side: String, terms: Array) -> Dictionary:
+	var w := find_war(war_id)
+	if w.is_empty():
+		return {"ok": false, "error": "战争不存在"}
+	var winner: Array = w["attacker"] if winner_side == "A" else w["defender"]
+	var loser: Array = w["defender"] if winner_side == "A" else w["attacker"]
+	if winner.is_empty() or loser.is_empty():
+		return {"ok": false, "error": "战争阵营数据异常"}
+	var applied := []
+	for t in terms:
+		if t is Dictionary and _apply_peace_term(winner[0], loser[0], t):
+			applied.append(t)
+	# 清参战方投降标记（战争结束，避免旧标记残留影响后续状态）
+	for cid in winner + loser:
+		surrender_flag.erase(cid)
+	end_war(war_id)
+	return {"ok": true, "war_id": war_id, "winner_side": winner_side, "terms": applied}
+
+
+## 落地单条和平条款（复用博弈目标落地 / 吞并 / 割地 / 赔款 / 释放附庸）；成功返回 true
+func _apply_peace_term(winner: String, loser: String, term: Dictionary) -> bool:
+	match str(term.get("type", "")):
+		"vassalize", "protectorate", "personal_union", "independence":
+			var fake: Dictionary = {"initiator": winner, "target": loser, "init_goal": str(term.get("type", "")), "cb": str(term.get("type", ""))}
+			_apply_play_goal(fake, "A")
+			return bool(fake.get("goal_applied", false))
+		"annex":
+			_annex_country(winner, loser)
+			return true
+		"province":
+			var prov := str(term.get("value", ""))
+			if prov != "" and province_owner.has(prov):
+				province_owner[prov] = winner
+				return true
+			return false
+		"gold":
+			var amt := float(term.get("value", 0))
+			country_gold[winner] = country_gold.get(winner, 0.0) + amt
+			country_gold[loser] = maxf(0.0, country_gold.get(loser, 0.0) - amt)
+			return true
+		"release":
+			var rel := str(term.get("value", ""))
+			if rel != "" and _effective_liege(rel) == loser:
+				runtime_liege[rel] = ""
+				return true
+			return false
+	return false
+
+
 ## ---- 引擎④ 外交博弈（Master 8/13：AI 决策交 LLM「过家家」，引擎只结算）----
 
 ## 该国是否已在战争中（任一战争任一侧）

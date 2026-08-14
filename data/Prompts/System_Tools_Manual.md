@@ -70,6 +70,22 @@
 - `play_id` (integer)：博弈 id
 - `side` (string)：退缩的阵营 `A` / `B`
 
+### `sign_peace`（和平条约，引擎④）
+议和双方在对话中谈妥条件后，由**胜方**经此工具落地条款并**结束战争**。
+- `war_id` (integer)：战争 id
+- `winner_side` (string)：和平赢家阵营 `A`（进攻方）/ `B`（防守方）
+- `terms` (array)：条款数组，每项 `{type, target?, value?}`
+  - `vassalize` 附庸化（target=国家）/ `protectorate` 受保护国（target=国家）/ `personal_union` 联合统治（target=国家）
+  - `annex` 吞并（target=被吞国）/ `independence` 独立（target=独立方）
+  - `province` 割地（value=省名）/ `gold` 赔款（value=金额）/ `release` 释放附庸（value=附庸国）
+
+**战争分数规则（由你自行估算，决定能提多少条款）**：
+- 你的军事优势看三点：**占领的敌方省份数量**、**敌方首都是否被攻破**、**敌方是否已投降**。
+- 条款总量必须与优势相称：优势越大能提的越多，**不能一次提出远超优势的条款**（仅小胜就要吞并对方全境会被拒绝，是不合理的外交）。
+- **对方已投降（首都被攻破 / 沦陷满 6 月自动投降）→ 无条件投降**：可提出全面条款（吞并/附庸/割地/赔款等）。
+- **AI 方投降**：AI 国已举白旗，玩家可提全面条款；由你扮演的 AI 方确认同意后，以 **AI 方为 loser 方向落地**（winner_side 为玩家侧）。
+- **玩家方战败求和**：玩家在议和对话中提出投降条款，由你（AI 方）裁决是否同意；同意后以 **AI 方为 winner_side** 落地。
+
 ## 五、聊天正文输出
 
 ### `submit_dialogue`
