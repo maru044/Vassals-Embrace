@@ -268,6 +268,36 @@ func _initialize() -> void:
 	out.append("⑮ ireland_all_island done (吞并全岛): %s" % bool(res_ir.get("ok", false)))
 	out.append("⑮ annex Ulster province -> Tyrone: %s" % (str(gm.get("province_owner").get("Ulster", "")) == "Tyrone"))
 
+	# ⑯ 诺森伯兰任务树（Master 8/14：珀西叛乱/北境战姬主题）
+	gm.set("player_country_id", "Northumberland")
+	var nor_missions: Array = gm.call("get_player_missions")
+	out.append("⑯ Northumberland player missions = 7: %s" % (nor_missions.size() == 7))
+	gm.set("province_owner", {"Northumberland": "Northumberland", "London": "England"})
+	gm.set("province_buildings", {"Northumberland": {"market": 2, "brothel": 2, "fort": 1}, "London": {"market": 1}})
+	# 反叛线：独立（independent）
+	gm.set("runtime_liege", {"Northumberland": ""})
+	out.append("⑯ northumberland_revolt available (independent): %s" % (gm.call("mission_state", "northumberland_revolt") == "available"))
+	gm.call("complete_mission", "northumberland_revolt")
+	# 内政线：边疆市镇 → 战地营帐
+	out.append("⑯ northumberland_march_town available (market≥2): %s" % (gm.call("mission_state", "northumberland_march_town") == "available"))
+	gm.call("complete_mission", "northumberland_march_town")
+	out.append("⑯ northumberland_war_camp available (brothel≥2): %s" % (gm.call("mission_state", "northumberland_war_camp") == "available"))
+	# 战姬军团：army_limit≥10（BASE 5+1省×2=7，加 army_cap +3 → 10）
+	gm.call("_add_modifier", "Northumberland", "army_cap", 3, 12)
+	out.append("⑯ northumberland_war_machine available (army_limit≥10): %s" % (gm.call("mission_state", "northumberland_war_machine") == "available"))
+	# 篡位线：折断玫瑰（附庸英格兰原附庸约克）→ 觊觎王座（联统 CB）
+	gm.set("runtime_liege", {"Northumberland": "", "York": "Northumberland"})
+	out.append("⑯ northumberland_weaken_england available: %s" % (gm.call("mission_state", "northumberland_weaken_england") == "available"))
+	gm.call("complete_mission", "northumberland_weaken_england")
+	out.append("⑯ northumberland_claim_throne available: %s" % (gm.call("mission_state", "northumberland_claim_throne") == "available"))
+	# 完整链路 → 北境女王终局
+	gm.call("complete_mission", "northumberland_war_machine")
+	gm.call("complete_mission", "northumberland_war_camp")
+	gm.call("complete_mission", "northumberland_claim_throne")
+	out.append("⑯ northumberland_britain_queen available: %s" % (gm.call("mission_state", "northumberland_britain_queen") == "available"))
+	var res_nb: Dictionary = gm.call("complete_mission", "northumberland_britain_queen")
+	out.append("⑯ northumberland_britain_queen done (终局): %s" % bool(res_nb.get("ok", false)))
+
 	root.remove_child(gm)
 	gm.free()
 	out.append("TEST_DONE")

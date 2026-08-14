@@ -36,6 +36,7 @@ const MISSION_GROUPS := {
 	"Thomond": [["统一之路", Vector2(25, 50)], ["内政·终局", Vector2(365, 50)]],
 	"Munster": [["统一之路", Vector2(25, 50)], ["内政·终局", Vector2(365, 50)]],
 	"Desmond": [["统一之路", Vector2(25, 50)], ["内政·终局", Vector2(365, 50)]],
+	"Northumberland": [["反叛·军团", Vector2(25, 50)], ["内政·篡位", Vector2(365, 50)]],
 }
 const SHIELD_DIR := "res://assets/shields/"
 const BUILDING_ORDER := ["farm", "market", "brothel", "fort"]   # 省份面板建筑展示顺序

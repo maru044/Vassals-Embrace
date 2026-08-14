@@ -877,6 +877,113 @@
       },
       "reward": "吞并所有爱尔兰国家，威望 +50",
       "reward_effects": {"annex_scope": "ireland_clan", "prestige": 50}
+    },
+    {
+      "id": "northumberland_revolt",
+      "country": "Northumberland",
+      "name": "北境之怒",
+      "pos": [110, 110],
+      "parents": [],
+      "desc": "珀西的怒火冲破英格兰的缰绳——让诺森伯兰独立（独立战争胜利即完成）。",
+      "requirements": {
+        "all": [
+          {"independent": true}
+        ]
+      },
+      "reward": "威望 +15",
+      "reward_effects": {"prestige": 15}
+    },
+    {
+      "id": "northumberland_war_machine",
+      "country": "Northumberland",
+      "name": "战姬军团",
+      "pos": [110, 330],
+      "parents": ["northumberland_revolt"],
+      "desc": "集结北境骁勇，把战姬的獠牙磨得锋利。",
+      "requirements": {
+        "all": [
+          {"army_limit": 10}
+        ]
+      },
+      "reward": "军队 +5",
+      "reward_effects": {"army": 5}
+    },
+    {
+      "id": "northumberland_march_town",
+      "country": "Northumberland",
+      "name": "边疆市镇",
+      "pos": [430, 110],
+      "parents": [],
+      "desc": "把边疆市镇经营得商旅不绝。",
+      "requirements": {
+        "all": [
+          {"building_level": {"province": "Northumberland", "building": "market", "gte": 2}}
+        ]
+      },
+      "reward": "金币 +25",
+      "reward_effects": {"gold": 25}
+    },
+    {
+      "id": "northumberland_war_camp",
+      "country": "Northumberland",
+      "name": "战地营帐",
+      "pos": [430, 330],
+      "parents": ["northumberland_march_town"],
+      "desc": "营帐里的欢场让北境士气高涨。",
+      "requirements": {
+        "all": [
+          {"building_level": {"province": "Northumberland", "building": "brothel", "gte": 2}}
+        ]
+      },
+      "reward": "免费升级诺森伯兰妓院",
+      "reward_effects": {"upgrade_building": {"province": "Northumberland", "building": "brothel"}}
+    },
+    {
+      "id": "northumberland_weaken_england",
+      "country": "Northumberland",
+      "name": "折断玫瑰",
+      "pos": [540, 110],
+      "parents": ["northumberland_revolt"],
+      "desc": "夺走英格兰的附庸，削弱兰开斯特的羽翼。",
+      "requirements": {
+        "all": [
+          {"vassalize_any": "england_subject"}
+        ]
+      },
+      "reward": "获得英格兰附庸 CB（持续 3 年）",
+      "reward_effects": {"grant_cb": {"cb": "vassalize", "scope": "england_subject", "duration_months": 36}}
+    },
+    {
+      "id": "northumberland_claim_throne",
+      "country": "Northumberland",
+      "name": "觊觎王座",
+      "pos": [540, 330],
+      "parents": ["northumberland_weaken_england"],
+      "desc": "折了玫瑰的英格兰，珀西的目光已投向伦敦的王座。",
+      "requirements": {
+        "all": [
+          {"mission_completed": "northumberland_weaken_england"}
+        ]
+      },
+      "reward": "获得英格兰联合统治 CB（持续 3 年）",
+      "reward_effects": {"grant_cb": {"cb": "personal_union", "scope": "England", "duration_months": 36}}
+    },
+    {
+      "id": "northumberland_britain_queen",
+      "country": "Northumberland",
+      "name": "北境女王",
+      "pos": [330, 550],
+      "parents": ["northumberland_war_machine", "northumberland_war_camp", "northumberland_claim_throne"],
+      "desc": "军团、欢场与王座三路并进，玛蒂尔达的名字让整个不列颠战栗。",
+      "requirements": {
+        "all": [
+          {"mission_completed": "northumberland_war_machine"},
+          {"mission_completed": "northumberland_war_camp"},
+          {"mission_completed": "northumberland_claim_throne"}
+        ]
+      },
+      "reward": "终局：威望 +50",
+      "reward_effects": {"prestige": 50}
     }
   ]
 }
