@@ -782,8 +782,9 @@ func set_high_king(cid: String) -> void:
 	if high_king_id == cid:
 		return
 	high_king_id = cid
-	if player_owns_situation("unify_ireland"):
-		EventBus.situation_changed.emit("unify_ireland", get_situation_value("unify_ireland"))   # 拥有者变化 → 左栏局势面板刷新
+	# Master 8/14 修正：无论获得还是失去至高王，都无条件刷新局势面板——
+	# 玩家获得 → 统一爱尔兰立即出现；玩家失去 → 立即消失（之前只在「仍拥有」时 emit，导致失去时残留）
+	EventBus.situation_changed.emit("unify_ireland", get_situation_value("unify_ireland"))
 	EventBus.organization_changed.emit(0)
 
 
