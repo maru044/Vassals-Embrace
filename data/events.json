@@ -61,7 +61,7 @@
       "type": "historical",
       "name": "法兰西的使者",
       "trigger": {"date": "1401.6", "country": "Scotland"},
-      "text": "一艘挂着百合鸢尾旗的船驶入洛锡安港——法兰西的使者为共同对抗英格兰，献上老同盟之约。（法国不在棋盘上，以事件演出缔结）",
+      "text": "一艘挂着百合鸢尾旗的船驶入洛锡安港——法兰西的使者为共同对抗英格兰，献上老同盟之约。",
       "options": [
         {"text": "缔结老同盟（完成【老同盟】任务）", "weight": 8, "effects": {"prestige": 10, "flags": ["scotland_auld_alliance_done"]}},
         {"text": "婉拒，保持中立", "weight": 2, "effects": {"prestige": -3}}

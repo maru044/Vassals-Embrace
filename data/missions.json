@@ -37,7 +37,7 @@
       "name": "老同盟",
       "pos": [430, 110],
       "parents": [],
-      "desc": "法兰西的使者远渡重洋而来，献上老同盟之约（法国不在棋盘上，改由事件演出完成）。",
+      "desc": "法兰西的使者远渡重洋而来，献上老同盟之约。",
       "requirements": {
         "all": [
           {"flag_set": "scotland_auld_alliance_done"}
