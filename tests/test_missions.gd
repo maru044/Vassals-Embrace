@@ -68,6 +68,46 @@ func _initialize() -> void:
 	var res_g: Dictionary = gm.call("complete_mission", "scotland_great_britain")
 	out.append("great_britain locked cannot complete: %s" % (not bool(res_g.get("ok", false))))
 
+	# ⑨ 端到端畅通验证（Master 8/14）：完整链路推至「成立大不列颠」终局
+	# 恢复群岛附庸 + 好感（⑦ 曾整体覆盖 runtime_liege，需重新加回）→ 群岛守护仍可完成
+	var rl: Dictionary = gm.get("runtime_liege")
+	rl["The Isles"] = "Scotland"
+	rl["Orkney"] = "Scotland"
+	rl["Shetland"] = "Scotland"
+	gm.set("runtime_liege", rl)
+	gm.set("player_favor", {"The Isles": 70.0, "Orkney": 70.0, "Shetland": 70.0, "Kildare": 70.0})
+	# 群岛线：群岛守护（前置收回群岛已完成 + 好感达标）→ 完成
+	var res_ig: Dictionary = gm.call("complete_mission", "scotland_isles_guard")
+	out.append("⑨ isles_guard complete: %s" % bool(res_ig.get("ok", false)))
+	# 征服爱尔兰：vassalize_all ireland_clan（全部部落附庸）
+	var all_tribal: Array = gm.call("_mission_scope_ids", "ireland_clan")
+	for tid in all_tribal:
+		rl[str(tid)] = "Scotland"
+	gm.set("runtime_liege", rl)
+	out.append("⑨ conquer_ireland available: %s" % (gm.call("mission_state", "scotland_conquer_ireland") == "available"))
+	gm.call("complete_mission", "scotland_conquer_ireland")
+	out.append("⑨ conquer_ireland done: %s" % gm.call("is_mission_completed", "scotland_conquer_ireland"))
+	# 推进前线：vassalize_any england_subject（静态初始英格兰附庸，如威尔士）→ 附庸威尔士
+	rl = gm.get("runtime_liege")
+	rl["Wales"] = "Scotland"
+	gm.set("runtime_liege", rl)
+	out.append("⑨ advance_the_front available: %s" % (gm.call("mission_state", "scotland_advance_the_front") == "available"))
+	gm.call("complete_mission", "scotland_advance_the_front")
+	out.append("⑨ advance done: %s" % gm.call("is_mission_completed", "scotland_advance_the_front"))
+	# 百年战争胜利：苏格兰拥有 hundred_years_war，值推 100
+	gm.set("situation_value", {"hundred_years_war": 100})
+	out.append("⑨ hyv available: %s" % (gm.call("mission_state", "scotland_hundred_years_victory") == "available"))
+	gm.call("complete_mission", "scotland_hundred_years_victory")
+	out.append("⑨ hyv done: %s" % gm.call("is_mission_completed", "scotland_hundred_years_victory"))
+	# 联合统治英格兰：前置 hyv 完成
+	out.append("⑨ union_with_england available: %s" % (gm.call("mission_state", "scotland_union_with_england") == "available"))
+	gm.call("complete_mission", "scotland_union_with_england")
+	out.append("⑨ union done: %s" % gm.call("is_mission_completed", "scotland_union_with_england"))
+	# 终局：成立大不列颠（三前置完成）
+	out.append("⑨ great_britain available: %s" % (gm.call("mission_state", "scotland_great_britain") == "available"))
+	var res_gb: Dictionary = gm.call("complete_mission", "scotland_great_britain")
+	out.append("⑨ great_britain done (终局): %s" % bool(res_gb.get("ok", false)))
+
 	root.remove_child(gm)
 	gm.free()
 	out.append("TEST_DONE")

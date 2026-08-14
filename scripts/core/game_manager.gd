@@ -892,7 +892,7 @@ func mission_state(mission_id: String) -> String:
 	return "available" if _check_mission_requirements(m) else "locked"
 
 
-## 任务 scope → 国家 id 列表（ireland_clan=爱尔兰诸部[政体tribal] / england_subject=英格兰全部附庸+受保护国[运行时] / 其他=单个国家id）
+## 任务 scope → 国家 id 列表（ireland_clan=爱尔兰诸部[政体tribal] / england_subject=英格兰的原附庸+受保护国[静态初始liege] / 其他=单个国家id）
 func _mission_scope_ids(scope: String) -> Array:
 	var out: Array = []
 	match str(scope):
@@ -901,9 +901,11 @@ func _mission_scope_ids(scope: String) -> Array:
 				if str(c.get("government", "")) == "tribal":
 					out.append(str(c.get("id", "")))
 		"england_subject":
+			# 静态初始宗主（Master 8/14：抢走英格兰的附庸后，该附庸不再属于英格兰，
+			# 故「附庸化英格兰一个原附庸」用初始 _country_liege 判定，而非运行时 _effective_liege）
 			for c in _country_list:
 				var cid: String = str(c.get("id", ""))
-				if cid != "" and _effective_liege(cid) == "England":
+				if cid != "" and _country_liege(cid) == "England":
 					out.append(cid)
 		_:
 			out.append(str(scope))
