@@ -786,6 +786,97 @@
       },
       "reward": "终局：威望 +40",
       "reward_effects": {"prestige": 40}
+    },
+    {
+      "id": "ireland_high_king",
+      "country": ["Tyrone", "Tyrconnell", "Ulster", "Breifne", "Sligo", "Westmeath", "Mayo", "Clanricarde", "Offaly", "Kildare", "Leinster", "Wexford", "Ormond", "Thomond", "Munster", "Desmond"],
+      "name": "至高王冠",
+      "pos": [110, 110],
+      "parents": [],
+      "desc": "在诸部大会上一鸣惊人，戴上爱尔兰至高王冠。",
+      "requirements": {
+        "all": [
+          {"is_high_king": true}
+        ]
+      },
+      "reward": "威望 +15",
+      "reward_effects": {"prestige": 15}
+    },
+    {
+      "id": "ireland_unity_1",
+      "country": ["Tyrone", "Tyrconnell", "Ulster", "Breifne", "Sligo", "Westmeath", "Mayo", "Clanricarde", "Offaly", "Kildare", "Leinster", "Wexford", "Ormond", "Thomond", "Munster", "Desmond"],
+      "name": "诸部呼应",
+      "pos": [110, 330],
+      "parents": ["ireland_high_king"],
+      "desc": "凝聚诸部，统一爱尔兰的大势初现（局势 ≥40）。",
+      "requirements": {
+        "all": [
+          {"situation": "unify_ireland", "value_gte": 40}
+        ]
+      },
+      "reward": "金币 +20",
+      "reward_effects": {"gold": 20}
+    },
+    {
+      "id": "ireland_unity_2",
+      "country": ["Tyrone", "Tyrconnell", "Ulster", "Breifne", "Sligo", "Westmeath", "Mayo", "Clanricarde", "Offaly", "Kildare", "Leinster", "Wexford", "Ormond", "Thomond", "Munster", "Desmond"],
+      "name": "众望所归",
+      "pos": [110, 550],
+      "parents": ["ireland_unity_1"],
+      "desc": "诸部归心，统一的大潮势不可挡（局势 ≥80）。",
+      "requirements": {
+        "all": [
+          {"situation": "unify_ireland", "value_gte": 80}
+        ]
+      },
+      "reward": "威望 +20",
+      "reward_effects": {"prestige": 20}
+    },
+    {
+      "id": "ireland_unity_3",
+      "country": ["Tyrone", "Tyrconnell", "Ulster", "Breifne", "Sligo", "Westmeath", "Mayo", "Clanricarde", "Offaly", "Kildare", "Leinster", "Wexford", "Ormond", "Thomond", "Munster", "Desmond"],
+      "name": "天下一统",
+      "pos": [110, 770],
+      "parents": ["ireland_unity_2"],
+      "desc": "统一爱尔兰局势圆满达成（局势 ≥100）。",
+      "requirements": {
+        "all": [
+          {"situation": "unify_ireland", "value_gte": 100}
+        ]
+      },
+      "reward": "威望 +30",
+      "reward_effects": {"prestige": 30}
+    },
+    {
+      "id": "ireland_bastion",
+      "country": ["Tyrone", "Tyrconnell", "Ulster", "Breifne", "Sligo", "Westmeath", "Mayo", "Clanricarde", "Offaly", "Kildare", "Leinster", "Wexford", "Ormond", "Thomond", "Munster", "Desmond"],
+      "name": "部族堡垒",
+      "pos": [430, 110],
+      "parents": [],
+      "desc": "把部族的市集经营得红红火火（全国市场总等级 ≥3）。",
+      "requirements": {
+        "all": [
+          {"building_level": {"building": "market", "gte_total": 3}}
+        ]
+      },
+      "reward": "金币 +25",
+      "reward_effects": {"gold": 25}
+    },
+    {
+      "id": "ireland_all_island",
+      "country": ["Tyrone", "Tyrconnell", "Ulster", "Breifne", "Sligo", "Westmeath", "Mayo", "Clanricarde", "Offaly", "Kildare", "Leinster", "Wexford", "Ormond", "Thomond", "Munster", "Desmond"],
+      "name": "全岛之主",
+      "pos": [330, 950],
+      "parents": ["ireland_unity_3", "ireland_bastion"],
+      "desc": "统一大势已成——吞并所有爱尔兰国家，成为全岛唯一的主人。",
+      "requirements": {
+        "all": [
+          {"mission_completed": "ireland_unity_3"},
+          {"mission_completed": "ireland_bastion"}
+        ]
+      },
+      "reward": "吞并所有爱尔兰国家，威望 +50",
+      "reward_effects": {"annex_scope": "ireland_clan", "prestige": 50}
     }
   ]
 }

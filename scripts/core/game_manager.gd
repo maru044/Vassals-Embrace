@@ -860,13 +860,21 @@ func get_mission(mission_id: String) -> Dictionary:
 	return {}
 
 
+## 任务是否属于该国（country 支持单个 id 或 id 数组——爱尔兰 16 部共用一套任务，Master 8/14）
+func _mission_belongs_to(m: Dictionary, cid: String) -> bool:
+	var c: Variant = m.get("country", "")
+	if c is Array:
+		return c.has(cid)
+	return str(c) == cid
+
+
 ## 玩家国家的任务列表（UI 渲染用）
 func get_player_missions() -> Array:
 	var out: Array = []
 	if not _ensure_missions():
 		return out
 	for m in _mission_list:
-		if str(m.get("country", "")) == player_country_id:
+		if _mission_belongs_to(m, player_country_id):
 			out.append(m)
 	return out
 
@@ -983,6 +991,9 @@ func _check_mission_cond(cond: Dictionary) -> bool:
 	if cond.has("raids_gte"):
 		# 海盗劫掠次数达标（Master 8/14：塞壬任务条件，引擎⑧海盗联盟/事件胜利时 add_raid 增长）
 		return raid_count >= int(cond["raids_gte"])
+	if cond.has("is_high_king"):
+		# 爱尔兰至高王（Master 8/14：玩家当前为至高王 high_king_id；诸部可夺取）
+		return player_country_id == high_king_id
 	return false   # alliance_with / war_goal 等未实现键（老同盟已改事件、进军爱尔兰已改附庸化）→ 不满足
 
 
@@ -1292,6 +1303,10 @@ func _apply_effects_dict(cid: String, fx: Dictionary) -> void:
 	if fx.has("upgrade_building"):
 		var ub: Dictionary = fx["upgrade_building"]
 		_free_upgrade_building(str(ub.get("province", "")), str(ub.get("building", "farm")))
+	# 引擎⑦-吞并（Master 8/14）：annex_scope 吞并 scope 内所有国家（爱尔兰统一终局奖励；跳过自身）
+	if fx.has("annex_scope"):
+		for tid in _mission_scope_ids(str(fx["annex_scope"])):
+			_annex_country(player_country_id, tid)
 
 
 ## 玩家待处理事件队首（UI 显示用）；无则 {}
@@ -1533,6 +1548,18 @@ func _free_upgrade_building(province: String, building: String) -> void:
 	var lv: int = int(b.get(building, 0))
 	if lv < BUILDING_MAX_LEVEL:
 		b[building] = lv + 1
+
+
+## 吞并一国（Master 8/14：annex_scope 用；省份归属转移给吞并方 + 解除宗主 + 军队清零；跳过自身）
+func _annex_country(annexer: String, target: String) -> void:
+	if target == annexer or target == "":
+		return
+	for prov in province_owner:
+		if str(province_owner[prov]) == target:
+			province_owner[prov] = annexer
+	runtime_liege.erase(target)
+	runtime_vassal_type.erase(target)
+	army_count[target] = 0
 
 
 ## 贷款一笔（+10 金，贷款总额 +10；保留到主动偿还）

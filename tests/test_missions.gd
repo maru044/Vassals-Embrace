@@ -239,6 +239,35 @@ func _initialize() -> void:
 	var res_n: Dictionary = gm.call("complete_mission", "isles_north_sea_lord")
 	out.append("⑭ isles_north_sea_lord done (终局): %s" % bool(res_n.get("ok", false)))
 
+	# ⑮ 爱尔兰通用任务树（Master 8/14：成为至高王 → 统一爱尔兰局势 → 吞并全岛；16 部共用）
+	gm.set("player_country_id", "Tyrone")
+	var ire_missions: Array = gm.call("get_player_missions")
+	out.append("⑮ Tyrone player missions = 6: %s" % (ire_missions.size() == 6))
+	# 条件1：成为至高王（is_high_king）
+	gm.set("high_king_id", "Tyrone")
+	out.append("⑮ ireland_high_king available (is_high_king): %s" % (gm.call("mission_state", "ireland_high_king") == "available"))
+	gm.call("complete_mission", "ireland_high_king")
+	# 统一局势：unify_ireland 40→80→100
+	gm.set("situation_value", {"unify_ireland": 40})
+	out.append("⑮ ireland_unity_1 available (unify≥40): %s" % (gm.call("mission_state", "ireland_unity_1") == "available"))
+	gm.call("complete_mission", "ireland_unity_1")
+	gm.set("situation_value", {"unify_ireland": 80})
+	out.append("⑮ ireland_unity_2 available (unify≥80): %s" % (gm.call("mission_state", "ireland_unity_2") == "available"))
+	gm.call("complete_mission", "ireland_unity_2")
+	gm.set("situation_value", {"unify_ireland": 100})
+	out.append("⑮ ireland_unity_3 available (unify≥100): %s" % (gm.call("mission_state", "ireland_unity_3") == "available"))
+	gm.call("complete_mission", "ireland_unity_3")
+	# 部族堡垒：全国市场总等级≥3
+	gm.set("province_owner", {"Tyrone": "Tyrone", "Ulster": "Ulster", "Munster": "Munster"})
+	gm.set("province_buildings", {"Tyrone": {"market": 3}, "Ulster": {"market": 1}, "Munster": {"market": 1}})
+	out.append("⑮ ireland_bastion available (market total≥3): %s" % (gm.call("mission_state", "ireland_bastion") == "available"))
+	gm.call("complete_mission", "ireland_bastion")
+	# 终局：全岛之主 → 吞并所有爱尔兰国家（annex_scope）
+	out.append("⑮ ireland_all_island available: %s" % (gm.call("mission_state", "ireland_all_island") == "available"))
+	var res_ir: Dictionary = gm.call("complete_mission", "ireland_all_island")
+	out.append("⑮ ireland_all_island done (吞并全岛): %s" % bool(res_ir.get("ok", false)))
+	out.append("⑮ annex Ulster province -> Tyrone: %s" % (str(gm.get("province_owner").get("Ulster", "")) == "Tyrone"))
+
 	root.remove_child(gm)
 	gm.free()
 	out.append("TEST_DONE")

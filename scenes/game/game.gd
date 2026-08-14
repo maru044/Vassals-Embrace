@@ -19,6 +19,23 @@ const MISSION_GROUPS := {
 	"The Isles": [["劫掠线", Vector2(25, 50)], ["巢穴·掠夺", Vector2(365, 50)]],
 	"Orkney": [["劫掠线", Vector2(25, 50)], ["巢穴·掠夺", Vector2(365, 50)]],
 	"Shetland": [["劫掠线", Vector2(25, 50)], ["巢穴·掠夺", Vector2(365, 50)]],
+	# 爱尔兰 16 部通用任务树（统一爱尔兰主题）
+	"Tyrone": [["统一之路", Vector2(25, 50)], ["内政·终局", Vector2(365, 50)]],
+	"Tyrconnell": [["统一之路", Vector2(25, 50)], ["内政·终局", Vector2(365, 50)]],
+	"Ulster": [["统一之路", Vector2(25, 50)], ["内政·终局", Vector2(365, 50)]],
+	"Breifne": [["统一之路", Vector2(25, 50)], ["内政·终局", Vector2(365, 50)]],
+	"Sligo": [["统一之路", Vector2(25, 50)], ["内政·终局", Vector2(365, 50)]],
+	"Westmeath": [["统一之路", Vector2(25, 50)], ["内政·终局", Vector2(365, 50)]],
+	"Mayo": [["统一之路", Vector2(25, 50)], ["内政·终局", Vector2(365, 50)]],
+	"Clanricarde": [["统一之路", Vector2(25, 50)], ["内政·终局", Vector2(365, 50)]],
+	"Offaly": [["统一之路", Vector2(25, 50)], ["内政·终局", Vector2(365, 50)]],
+	"Kildare": [["统一之路", Vector2(25, 50)], ["内政·终局", Vector2(365, 50)]],
+	"Leinster": [["统一之路", Vector2(25, 50)], ["内政·终局", Vector2(365, 50)]],
+	"Wexford": [["统一之路", Vector2(25, 50)], ["内政·终局", Vector2(365, 50)]],
+	"Ormond": [["统一之路", Vector2(25, 50)], ["内政·终局", Vector2(365, 50)]],
+	"Thomond": [["统一之路", Vector2(25, 50)], ["内政·终局", Vector2(365, 50)]],
+	"Munster": [["统一之路", Vector2(25, 50)], ["内政·终局", Vector2(365, 50)]],
+	"Desmond": [["统一之路", Vector2(25, 50)], ["内政·终局", Vector2(365, 50)]],
 }
 const SHIELD_DIR := "res://assets/shields/"
 const BUILDING_ORDER := ["farm", "market", "brothel", "fort"]   # 省份面板建筑展示顺序
@@ -1299,11 +1316,12 @@ class MissionTreeCanvas:
 			draw_line(Vector2(e[0], e[1]), Vector2(e[2], e[3]), Color(0.55, 0.38, 0.15, 0.75), 3.0)
 
 
-## 本国家任务列表
+## 本国家任务列表（country 支持单个 id 或 id 数组——爱尔兰 16 部共用一套任务，Master 8/14）
 func _missions_for_country(cid: String) -> Array:
 	var out: Array = []
 	for m in _missions:
-		if m.get("country", "") == cid:
+		var c: Variant = m.get("country", "")
+		if (c is Array and c.has(cid)) or str(c) == cid:
 			out.append(m)
 	return out
 
