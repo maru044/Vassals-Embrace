@@ -202,6 +202,8 @@ func _ready() -> void:
 		_map_view.refresh_army(GameManager.army_position, GameManager.army_count))  # 引擎②-B3-2b：军队移动后兵牌跟随
 	# 引擎⑨雏形：对话好感即时变化 → 外交面板即时刷新
 	EventBus.favor_changed.connect(func(_t: String, _v: float) -> void: _refresh_left_panel())
+	# 引擎⑥-局势（Master 8/14）：局势数值变化 → 左栏当前面板即时刷新（局势进度条实时更新）
+	EventBus.situation_changed.connect(func(_sid: String, _v: int) -> void: _refresh_left_panel())
 	# 引擎④-CB：要求附庸/受保护国/联合统治关系建立 → 左栏 + 底栏即时刷新
 	EventBus.diplomatic_relation_changed.connect(func(_a: String, _t: String, _r: String) -> void:
 		_refresh_left_panel()
@@ -1400,9 +1402,50 @@ func _mission_req_text(m: Dictionary) -> String:
 	return "\n".join(parts)
 
 
-## 局势：占位（#33；引擎⑥局势进度条接入）
+## 局势：玩家拥有的局势列表（引擎⑥：进度条 + 阶段名 + 0/100 端标签；Master 8/14）
 func _build_situation_panel() -> void:
-	_left_body.add_child(_panel_label("局势建设中…（引擎⑥接入）"))
+	var list: Array = GameManager.get_player_situations()
+	if list.is_empty():
+		_left_body.add_child(_panel_label("你当前没有局势。"))
+		return
+	for s in list:
+		var sid: String = str(s.get("id", ""))
+		var val: int = GameManager.get_situation_value(sid)
+		var stage: int = GameManager.get_situation_stage(sid)
+		var stage_names: Array = s.get("stage_names", [])
+		var stage_name: String = str(stage_names[stage]) if stage < stage_names.size() else "%s" % (stage + 1)
+		_left_body.add_child(_panel_label("◆ %s（%s）" % [str(s.get("name", sid)), stage_name]))
+		_left_body.add_child(_situation_bar(val))
+		_left_body.add_child(_panel_label("  %s   ← %s" % [str(s.get("value_0", "0")), str(s.get("value_100", "100"))]))
+		var desc := str(s.get("desc", ""))
+		if not desc.is_empty():
+			_left_body.add_child(_panel_label("　%s" % desc))
+
+
+## 局势进度条（0~100，ColorRect 填充比例；下方数值）
+func _situation_bar(value: int) -> Control:
+	var wrap := Control.new()
+	wrap.custom_minimum_size = Vector2(0, 26)
+	wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var bg := ColorRect.new()
+	bg.color = Color(0.28, 0.22, 0.14, 0.5)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	wrap.add_child(bg)
+	var fill := ColorRect.new()
+	fill.color = Color(0.85, 0.71, 0.45)
+	fill.anchor_left = 0.0
+	fill.anchor_right = clampf(float(value) / 100.0, 0.0, 1.0)
+	fill.anchor_top = 0.0
+	fill.anchor_bottom = 1.0
+	wrap.add_child(fill)
+	var lbl := Label.new()
+	lbl.text = "%d / 100" % value
+	lbl.add_theme_font_size_override("font_size", 13)
+	lbl.add_theme_color_override("font_color", INK)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
+	wrap.add_child(lbl)
+	return wrap
 
 
 ## ===== 右栏（Miku 对话 / 过月 / 保存）：无背景悬浮，图标浮在地图上 =====

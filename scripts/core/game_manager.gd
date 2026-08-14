@@ -91,6 +91,10 @@ var runtime_vassal_type := {}        # target -> vassal_type（要求X同意后�
 # ---- 引擎⑥ 事件 + 临时修正（Master 8/13：历史/脉冲/随机三类 + [Root.*] 变量 + effects/modifiers）----
 const EVENTS_PATH := "res://data/events.json"
 var _event_list := []                  # events.json（懒加载）
+# ---- 引擎⑥ 局势（Master 8/14：进度条 0~100 + 5 阶段；玩家专属，事件增减，任务解锁条件）----
+const SITUATIONS_PATH := "res://data/situations.json"
+var _situation_list := []              # situations.json（懒加载）
+var situation_value := {}              # id -> int（0~100），玩家拥有局势的当前值
 var _fired_historical := {}            # event_id -> true（历史事件一次性）
 var _pulse_last := {}                  # event_id -> "年.月"（脉冲上次触发）
 var modifiers := {}                    # 受影响国 cid -> [{type, value, months}] 临时修正
@@ -137,6 +141,8 @@ func start_new_game(country_id: String) -> void:
 	runtime_liege.clear()        # 引擎④-CB：新档无运行时附庸关系
 	runtime_union.clear()        # 引擎④-CB：新档无运行时联统关系
 	runtime_vassal_type.clear()  # 引擎④-CB：新档无运行时附庸类型
+	situation_value.clear()      # 引擎⑥-局势：新档按 initial_stage 重置
+	_init_situations()           # 引擎⑥-局势：新档初始化所有局势值
 	for cid in _all_country_ids():
 		country_gold[cid] = START_GOLD
 		country_prestige[cid] = START_PRESTIGE
@@ -712,6 +718,93 @@ func _tick_cbs() -> void:
 		cb_timers.erase(key)
 
 
+# ===== 引擎⑥ 局势（Master 8/14：进度条 0~100 + 5 阶段；玩家专属，事件增减，任务解锁条件）=====
+
+## 懒加载局势表（situations.json）
+func _ensure_situations() -> bool:
+	if not _situation_list.is_empty():
+		return true
+	var f := FileAccess.open(SITUATIONS_PATH, FileAccess.READ)
+	if f == null:
+		push_warning("局势表加载失败: %s" % SITUATIONS_PATH)
+		return false
+	var data: Variant = JSON.parse_string(f.get_as_text())
+	if not (data is Dictionary and data.get("situations") is Array):
+		push_warning("局势表格式错误: %s" % SITUATIONS_PATH)
+		return false
+	_situation_list = data["situations"]
+	return true
+
+
+## 局势初始值（initial_stage 映射：I=10/II=30/III=50/IV=70/V=90；initial_zero 则从 0 起）
+func _situation_initial(s: Dictionary) -> int:
+	if bool(s.get("initial_zero", false)):
+		return 0
+	return [10, 30, 50, 70, 90][clampi(int(s.get("initial_stage", 1)) - 1, 0, 4)]
+
+
+## 新档初始化：所有局势按初始值写入 situation_value
+func _init_situations() -> void:
+	if not _ensure_situations():
+		return
+	for s in _situation_list:
+		var sid: String = str(s.get("id", ""))
+		if sid != "":
+			situation_value[sid] = _situation_initial(s)
+
+
+## 取局势定义（无则 {}）
+func get_situation(situation_id: String) -> Dictionary:
+	if not _ensure_situations():
+		return {}
+	for s in _situation_list:
+		if str(s.get("id", "")) == situation_id:
+			return s
+	return {}
+
+
+## 玩家是否拥有该局势（scope_country 含玩家操作国；AI 无局势）
+func player_owns_situation(situation_id: String) -> bool:
+	var s := get_situation(situation_id)
+	if s.is_empty():
+		return false
+	var scopes: Array = s.get("scope_country", [])
+	return scopes.has(player_country_id)
+
+
+## 局势当前值（0~100；未初始化补初始值）
+func get_situation_value(situation_id: String) -> int:
+	if not situation_value.has(situation_id):
+		situation_value[situation_id] = _situation_initial(get_situation(situation_id))
+	return int(situation_value[situation_id])
+
+
+## 局势阶段（0~4，对应 I~V；value//20 但 100 归 V）
+func get_situation_stage(situation_id: String) -> int:
+	return clampi(floori(float(get_situation_value(situation_id)) / 20.0), 0, 4)
+
+
+## 局势变化：仅玩家拥有者生效；clamp 0~100 + emit situation_changed（UI 即时刷新）
+func change_situation(situation_id: String, delta: float) -> void:
+	if not player_owns_situation(situation_id):
+		return   # AI 无局势；玩家未拥有不生效
+	var v := clampi(get_situation_value(situation_id) + int(delta), 0, 100)
+	situation_value[situation_id] = v
+	EventBus.situation_changed.emit(situation_id, v)
+
+
+## 玩家拥有的局势列表（UI 面板显示用，深拷贝防篡改）
+func get_player_situations() -> Array:
+	var out := []
+	if not _ensure_situations():
+		return out
+	for s in _situation_list:
+		var sid: String = str(s.get("id", ""))
+		if sid != "" and player_owns_situation(sid):
+			out.append(s.duplicate(true))
+	return out
+
+
 # ===== 引擎⑥ 事件系统 + 临时修正（Master 8/13：历史/脉冲/随机三类 + [Root.*] 变量 + effects/modifiers）=====
 
 ## 懒加载事件表（events.json）
@@ -934,6 +1027,9 @@ func _apply_option_effects(cid: String, option: Dictionary, event_id: String) ->
 	if fx.has("start_play"):
 		var sp: Dictionary = fx["start_play"]
 		start_play(cid, str(sp.get("target", "")), str(sp.get("goal", "")), str(sp.get("cb", "")))
+	# 引擎⑥-局势（Master 8/14）：effects.situations 落地，仅玩家拥有者生效
+	for sit in fx.get("situations", []):
+		change_situation(str(sit.get("id", "")), float(sit.get("delta", 0.0)))
 	for m in fx.get("modifiers", []):
 		var mtarget: String = str(m.get("target", ""))
 		_add_modifier(mtarget if mtarget != "" else cid, str(m.get("type", "")), float(m.get("value", 0.0)), int(m.get("months", 1)))

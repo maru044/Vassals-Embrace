@@ -1,29 +1,40 @@
 {
-  "comment": "局势表：进度条 0~100，5 阶段（I~V），与事件绑定。",
+  "comment": "局势表：进度条 0~100，5 阶段（I~V），与事件绑定。玩家专属——AI 国家无局势、无局势事件。scope_country=拥有者（玩家操作该国才拥有）；initial_zero=true 表示初始从 0 起。union_nature 属引擎⑧ 国际组织系统，不在此表。",
   "situations": [
-    {
-      "id": "unify_ireland",
-      "name": "统一爱尔兰",
-      "org": "tribal_confederation",
-      "stages": 5,
-      "desc": "爱尔兰至高王国凝聚力满即可统一爱尔兰，统一消耗凝聚力"
-    },
-    {
-      "id": "union_nature",
-      "name": "联合统治性质",
-      "org": "personal_union",
-      "stages": 5,
-      "initial_stage": 3,
-      "desc": "从「平等后宫」到「主奴 play」的谱系，初始阶段 III（平衡）"
-    },
     {
       "id": "hundred_years_war",
       "name": "百年战争",
+      "scope_country": ["England", "Scotland"],
       "stages": 5,
       "initial_stage": 3,
       "value_0": "英国胜利",
       "value_100": "法国胜利",
-      "desc": "英格兰（及苏格兰）拉锯；事件要求投入兵力/经济/威望，拒绝则偏向另一侧"
+      "stage_names": ["英国占优", "英国略优", "势均力敌", "法国略优", "法国占优"],
+      "desc": "英格兰与苏格兰拉锯：随机局势事件中花钱/兵力/威望投入倾向一侧，拒绝则向另一侧偏移"
+    },
+    {
+      "id": "unify_ireland",
+      "name": "统一爱尔兰",
+      "scope_country": ["Tyrone"],
+      "stages": 5,
+      "initial_stage": 1,
+      "initial_zero": true,
+      "value_0": "分裂",
+      "value_100": "统一",
+      "stage_names": ["四分五裂", "暗流涌动", "诸部呼应", "众望所归", "天下一统"],
+      "desc": "爱尔兰至高王凝聚诸部（开局分裂）：凝聚力满即可统一，统一消耗凝聚力"
+    },
+    {
+      "id": "corruption_durham",
+      "name": "圣女堕落度",
+      "scope_country": ["Durham"],
+      "stages": 5,
+      "initial_stage": 1,
+      "initial_zero": true,
+      "value_0": "圣洁",
+      "value_100": "堕落暴露",
+      "stage_names": ["圣洁压抑", "心猿意马", "暗流涌动", "淫堕圣女", "堕落暴露"],
+      "desc": "达勒姆采邑圣女的堕落程度（初始圣洁）：低=圣洁，教会权威如北境坚堡；高=堕落暴露，淫乱玩法全解锁"
     }
   ]
 }
