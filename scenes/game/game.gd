@@ -1425,7 +1425,16 @@ func _build_situation_panel() -> void:
 		var stage_name: String = str(stage_names[stage]) if stage < stage_names.size() else "%s" % (stage + 1)
 		_left_body.add_child(_panel_label("◆ %s（%s）" % [str(s.get("name", sid)), stage_name]))
 		_left_body.add_child(_situation_bar(sid, val))
-		_left_body.add_child(_panel_label("  %s   ← %s" % [str(s.get("value_0", "0")), str(s.get("value_100", "100"))]))
+		# 局势两端标签：两个 label 左右对齐，宽度与进度条画框一致（600），贴合两端（Master 8/14）
+		var ends := HBoxContainer.new()
+		ends.custom_minimum_size = Vector2(SITUATION_FRAME_W, 0)
+		ends.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		ends.add_child(_panel_label(str(s.get("value_0", "0"))))
+		var ends_spacer := Control.new()
+		ends_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		ends.add_child(ends_spacer)
+		ends.add_child(_panel_label(str(s.get("value_100", "100"))))
+		_left_body.add_child(ends)
 		var desc := str(s.get("desc", ""))
 		if not desc.is_empty():
 			_left_body.add_child(_panel_label("　%s" % desc))
