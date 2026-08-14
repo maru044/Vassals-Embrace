@@ -359,6 +359,112 @@
       },
       "reward": "终局：威望 +50",
       "reward_effects": {"prestige": 50}
+    },
+    {
+      "id": "durham_first_sin",
+      "country": "Durham",
+      "name": "初尝禁果",
+      "pos": [110, 110],
+      "parents": [],
+      "desc": "圣女在忏悔室的隔板后，第一次放纵了舌尖。",
+      "requirements": {
+        "all": [
+          {"situation": "corruption_durham", "value_gte": 20}
+        ]
+      },
+      "reward": "金币 +20",
+      "reward_effects": {"gold": 20}
+    },
+    {
+      "id": "durham_glory_hole_fame",
+      "country": "Durham",
+      "name": "忏悔室的名声",
+      "pos": [110, 330],
+      "parents": ["durham_first_sin"],
+      "desc": "忏悔室的洞洞声名远扬，信徒们排起更长的队。",
+      "requirements": {
+        "all": [
+          {"situation": "corruption_durham", "value_gte": 50}
+        ]
+      },
+      "reward": "免费升级达勒姆妓院",
+      "reward_effects": {"upgrade_building": {"province": "Durham", "building": "brothel"}}
+    },
+    {
+      "id": "durham_full_corruption",
+      "country": "Durham",
+      "name": "彻底堕落",
+      "pos": [110, 550],
+      "parents": ["durham_glory_hole_fame"],
+      "desc": "圣女已无所顾忌，祭坛与忏悔室都是她的欢场。",
+      "requirements": {
+        "all": [
+          {"situation": "corruption_durham", "value_gte": 90}
+        ]
+      },
+      "reward": "威望 +25",
+      "reward_effects": {"prestige": 25}
+    },
+    {
+      "id": "durham_holy_wall",
+      "country": "Durham",
+      "name": "北境坚堡",
+      "pos": [430, 110],
+      "parents": [],
+      "desc": "圣女克己守礼，教会权威如北境坚垒。",
+      "requirements": {
+        "all": [
+          {"situation": "corruption_durham", "value_lte": 10}
+        ]
+      },
+      "reward": "威望 +15",
+      "reward_effects": {"prestige": 15}
+    },
+    {
+      "id": "durham_church_authority",
+      "country": "Durham",
+      "name": "教会权威",
+      "pos": [430, 330],
+      "parents": ["durham_holy_wall"],
+      "desc": "采邑教会深得英格兰王室倚重。",
+      "requirements": {
+        "all": [
+          {"favor_greater_than": 60, "target": "England"}
+        ]
+      },
+      "reward": "威望 +20",
+      "reward_effects": {"prestige": 20}
+    },
+    {
+      "id": "durham_market_heart",
+      "country": "Durham",
+      "name": "采邑繁荣",
+      "pos": [540, 110],
+      "parents": [],
+      "desc": "让采邑的市集与商埠繁荣起来。",
+      "requirements": {
+        "all": [
+          {"building_level": {"province": "Durham", "building": "market", "gte": 2}}
+        ]
+      },
+      "reward": "金币 +25",
+      "reward_effects": {"gold": 25}
+    },
+    {
+      "id": "durham_saint_or_sinner",
+      "country": "Durham",
+      "name": "圣女之名",
+      "pos": [330, 750],
+      "parents": ["durham_full_corruption", "durham_market_heart"],
+      "desc": "无论圣洁还是堕落，塞西莉亚的名字都已刻进达勒姆的传说。",
+      "requirements": {
+        "all": [
+          {"mission_completed": "durham_full_corruption"},
+          {"mission_completed": "durham_market_heart"}
+        ]
+      },
+      "reward": "终局：威望 +40",
+      "reward_effects": {"prestige": 40}
     }
   ]
 }

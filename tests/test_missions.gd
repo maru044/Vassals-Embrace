@@ -180,6 +180,36 @@ func _initialize() -> void:
 	var res_w: Dictionary = gm.call("complete_mission", "wales_britain_fire")
 	out.append("⑫ wales_britain_fire done (终局): %s" % bool(res_w.get("ok", false)))
 
+	# ⑬ 达勒姆任务树（Master 8/14：圣女堕落度局势主题，战争少）
+	gm.set("player_country_id", "Durham")
+	var dur_missions: Array = gm.call("get_player_missions")
+	out.append("⑬ Durham player missions = 7: %s" % (dur_missions.size() == 7))
+	gm.set("province_owner", {"Durham": "Durham"})
+	gm.set("province_buildings", {"Durham": {"market": 2, "brothel": 3, "fort": 1}})
+	# 圣洁线：堕落度≤10 → 北境坚堡 → 教会权威（英格兰好感≥60）
+	gm.set("situation_value", {"corruption_durham": 5})
+	out.append("⑬ durham_holy_wall available (corruption≤10): %s" % (gm.call("mission_state", "durham_holy_wall") == "available"))
+	gm.call("complete_mission", "durham_holy_wall")
+	gm.set("player_favor", {"England": 70.0})
+	out.append("⑬ durham_church_authority available (favor England≥60): %s" % (gm.call("mission_state", "durham_church_authority") == "available"))
+	# 堕落线：堕落度 20→50→90
+	gm.set("situation_value", {"corruption_durham": 25})
+	out.append("⑬ durham_first_sin available (corruption≥20): %s" % (gm.call("mission_state", "durham_first_sin") == "available"))
+	gm.call("complete_mission", "durham_first_sin")
+	gm.set("situation_value", {"corruption_durham": 50})
+	out.append("⑬ durham_glory_hole available (corruption≥50): %s" % (gm.call("mission_state", "durham_glory_hole_fame") == "available"))
+	gm.call("complete_mission", "durham_glory_hole_fame")
+	gm.set("situation_value", {"corruption_durham": 90})
+	out.append("⑬ durham_full_corruption available (corruption≥90): %s" % (gm.call("mission_state", "durham_full_corruption") == "available"))
+	gm.call("complete_mission", "durham_full_corruption")
+	# 内政：达勒姆市场≥2 → 采邑繁荣
+	out.append("⑬ durham_market_heart available (market≥2): %s" % (gm.call("mission_state", "durham_market_heart") == "available"))
+	gm.call("complete_mission", "durham_market_heart")
+	# 终局：圣女之名（彻底堕落 + 采邑繁荣）
+	out.append("⑬ durham_saint_or_sinner available: %s" % (gm.call("mission_state", "durham_saint_or_sinner") == "available"))
+	var res_d: Dictionary = gm.call("complete_mission", "durham_saint_or_sinner")
+	out.append("⑬ durham_saint_or_sinner done (终局): %s" % bool(res_d.get("ok", false)))
+
 	root.remove_child(gm)
 	gm.free()
 	out.append("TEST_DONE")
