@@ -1,5 +1,5 @@
 {
-  "comment": "任务表（仅玩家生效）：程序判定 + LLM flag 兜底。字段：id/country/name/pos[画布坐标]/parents[前置]/desc/requirements/reward。当前只实现苏格兰任务树（plan/任务树.md v3：两线汇合成「成立大不列颠」终局）。",
+  "comment": "任务表（仅玩家生效）：程序判定 + LLM flag 兜底。字段：id/country/name/pos[画布坐标]/parents[前置]/desc/requirements/reward/reward_effects。requirements 条件键：subject_of / favor_greater_than / alliance_with / war_goal / army_limit / vassalize_all(全部附庸化) / vassalize_any(任一附庸化) / situation(value_gte) / mission_completed / flag_set(事件选项置位 flags 后完成)。reward_effects.grant_cb=授予限时 CB(cb/scope/duration_months)。scope：ireland_clan=爱尔兰诸部 / england_subject=英格兰的全部附庸与受保护国（运行时推导）。当前只实现苏格兰任务树（plan/任务树.md v3：两线汇合成「成立大不列颠」终局）。",
   "missions": [
     {
       "id": "scotland_recover_isles",
@@ -37,13 +37,13 @@
       "name": "老同盟",
       "pos": [430, 110],
       "parents": [],
-      "desc": "与法国缔结老同盟，为百年战争埋下伏笔。",
+      "desc": "法兰西的使者远渡重洋而来，献上老同盟之约（法国不在棋盘上，改由事件演出完成）。",
       "requirements": {
         "all": [
-          {"alliance_with": "France"}
+          {"flag_set": "scotland_auld_alliance_done"}
         ]
       },
-      "reward": "+威望，外交开局"
+      "reward": "与法兰西缔结老同盟（事件演出）：威望 +10，金币 +25"
     },
     {
       "id": "scotland_march_into_ireland",
@@ -51,13 +51,16 @@
       "name": "进军爱尔兰",
       "pos": [320, 330],
       "parents": ["scotland_auld_alliance"],
-      "desc": "向爱尔兰诸部宣战，占领据点。",
+      "desc": "将任一爱尔兰犬娘部族纳入附庸，叩开爱尔兰之门。",
       "requirements": {
         "all": [
-          {"war_goal": "conquest", "target": "Ireland"}
+          {"vassalize_any": "ireland_clan"}
         ]
       },
-      "reward": "获得爱尔兰 CB"
+      "reward": "获得爱尔兰所有国家的附庸 CB（持续 3 年，可直接附庸，非受保护国）",
+      "reward_effects": {
+        "grant_cb": {"cb": "vassalize", "scope": "ireland_clan", "duration_months": 36}
+      }
     },
     {
       "id": "scotland_advance_the_front",
@@ -65,13 +68,16 @@
       "name": "推进前线",
       "pos": [540, 330],
       "parents": ["scotland_auld_alliance"],
-      "desc": "扩军并占领北境省份，逼近英格兰。",
+      "desc": "撬动英格兰的附庸——将一个原属英格兰的附庸/受保护国纳入己方后宫，撕开北境防线。",
       "requirements": {
         "all": [
-          {"army_limit": 12}
+          {"vassalize_any": "england_subject"}
         ]
       },
-      "reward": "获得英格兰 CB"
+      "reward": "获得英格兰所有附庸国/受保护国的附庸 CB（持续 3 年，可直接附庸）",
+      "reward_effects": {
+        "grant_cb": {"cb": "vassalize", "scope": "england_subject", "duration_months": 36}
+      }
     },
     {
       "id": "scotland_conquer_ireland",
@@ -99,7 +105,10 @@
           {"situation": "hundred_years_war", "value_gte": 100}
         ]
       },
-      "reward": "英格兰虚弱"
+      "reward": "获得英格兰的联合统治 CB（罗莎蒙德臣服的前奏）",
+      "reward_effects": {
+        "grant_cb": {"cb": "personal_union", "scope": "England", "duration_months": 36}
+      }
     },
     {
       "id": "scotland_union_with_england",
