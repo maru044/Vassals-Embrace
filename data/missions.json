@@ -1,5 +1,5 @@
 {
-  "comment": "任务表（仅玩家生效）：程序判定 + LLM flag 兜底。字段：id/country/name/pos[画布坐标]/parents[前置]/desc/requirements/reward/reward_effects。requirements 条件键：subject_of / favor_greater_than / alliance_with / war_goal / army_limit / vassalize_all(全部附庸化) / vassalize_any(任一附庸化) / situation(value_gte) / mission_completed / flag_set(事件选项置位 flags 后完成)。附庸化（vassalize_*）= 使目标成为下属，附庸国与受保护国均算（subject 语义；引擎⑦ 判定用「有宗主」_effective_liege==玩家，而非引擎⑤ _is_vassal 排除受保护国）。reward_effects.grant_cb=授予限时 CB(cb/scope/duration_months)。scope：ireland_clan=爱尔兰诸部 / england_subject=英格兰的全部附庸国与受保护国（含，运行时推导）。当前只实现苏格兰任务树（plan/任务树.md v3：两线汇合成「成立大不列颠」终局）。",
+  "comment": "任务表（仅玩家生效）：程序判定 + LLM flag 兜底。字段：id/country/name/pos[画布坐标]/parents[前置]/desc/requirements/reward/reward_effects。requirements 条件键：subject_of / favor_greater_than / alliance_with / war_goal / army_limit / vassalize_all(全部附庸化) / vassalize_any(任一附庸化) / situation(value_gte) / mission_completed / flag_set(事件选项置位 flags 后完成)。附庸化（vassalize_*）= 使目标成为下属，附庸国与受保护国均算（subject 语义；引擎⑦ 判定用「有宗主」_effective_liege==玩家，而非引擎⑤ _is_vassal 排除受保护国）。reward_effects.grant_cb=授予限时 CB(cb/scope/duration_months)；任务获得的特殊 CB 一律持续 3 年（duration_months=36，Master 8/14 统一）。scope：ireland_clan=爱尔兰诸部 / england_subject=英格兰的全部附庸国与受保护国（含，运行时推导）。当前只实现苏格兰任务树（plan/任务树.md v3：两线汇合成「成立大不列颠」终局）。",
   "missions": [
     {
       "id": "scotland_recover_isles",
@@ -105,7 +105,7 @@
           {"situation": "hundred_years_war", "value_gte": 100}
         ]
       },
-      "reward": "获得英格兰的联合统治 CB（罗莎蒙德臣服的前奏）",
+      "reward": "获得英格兰的联合统治 CB（持续 3 年，罗莎蒙德臣服的前奏）",
       "reward_effects": {
         "grant_cb": {"cb": "personal_union", "scope": "England", "duration_months": 36}
       }
