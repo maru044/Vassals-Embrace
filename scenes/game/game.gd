@@ -674,8 +674,15 @@ const GOLD_OUTLINE := Color(0.32, 0.2, 0.07)  # 金棕描边
 const INK := Color(0.36, 0.26, 0.14)         # 羊皮纸上墨色
 const PANEL_BG := Color(0.87, 0.76, 0.54, 0.92)  # 羊皮纸面板底
 const UI_ICON_DIR := "res://assets/ui/"
-const SITUATION_BAR_H := 43   # 局势进度条画框高（素材 600×43 ≈ 13.9:1，进度条迎合图片比例；Master 8/14）
 const SITUATION_BAR_DIR := "res://assets/ui/situation_bars/"
+# 局势进度条画框（Master 8/14 定稿）：画框图保持原比例 8.69:1（600×69，由 2928×337 缩放而来），
+# 内框（进度轨道）原 2192×158 → 缩放后 449×32，在画框内偏移 (76,18)。进度条=内框尺寸，画框盖在其上。
+const SITUATION_FRAME_W := 600
+const SITUATION_FRAME_H := 69
+const SITUATION_TRACK_W := 449
+const SITUATION_TRACK_H := 32
+const SITUATION_TRACK_OFF_X := 76
+const SITUATION_TRACK_OFF_Y := 18
 const PORTRAIT_DIR := "res://assets/portraits/"   # 立绘资产库（rulers/<id>.png 384×720、harem/*.png 384×720）
 const PARALLAX_SHADER_PATH := "res://shaders/chat_ui_parallax.gdshader"   # 深度图视差 shader（聊天立绘同款）
 const PAPER_TEX_PATH := "res://assets/ui/paper_texture.jpg"   # 纸张材质（Texturelabs 纸面，弱纸纹层用）
@@ -1424,44 +1431,40 @@ func _build_situation_panel() -> void:
 			_left_body.add_child(_panel_label("　%s" % desc))
 
 
-## 局势进度条（0~100）：文艺复兴画框图叠加（situation_bars/<id>.png，Master 8/14）
-## 比例铁律：进度条尺寸迎合画框图片比例（600×43 ≈ 13.9:1），画框 KEEP_ASPECT 永不变形——
-## wrap 高度固定为图片原始高（43px 显示尺度），画框等比缩放居中；填充色从下层透出（轨道挖空）
+## 局势进度条（0~100）：文艺复兴画框图叠加（situation_bars/<id>.png，Master 8/14 定稿）
+## 比例铁律：画框图保持原比例（8.69:1，600×69）一点不变；进度条 = 内框缩放后尺寸（449×32），
+## 画框以 (TRACK_OFF_X, TRACK_OFF_Y) 偏移盖在 wrap 左上，端帽/边框自然露出（wrap 不裁切子节点）。
+## 填充色只在内框区域内铺 0~value%。固定尺寸，不左右塞满。
 func _situation_bar(situation_id: String, value: int) -> Control:
 	var wrap := Control.new()
-	wrap.custom_minimum_size = Vector2(0, SITUATION_BAR_H)
-	wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	# 轨道底色（暗色，画框轨道内部露出）
-	var bg := ColorRect.new()
-	bg.color = Color(0.22, 0.17, 0.11, 0.6)
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	wrap.add_child(bg)
-	# 进度填充（按 value 比例铺满全宽，金黄色；在画框轨道挖空处透出）
+	wrap.custom_minimum_size = Vector2(SITUATION_TRACK_W, SITUATION_TRACK_H)
+	wrap.size_flags_horizontal = Control.SIZE_SHRINK_CENTER   # 固定尺寸，不被左栏拉伸
+	# 进度填充（只在内框区域，按 value 比例，金黄色）
 	var fill := ColorRect.new()
 	fill.color = Color(0.85, 0.71, 0.45)
-	fill.anchor_left = 0.0
-	fill.anchor_right = clampf(float(value) / 100.0, 0.0, 1.0)
-	fill.anchor_top = 0.0
-	fill.anchor_bottom = 1.0
+	fill.position = Vector2.ZERO
+	fill.size = Vector2(SITUATION_TRACK_W * clampf(float(value) / 100.0, 0.0, 1.0), SITUATION_TRACK_H)
 	wrap.add_child(fill)
-	# 文艺复兴画框图：KEEP_ASPECT_CENTERED 等比居中（进度条迎合图片比例，画框不变形）
+	# 文艺复兴画框图（600×69 原比例；位置 = wrap 左上 + 内框偏移，端帽/边框在 wrap 外自然显示）
 	var frame_path := SITUATION_BAR_DIR + "%s.png" % situation_id
 	if ResourceLoader.exists(frame_path):
 		var frame := TextureRect.new()
 		frame.texture = load(frame_path)
 		frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		frame.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		frame.stretch_mode = TextureRect.STRETCH_SCALE   # 纹理本身已是最终尺寸，直接 1:1
 		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		frame.set_anchors_preset(Control.PRESET_FULL_RECT)
+		frame.position = Vector2(-SITUATION_TRACK_OFF_X, -SITUATION_TRACK_OFF_Y)
+		frame.size = Vector2(SITUATION_FRAME_W, SITUATION_FRAME_H)
 		wrap.add_child(frame)
-	# 数值 label
+	# 数值 label（内框区域居中）
 	var lbl := Label.new()
 	lbl.text = "%d / 100" % value
-	lbl.add_theme_font_size_override("font_size", 14)
-	lbl.add_theme_color_override("font_color", Color(0.1, 0.08, 0.05))
-	lbl.add_theme_constant_override("outline_size", 4)
-	lbl.add_theme_color_override("font_outline_color", Color(1, 1, 1, 0.7))
+	lbl.add_theme_font_size_override("font_size", 13)
+	lbl.add_theme_color_override("font_color", Color(0.12, 0.1, 0.06))
+	lbl.add_theme_constant_override("outline_size", 3)
+	lbl.add_theme_color_override("font_outline_color", Color(1, 1, 1, 0.75))
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
 	wrap.add_child(lbl)
 	return wrap
