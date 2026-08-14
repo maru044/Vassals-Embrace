@@ -674,6 +674,8 @@ const GOLD_OUTLINE := Color(0.32, 0.2, 0.07)  # 金棕描边
 const INK := Color(0.36, 0.26, 0.14)         # 羊皮纸上墨色
 const PANEL_BG := Color(0.87, 0.76, 0.54, 0.92)  # 羊皮纸面板底
 const UI_ICON_DIR := "res://assets/ui/"
+const SITUATION_BAR_H := 43   # 局势进度条画框高（素材 600×43 ≈ 13.9:1，进度条迎合图片比例；Master 8/14）
+const SITUATION_BAR_DIR := "res://assets/ui/situation_bars/"
 const PORTRAIT_DIR := "res://assets/portraits/"   # 立绘资产库（rulers/<id>.png 384×720、harem/*.png 384×720）
 const PARALLAX_SHADER_PATH := "res://shaders/chat_ui_parallax.gdshader"   # 深度图视差 shader（聊天立绘同款）
 const PAPER_TEX_PATH := "res://assets/ui/paper_texture.jpg"   # 纸张材质（Texturelabs 纸面，弱纸纹层用）
@@ -1415,22 +1417,26 @@ func _build_situation_panel() -> void:
 		var stage_names: Array = s.get("stage_names", [])
 		var stage_name: String = str(stage_names[stage]) if stage < stage_names.size() else "%s" % (stage + 1)
 		_left_body.add_child(_panel_label("◆ %s（%s）" % [str(s.get("name", sid)), stage_name]))
-		_left_body.add_child(_situation_bar(val))
+		_left_body.add_child(_situation_bar(sid, val))
 		_left_body.add_child(_panel_label("  %s   ← %s" % [str(s.get("value_0", "0")), str(s.get("value_100", "100"))]))
 		var desc := str(s.get("desc", ""))
 		if not desc.is_empty():
 			_left_body.add_child(_panel_label("　%s" % desc))
 
 
-## 局势进度条（0~100，ColorRect 填充比例；下方数值）
-func _situation_bar(value: int) -> Control:
+## 局势进度条（0~100）：文艺复兴画框图叠加（situation_bars/<id>.png，Master 8/14）
+## 比例铁律：进度条尺寸迎合画框图片比例（600×43 ≈ 13.9:1），画框 KEEP_ASPECT 永不变形——
+## wrap 高度固定为图片原始高（43px 显示尺度），画框等比缩放居中；填充色从下层透出（轨道挖空）
+func _situation_bar(situation_id: String, value: int) -> Control:
 	var wrap := Control.new()
-	wrap.custom_minimum_size = Vector2(0, 26)
+	wrap.custom_minimum_size = Vector2(0, SITUATION_BAR_H)
 	wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# 轨道底色（暗色，画框轨道内部露出）
 	var bg := ColorRect.new()
-	bg.color = Color(0.28, 0.22, 0.14, 0.5)
+	bg.color = Color(0.22, 0.17, 0.11, 0.6)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	wrap.add_child(bg)
+	# 进度填充（按 value 比例铺满全宽，金黄色；在画框轨道挖空处透出）
 	var fill := ColorRect.new()
 	fill.color = Color(0.85, 0.71, 0.45)
 	fill.anchor_left = 0.0
@@ -1438,10 +1444,23 @@ func _situation_bar(value: int) -> Control:
 	fill.anchor_top = 0.0
 	fill.anchor_bottom = 1.0
 	wrap.add_child(fill)
+	# 文艺复兴画框图：KEEP_ASPECT_CENTERED 等比居中（进度条迎合图片比例，画框不变形）
+	var frame_path := SITUATION_BAR_DIR + "%s.png" % situation_id
+	if ResourceLoader.exists(frame_path):
+		var frame := TextureRect.new()
+		frame.texture = load(frame_path)
+		frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		frame.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		frame.set_anchors_preset(Control.PRESET_FULL_RECT)
+		wrap.add_child(frame)
+	# 数值 label
 	var lbl := Label.new()
 	lbl.text = "%d / 100" % value
-	lbl.add_theme_font_size_override("font_size", 13)
-	lbl.add_theme_color_override("font_color", INK)
+	lbl.add_theme_font_size_override("font_size", 14)
+	lbl.add_theme_color_override("font_color", Color(0.1, 0.08, 0.05))
+	lbl.add_theme_constant_override("outline_size", 4)
+	lbl.add_theme_color_override("font_outline_color", Color(1, 1, 1, 0.7))
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
 	wrap.add_child(lbl)
