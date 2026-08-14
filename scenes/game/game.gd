@@ -1432,20 +1432,20 @@ func _build_situation_panel() -> void:
 
 
 ## 局势进度条（0~100）：文艺复兴画框图叠加（situation_bars/<id>.png，Master 8/14 定稿）
-## 比例铁律：画框图保持原比例（8.69:1，600×69）一点不变；进度条 = 内框缩放后尺寸（449×32），
-## 画框以 (TRACK_OFF_X, TRACK_OFF_Y) 偏移盖在 wrap 左上，端帽/边框自然露出（wrap 不裁切子节点）。
-## 填充色只在内框区域内铺 0~value%。固定尺寸，不左右塞满。
+## 比例铁律：画框图保持原比例（8.69:1，600×69）一点不变；wrap 高 = 画框全高（69），画框从 (0,0) 开始
+## 不向上溢出 → 不盖住上方标题行。填充色与数值在内框区域（偏移 TRACK_OFF，尺寸 TRACK）内。
+## 固定尺寸（SHRINK_CENTER，不左右塞满），数值留在进度条内框居中。
 func _situation_bar(situation_id: String, value: int) -> Control:
 	var wrap := Control.new()
-	wrap.custom_minimum_size = Vector2(SITUATION_TRACK_W, SITUATION_TRACK_H)
-	wrap.size_flags_horizontal = Control.SIZE_SHRINK_CENTER   # 固定尺寸，不被左栏拉伸
-	# 进度填充（只在内框区域，按 value 比例，金黄色）
+	wrap.custom_minimum_size = Vector2(SITUATION_FRAME_W, SITUATION_FRAME_H)   # 容纳完整画框 600×69，不被拉伸
+	wrap.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	# 进度填充（内框区域，按 value 比例）：翡翠绿与鎏金画框形成金绿对比，暗棕底上清晰醒目（Master 8/14）
 	var fill := ColorRect.new()
-	fill.color = Color(0.85, 0.71, 0.45)
-	fill.position = Vector2.ZERO
+	fill.color = Color(0.12, 0.55, 0.34)
+	fill.position = Vector2(SITUATION_TRACK_OFF_X, SITUATION_TRACK_OFF_Y)
 	fill.size = Vector2(SITUATION_TRACK_W * clampf(float(value) / 100.0, 0.0, 1.0), SITUATION_TRACK_H)
 	wrap.add_child(fill)
-	# 文艺复兴画框图（600×69 原比例；位置 = wrap 左上 + 内框偏移，端帽/边框在 wrap 外自然显示）
+	# 文艺复兴画框图（600×69 原比例，从 (0,0) 开始；端帽/边框在 wrap 内完整显示）
 	var frame_path := SITUATION_BAR_DIR + "%s.png" % situation_id
 	if ResourceLoader.exists(frame_path):
 		var frame := TextureRect.new()
@@ -1453,19 +1453,20 @@ func _situation_bar(situation_id: String, value: int) -> Control:
 		frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		frame.stretch_mode = TextureRect.STRETCH_SCALE   # 纹理本身已是最终尺寸，直接 1:1
 		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		frame.position = Vector2(-SITUATION_TRACK_OFF_X, -SITUATION_TRACK_OFF_Y)
+		frame.position = Vector2.ZERO
 		frame.size = Vector2(SITUATION_FRAME_W, SITUATION_FRAME_H)
 		wrap.add_child(frame)
-	# 数值 label（内框区域居中）
+	# 数值 label（内框区域居中，不重叠画框边框）
 	var lbl := Label.new()
 	lbl.text = "%d / 100" % value
 	lbl.add_theme_font_size_override("font_size", 13)
-	lbl.add_theme_color_override("font_color", Color(0.12, 0.1, 0.06))
+	lbl.add_theme_color_override("font_color", Color(0.1, 0.08, 0.05))
 	lbl.add_theme_constant_override("outline_size", 3)
 	lbl.add_theme_color_override("font_outline_color", Color(1, 1, 1, 0.75))
+	lbl.position = Vector2(SITUATION_TRACK_OFF_X, SITUATION_TRACK_OFF_Y)
+	lbl.size = Vector2(SITUATION_TRACK_W, SITUATION_TRACK_H)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
 	wrap.add_child(lbl)
 	return wrap
 
