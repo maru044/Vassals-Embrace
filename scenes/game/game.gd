@@ -824,9 +824,11 @@ func _build_left_slide(parent: Control) -> void:
 	var wrap := Control.new()
 	wrap.set_anchors_preset(Control.PRESET_LEFT_WIDE)
 	wrap.offset_top = TOP_BAR_H
-	wrap.offset_right = 640   # 左栏宽 640（旧 320 的 2 倍）
 	wrap.offset_bottom = -64
-	wrap.position.x = -660   # 初始在左外，点击图标滑入
+	# Master 8/14：LEFT_WIDE 右边缘固定 anchor 0 + offset_right，关闭只改 position 会拉宽 wrap 右边缘留屏。
+	# 用 offset_left/offset_right 双控：初始右边缘 -60（连 panel 阴影 5px 一起完全出屏），打开时右边缘回 640。
+	wrap.offset_left = -700
+	wrap.offset_right = -60
 	wrap.visible = false      # 选国阶段隐藏：防止 root 在屏幕右外时左栏从右侧露出
 	parent.add_child(wrap)
 	_left_slide = wrap
@@ -873,8 +875,11 @@ func _open_left_slide() -> void:
 	if _left_open:
 		return
 	_left_open = true
+	_left_slide.visible = true
 	var tw := create_tween()
-	tw.tween_property(_left_slide, "position:x", 0.0, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.set_parallel(true)
+	tw.tween_property(_left_slide, "offset_left", 0.0, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_left_slide, "offset_right", 640.0, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 
 func _close_left_slide() -> void:
@@ -882,7 +887,12 @@ func _close_left_slide() -> void:
 		return
 	_left_open = false
 	var tw := create_tween()
-	tw.tween_property(_left_slide, "position:x", -660.0, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tw.set_parallel(true)
+	# Master 8/14：只 tween position 会让 LEFT_WIDE 锚定的右边缘固定留屏；需同时把 offset_right 移到屏外（-60，
+	# 连 panel 阴影 5px 一起彻底出屏）。动画结束后 visible=false 兜底确保绝不残留。
+	tw.tween_property(_left_slide, "offset_left", -700.0, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tw.tween_property(_left_slide, "offset_right", -60.0, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tw.chain().tween_callback(func() -> void: _left_slide.visible = false)
 
 
 ## ===== 左栏各子界面占位 UI（#33；数据引擎接入后填真实值）=====
