@@ -1439,12 +1439,26 @@ func _situation_bar(situation_id: String, value: int) -> Control:
 	var wrap := Control.new()
 	wrap.custom_minimum_size = Vector2(SITUATION_FRAME_W, SITUATION_FRAME_H)   # 容纳完整画框 600×69，不被拉伸
 	wrap.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	# 进度填充（内框区域，按 value 比例）：翡翠绿与鎏金画框形成金绿对比，暗棕底上清晰醒目（Master 8/14）
-	var fill := ColorRect.new()
-	fill.color = Color(0.12, 0.55, 0.34)
+	# 轨道暗底（未填充区域底色，让渐变填充更突出，web 进度条 track 思维）
+	var track := ColorRect.new()
+	track.color = Color(0.1, 0.07, 0.04, 0.65)
+	track.position = Vector2(SITUATION_TRACK_OFF_X, SITUATION_TRACK_OFF_Y)
+	track.size = Vector2(SITUATION_TRACK_W, SITUATION_TRACK_H)
+	wrap.add_child(track)
+	# 进度填充（内框区域，按 value 比例）：暖金渐变（深琥珀→亮金→暖白高光），金属锦缎质感，非纯色（Master 8/14）
+	var fill := TextureRect.new()
+	fill.texture = _situation_fill_texture()
+	fill.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	fill.stretch_mode = TextureRect.STRETCH_SCALE
 	fill.position = Vector2(SITUATION_TRACK_OFF_X, SITUATION_TRACK_OFF_Y)
 	fill.size = Vector2(SITUATION_TRACK_W * clampf(float(value) / 100.0, 0.0, 1.0), SITUATION_TRACK_H)
 	wrap.add_child(fill)
+	# 顶部高光细条（增强立体感，web 渐变思维）
+	var gloss := ColorRect.new()
+	gloss.color = Color(1.0, 1.0, 1.0, 0.18)
+	gloss.position = Vector2(SITUATION_TRACK_OFF_X, SITUATION_TRACK_OFF_Y)
+	gloss.size = Vector2(SITUATION_TRACK_W * clampf(float(value) / 100.0, 0.0, 1.0), 3)
+	wrap.add_child(gloss)
 	# 文艺复兴画框图（600×69 原比例，从 (0,0) 开始；端帽/边框在 wrap 内完整显示）
 	var frame_path := SITUATION_BAR_DIR + "%s.png" % situation_id
 	if ResourceLoader.exists(frame_path):
@@ -1469,6 +1483,26 @@ func _situation_bar(situation_id: String, value: int) -> Control:
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	wrap.add_child(lbl)
 	return wrap
+
+
+## 局势进度填充纹理：暖金水平渐变（深琥珀→亮金→暖白高光），金属锦缎质感，非纯色（Master 8/14）
+func _situation_fill_texture() -> GradientTexture2D:
+	var grad := Gradient.new()
+	grad.offsets = PackedFloat32Array([0.0, 0.35, 0.7, 1.0])
+	grad.colors = PackedColorArray([
+		Color(0.55, 0.3, 0.06),      # 深琥珀（左，暗部）
+		Color(0.95, 0.75, 0.3),      # 亮金（中）
+		Color(1.0, 0.85, 0.45),      # 暖金
+		Color(1.0, 0.93, 0.65),      # 暖白高光（右）
+	])
+	var tex := GradientTexture2D.new()
+	tex.gradient = grad
+	tex.fill = GradientTexture2D.FILL_LINEAR
+	tex.fill_from = Vector2(0.0, 0.0)
+	tex.fill_to = Vector2(1.0, 0.0)   # 水平渐变
+	tex.width = 128
+	tex.height = 64
+	return tex
 
 
 ## ===== 右栏（Miku 对话 / 过月 / 保存）：无背景悬浮，图标浮在地图上 =====
