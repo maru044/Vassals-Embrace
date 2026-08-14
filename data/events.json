@@ -63,8 +63,8 @@
       "trigger": {"date": "1400.10", "country": "England"},
       "text": "罗莎蒙德对法兰西王位再宣主权，百年战争的风暴正缓缓逼近海峡对岸。",
       "options": [
-        {"text": "正式宣示对法王位", "weight": 8, "effects": {"prestige": 5}},
-        {"text": "暂缓，专注不列颠", "weight": 3, "effects": {"prestige": -3}}
+        {"text": "正式宣示对法王位", "weight": 8, "effects": {"prestige": 5, "situations": [{"id": "hundred_years_war", "delta": 10}]}},
+        {"text": "暂缓，专注不列颠", "weight": 3, "effects": {"prestige": -3, "situations": [{"id": "hundred_years_war", "delta": -5}]}}
       ]
     },
     {
@@ -74,8 +74,8 @@
       "trigger": {"date": "1401.3", "country": "Tyrone"},
       "text": "至高王 [Root.GetFullTitle] 召集诸部，共商统一爱尔兰的大计。",
       "options": [
-        {"text": "召开诸部大会", "weight": 8, "effects": {"gold": -15, "prestige": 5}},
-        {"text": "冷处理，怕出乱子", "weight": 2, "effects": {"prestige": -3}}
+        {"text": "召开诸部大会", "weight": 8, "effects": {"gold": -15, "prestige": 5, "situations": [{"id": "unify_ireland", "delta": 10}]}},
+        {"text": "冷处理，怕出乱子", "weight": 2, "effects": {"prestige": -3, "situations": [{"id": "unify_ireland", "delta": -5}]}}
       ]
     },
     {
@@ -362,6 +362,131 @@
       "text": "[Root.GetFullTitle] 今日诸事顺遂。",
       "options": [
         {"text": "沐浴赐福", "weight": 10, "effects": {"gold": 10, "prestige": 3}}
+      ]
+    },
+    {
+      "id": "hw_france_push",
+      "type": "situation",
+      "name": "法国进逼",
+      "trigger": {"situation": "hundred_years_war", "weight": 8},
+      "text": "海峡对岸传来消息：老同盟的法国正在集结重兵，百年战争的天平缓缓倾斜。",
+      "options": [
+        {"text": "资助法国（倾向法国）", "weight": 6, "effects": {"gold": -20, "situations": [{"id": "hundred_years_war", "delta": 15}]}},
+        {"text": "资助英格兰（倾向英国）", "weight": 3, "effects": {"gold": -15, "situations": [{"id": "hundred_years_war", "delta": -10}]}},
+        {"text": "坐观其变", "weight": 3, "effects": {"situations": [{"id": "hundred_years_war", "delta": 3}]}}
+      ]
+    },
+    {
+      "id": "hw_england_push",
+      "type": "situation",
+      "name": "英格兰反击",
+      "trigger": {"situation": "hundred_years_war", "weight": 8},
+      "text": "英格兰的骑士团誓言反攻，百年战争的风向开始逆转。",
+      "options": [
+        {"text": "资助英格兰（倾向英国）", "weight": 6, "effects": {"gold": -20, "situations": [{"id": "hundred_years_war", "delta": -15}]}},
+        {"text": "资助法国（倾向法国）", "weight": 3, "effects": {"gold": -15, "situations": [{"id": "hundred_years_war", "delta": 10}]}},
+        {"text": "坐观其变", "weight": 3, "effects": {"situations": [{"id": "hundred_years_war", "delta": -3}]}}
+      ]
+    },
+    {
+      "id": "hw_decisive",
+      "type": "situation",
+      "name": "决战时刻",
+      "trigger": {"situation": "hundred_years_war", "weight": 4},
+      "text": "双方主力汇聚，百年战争迎来决定性一役。",
+      "options": [
+        {"text": "投入全部资源（倾向法国）", "weight": 5, "effects": {"gold": -30, "prestige": 5, "situations": [{"id": "hundred_years_war", "delta": 25}]}},
+        {"text": "投入全部资源（倾向英国）", "weight": 4, "effects": {"gold": -30, "prestige": 5, "situations": [{"id": "hundred_years_war", "delta": -25}]}}
+      ]
+    },
+    {
+      "id": "iu_tribal_gathering",
+      "type": "situation",
+      "name": "诸部大会",
+      "trigger": {"situation": "unify_ireland", "weight": 8},
+      "text": "至高王 [Root.GetFullTitle] 召集爱尔兰诸部，共商统一大计。",
+      "options": [
+        {"text": "大办淫趴联姻", "weight": 6, "effects": {"gold": -15, "prestige": 5, "situations": [{"id": "unify_ireland", "delta": 12}]}},
+        {"text": "简办应付", "weight": 3, "effects": {"situations": [{"id": "unify_ireland", "delta": 5}]}},
+        {"text": "冷处理", "weight": 2, "effects": {"prestige": -3, "situations": [{"id": "unify_ireland", "delta": -5}]}}
+      ]
+    },
+    {
+      "id": "iu_beltane",
+      "type": "situation",
+      "name": "贝尔丹火节",
+      "trigger": {"situation": "unify_ireland", "weight": 8},
+      "text": "五月贝尔丹火节到来，凯尔特犬娘们在篝火边跃跃欲试。",
+      "options": [
+        {"text": "举办换妻联盟之仪", "weight": 6, "effects": {"gold": -10, "prestige": 4, "situations": [{"id": "unify_ireland", "delta": 10}]}},
+        {"text": "敷衍了事", "weight": 3, "effects": {"situations": [{"id": "unify_ireland", "delta": 2}]}},
+        {"text": "拒绝举办", "weight": 2, "effects": {"prestige": -3, "situations": [{"id": "unify_ireland", "delta": -8}]}}
+      ]
+    },
+    {
+      "id": "iu_british_threat",
+      "type": "situation",
+      "name": "英格兰的压力",
+      "trigger": {"situation": "unify_ireland", "weight": 6},
+      "text": "英格兰的密使抵达爱尔兰，试图离间诸部、阻挠统一。",
+      "options": [
+        {"text": "暂避锋芒", "weight": 5, "effects": {"situations": [{"id": "unify_ireland", "delta": 3}]}},
+        {"text": "强硬回应", "weight": 3, "effects": {"prestige": -5, "situations": [{"id": "unify_ireland", "delta": -5}]}}
+      ]
+    },
+    {
+      "id": "cd_glory_hole",
+      "type": "situation",
+      "name": "忏悔室荣耀洞",
+      "trigger": {"situation": "corruption_durham", "weight": 8},
+      "text": "夜深人静，塞西莉亚圣女在忏悔室的隔板后，隔着洞洞与虔诚的信徒幽会。",
+      "options": [
+        {"text": "堕落沉沦", "weight": 6, "effects": {"gold": 10, "prestige": -3, "favor": {"target": "Wales", "delta": 5}, "situations": [{"id": "corruption_durham", "delta": 15}]}},
+        {"text": "克制离开", "weight": 3, "effects": {"situations": [{"id": "corruption_durham", "delta": -5}]}}
+      ]
+    },
+    {
+      "id": "cd_altar_sacrilege",
+      "type": "situation",
+      "name": "祭坛上的渎神",
+      "trigger": {"situation": "corruption_durham", "weight": 8},
+      "text": "圣女将后宫成员带到祭坛，在圣象前上演渎神的仪式。",
+      "options": [
+        {"text": "渎神亵渎", "weight": 6, "effects": {"prestige": -5, "situations": [{"id": "corruption_durham", "delta": 12}]}},
+        {"text": "悬崖勒马", "weight": 3, "effects": {"situations": [{"id": "corruption_durham", "delta": -3}]}}
+      ]
+    },
+    {
+      "id": "cd_high_mass",
+      "type": "situation",
+      "name": "主持大弥撒",
+      "trigger": {"situation": "corruption_durham", "weight": 8},
+      "text": "采邑教堂迎来盛大的弥撒，塞西莉亚圣女需要维持圣洁的表象。",
+      "options": [
+        {"text": "圣洁主持", "weight": 6, "effects": {"gold": -10, "prestige": 8, "situations": [{"id": "corruption_durham", "delta": -15}]}},
+        {"text": "敷衍主持", "weight": 3, "effects": {"prestige": -2, "situations": [{"id": "corruption_durham", "delta": -5}]}}
+      ]
+    },
+    {
+      "id": "cd_pilgrimage",
+      "type": "situation",
+      "name": "朝圣苦修",
+      "trigger": {"situation": "corruption_durham", "weight": 6},
+      "text": "圣女独行朝圣，想用苦修压下内心翻涌的欲望。",
+      "options": [
+        {"text": "虔诚苦修", "weight": 6, "effects": {"gold": -5, "prestige": 4, "situations": [{"id": "corruption_durham", "delta": -10}]}},
+        {"text": "半途而归", "weight": 3, "effects": {"situations": [{"id": "corruption_durham", "delta": 2}]}}
+      ]
+    },
+    {
+      "id": "cd_rumor",
+      "type": "situation",
+      "name": "流言四起",
+      "trigger": {"situation": "corruption_durham", "weight": 6},
+      "text": "关于圣女不洁的流言在达勒姆蔓延开来。",
+      "options": [
+        {"text": "花钱封口", "weight": 5, "effects": {"gold": -15, "situations": [{"id": "corruption_durham", "delta": -5}]}},
+        {"text": "放任不管", "weight": 3, "effects": {"prestige": -5, "situations": [{"id": "corruption_durham", "delta": 8}]}}
       ]
     }
   ]

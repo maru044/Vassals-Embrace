@@ -966,6 +966,19 @@ func _tick_events() -> void:
 				continue
 			if Dice.chance(clampf(float(w) / 100.0, 0.0, 1.0)):
 				_queue_or_auto(e, cid, str(t.get("from", "")))
+	# 局势事件（Master 8/14：玩家拥有局势时按权重随机触发；仅玩家，AI 无局势）
+	for e in _event_list:
+		if str(e.get("type", "")) != "situation":
+			continue
+		var st: Dictionary = e.get("trigger", {})
+		var sid: String = str(st.get("situation", ""))
+		if sid == "" or not player_owns_situation(sid):
+			continue
+		var sw: int = int(st.get("weight", 0))
+		if sw <= 0:
+			continue
+		if Dice.chance(clampf(float(sw) / 100.0, 0.0, 1.0)):
+			_queue_or_auto(e, player_country_id, str(st.get("from", "")))
 	# 玩家有待处理事件 → 通知 UI 逐个显示
 	if not player_event_queue.is_empty():
 		EventBus.event_pending.emit()

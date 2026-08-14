@@ -69,6 +69,68 @@ func _initialize() -> void:
 	var list: Array = gm.call("get_player_situations")
 	out.append("player situations (England) = 1: %s" % (list.size() == 1))
 
+	# ⑦ 局势事件触发（Master 8/14）：type=situation + trigger.situation；玩家拥有才可能入队
+	var ev_cfg := {
+		"hw_france_push": "hundred_years_war",
+		"hw_england_push": "hundred_years_war",
+		"hw_decisive": "hundred_years_war",
+		"iu_tribal_gathering": "unify_ireland",
+		"iu_beltane": "unify_ireland",
+		"iu_british_threat": "unify_ireland",
+		"cd_glory_hole": "corruption_durham",
+		"cd_altar_sacrilege": "corruption_durham",
+		"cd_high_mass": "corruption_durham",
+		"cd_pilgrimage": "corruption_durham",
+		"cd_rumor": "corruption_durham",
+	}
+	var all_ok := true
+	for eid in ev_cfg:
+		var ev: Dictionary = gm.call("get_event", eid)
+		if str(ev.get("type", "")) != "situation":
+			all_ok = false
+		if str(ev.get("trigger", {}).get("situation", "")) != ev_cfg[eid]:
+			all_ok = false
+	out.append("situation events all type=situation + bound correctly: %s" % all_ok)
+	# 拥有者判定驱动的触发范围：England 拥有百年战争（不拥有统一爱尔兰/堕落度）
+	gm.set("player_country_id", "England")
+	out.append("England owns hundred_years_war (triggerable): %s" % gm.call("player_owns_situation", "hundred_years_war"))
+	out.append("England NOT own unify_ireland (not triggerable): %s" % (not gm.call("player_owns_situation", "unify_ireland")))
+	out.append("England NOT own corruption_durham (not triggerable): %s" % (not gm.call("player_owns_situation", "corruption_durham")))
+	gm.set("player_country_id", "Durham")
+	out.append("Durham owns corruption_durham (triggerable): %s" % gm.call("player_owns_situation", "corruption_durham"))
+	# 局势事件落地 → 局势值变化（用 cd 事件选项验证堕落度上升）
+	gm.set("player_country_id", "Durham")
+	gm.set("situation_value", {"corruption_durham": 0})
+	gm.call("_apply_option_effects", "Durham", {"effects": {"situations": [{"id": "corruption_durham", "delta": 15}]}}, "test_cd")
+	out.append("cd_glory_hole delta +15: 0->15: %s" % (gm.call("get_situation_value", "corruption_durham") == 15))
+
+	# ⑧ 随机触发验证（Master 8/14）：玩家拥有局势 → _tick_events 会将其局势事件入玩家队列
+	# 单次 tick 命中概率仅 weight/100（cd_* 各 8%），故循环 60 个月（5 年）累积验证归属正确
+	gm.set("player_country_id", "Durham")
+	gm.set("situation_value", {"corruption_durham": 0, "hundred_years_war": 50, "unify_ireland": 0})
+	var cd_fired := false
+	for i in 60:
+		gm.set("player_event_queue", [])
+		Dice._rng.seed = 42 + i   # 每个月独立种子，序列可复现
+		gm.call("_tick_events")
+		var q: Array = gm.get("player_event_queue")
+		for item in q:
+			if str(item.get("event_id", "")).begins_with("cd_"):
+				cd_fired = true
+	out.append("Durham 60mo tick -> cd event fired: %s" % cd_fired)
+	# 非拥有者不触发：切到 England（不拥有堕落度），循环同样月份，验证不出现 cd_*
+	gm.set("player_country_id", "England")
+	var cd_leaked := false
+	for i in 60:
+		gm.set("player_event_queue", [])
+		Dice._rng.seed = 42 + i
+		gm.call("_tick_events")
+		var q2: Array = gm.get("player_event_queue")
+		for item in q2:
+			if str(item.get("event_id", "")).begins_with("cd_"):
+				cd_leaked = true
+	out.append("England 60mo tick -> NO cd event leaked: %s" % (not cd_leaked))
+
 	root.remove_child(gm)
 	gm.free()
 	out.append("TEST_DONE")
