@@ -10,6 +10,11 @@ const BUILDINGS_PATH := "res://data/buildings.json"     # 建筑表（农场/市
 const MISSIONS_PATH := "res://data/missions.json"       # 任务树（仅玩家生效；数据驱动渲染壳）
 const MISSION_NODE_W := 120                             # 任务节点宽
 const MISSION_NODE_H := 60                              # 任务节点高
+# 各国任务树分组标题（Master 8/14：按国家配置，对齐任务线；无则只显示节点不分组）
+const MISSION_GROUPS := {
+	"Scotland": [["群岛线", Vector2(25, 50)], ["征服与百年战争线", Vector2(285, 50)]],
+	"England": [["内政·繁华", Vector2(25, 50)], ["平叛·战争", Vector2(365, 50)]],
+}
 const SHIELD_DIR := "res://assets/shields/"
 const BUILDING_ORDER := ["farm", "market", "brothel", "fort"]   # 省份面板建筑展示顺序
 const BUILDING_CN := {"farm": "农场", "market": "市场", "brothel": "妓院", "fort": "要塞"}
@@ -1237,11 +1242,8 @@ func _build_vassal_panel() -> void:
 		_left_body.add_child(_panel_label("　（无受保护国）"))
 
 
-## 任务：任务树渲染（引擎⑦ 数据驱动 + 三态染色）。当前只实现苏格兰任务树（plan/任务树.md v3）。
+## 任务：任务树渲染（引擎⑦ 数据驱动 + 三态染色）。按 missions.json 国家数据通用渲染，各国任务树皆可用。
 func _build_mission_panel() -> void:
-	if _player_country_id != "Scotland":
-		_left_body.add_child(_panel_label("该国家暂无任务树"))
-		return
 	var missions := _missions_for_country(_player_country_id)
 	if missions.is_empty():
 		_left_body.add_child(_panel_label("该国家暂无任务树"))
@@ -1257,9 +1259,9 @@ func _build_mission_panel() -> void:
 	canvas.custom_minimum_size = _mission_canvas_size(missions)
 	scroll.add_child(canvas)
 
-	# 分组标题（对齐蓝图的两条线）
-	_add_mission_group_label(canvas, "群岛线", Vector2(25, 50))
-	_add_mission_group_label(canvas, "征服与百年战争线", Vector2(285, 50))
+	# 分组标题（按国家配置，对齐任务线）
+	for g in MISSION_GROUPS.get(_player_country_id, []):
+		_add_mission_group_label(canvas, str(g[0]), g[1])
 
 	# 连线：父节点中心 → 子节点中心（画在按钮下层）
 	var by_id := {}
