@@ -147,6 +147,39 @@ func _initialize() -> void:
 	out.append("⑪ britain_lord done (终局): %s" % bool(res_e.get("ok", false)))
 	out.append("⑪ brothel reward upgraded London 3->4: %s" % (int(gm.get("province_buildings").get("London", {}).get("brothel", 0)) == 4))
 
+	# ⑫ 威尔士任务树（Master 8/14：独立是完成条件而非奖励）
+	gm.set("player_country_id", "Wales")
+	var wal_missions: Array = gm.call("get_player_missions")
+	out.append("⑫ Wales player missions = 7: %s" % (wal_missions.size() == 7))
+	gm.set("province_owner", {"Wales": "Wales", "London": "England"})
+	gm.set("province_buildings", {"Wales": {"market": 2, "brothel": 3, "fort": 1}, "London": {"brothel": 2}})
+	# 独立（无宗主）+ 卡迪夫商埠（建筑）+ 凯尔特同盟（附庸）三条无前置先断言
+	# runtime_liege["Wales"]="" = 显式独立（独立战争胜利后置位；erase 会回退静态 liege=England）
+	gm.set("runtime_liege", {"Wales": ""})
+	out.append("⑫ wales_independence available (independent): %s" % (gm.call("mission_state", "wales_independence") == "available"))
+	out.append("⑫ wales_market_heart available (market≥2): %s" % (gm.call("mission_state", "wales_market_heart") == "available"))
+	gm.set("runtime_liege", {"Wales": "", "Kildare": "Wales"})
+	out.append("⑫ wales_irish_pact available (vassalize_any): %s" % (gm.call("mission_state", "wales_irish_pact") == "available"))
+	# 完成无前置三条
+	gm.call("complete_mission", "wales_independence")
+	gm.call("complete_mission", "wales_market_heart")
+	gm.call("complete_mission", "wales_irish_pact")
+	# 犬牙武装（前置独立，army_limit≥8）：BASE 5+1省×2=7，加 army_cap 修正 +3 → 10
+	gm.call("_add_modifier", "Wales", "army_cap", 3, 12)
+	out.append("⑫ wales_march_army available (army_limit≥8): %s" % (gm.call("mission_state", "wales_march_army") == "available"))
+	# 犬娘欢场（前置卡迪夫，Wales 省妓院≥3）
+	out.append("⑫ wales_brothel_dens available (brothel≥3): %s" % (gm.call("mission_state", "wales_brothel_dens") == "available"))
+	# 向英格兰复仇（前置 独立+凯尔特，附庸英格兰原附庸=约克）
+	gm.set("runtime_liege", {"Wales": "", "Kildare": "Wales", "York": "Wales"})
+	out.append("⑫ wales_revenge available (england_subject): %s" % (gm.call("mission_state", "wales_revenge") == "available"))
+	# 完整链路 → 红龙燎原终局
+	gm.call("complete_mission", "wales_march_army")
+	gm.call("complete_mission", "wales_brothel_dens")
+	gm.call("complete_mission", "wales_revenge")
+	out.append("⑫ wales_britain_fire available: %s" % (gm.call("mission_state", "wales_britain_fire") == "available"))
+	var res_w: Dictionary = gm.call("complete_mission", "wales_britain_fire")
+	out.append("⑫ wales_britain_fire done (终局): %s" % bool(res_w.get("ok", false)))
+
 	root.remove_child(gm)
 	gm.free()
 	out.append("TEST_DONE")

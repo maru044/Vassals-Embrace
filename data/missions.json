@@ -252,6 +252,113 @@
       },
       "reward": "终局：威望 +50",
       "reward_effects": {"prestige": 50}
+    },
+    {
+      "id": "wales_independence",
+      "country": "Wales",
+      "name": "红龙独立",
+      "pos": [110, 110],
+      "parents": [],
+      "desc": "让威尔士挣脱英格兰的缰绳，红龙旗在自由的风中翻卷（独立战争胜利即完成）。",
+      "requirements": {
+        "all": [
+          {"independent": true}
+        ]
+      },
+      "reward": "威望 +15",
+      "reward_effects": {"prestige": 15}
+    },
+    {
+      "id": "wales_march_army",
+      "country": "Wales",
+      "name": "犬牙武装",
+      "pos": [110, 330],
+      "parents": ["wales_independence"],
+      "desc": "集结犬娘军团，把红龙的獠牙磨得锋利。",
+      "requirements": {
+        "all": [
+          {"army_limit": 8}
+        ]
+      },
+      "reward": "军队 +4",
+      "reward_effects": {"army": 4}
+    },
+    {
+      "id": "wales_market_heart",
+      "country": "Wales",
+      "name": "卡迪夫商埠",
+      "pos": [430, 110],
+      "parents": [],
+      "desc": "把卡迪夫经营成凯尔特海岸的商埠明珠。",
+      "requirements": {
+        "all": [
+          {"building_level": {"province": "Wales", "building": "market", "gte": 2}}
+        ]
+      },
+      "reward": "金币 +25",
+      "reward_effects": {"gold": 25}
+    },
+    {
+      "id": "wales_brothel_dens",
+      "country": "Wales",
+      "name": "犬娘欢场",
+      "pos": [430, 330],
+      "parents": ["wales_market_heart"],
+      "desc": "让销金窟的灯火点亮凯尔特的每一处山谷。",
+      "requirements": {
+        "all": [
+          {"building_level": {"province": "Wales", "building": "brothel", "gte": 3}}
+        ]
+      },
+      "reward": "免费升级威尔士妓院",
+      "reward_effects": {"upgrade_building": {"province": "Wales", "building": "brothel"}}
+    },
+    {
+      "id": "wales_irish_pact",
+      "country": "Wales",
+      "name": "凯尔特同盟",
+      "pos": [540, 110],
+      "parents": [],
+      "desc": "与爱尔兰犬娘诸部缔结同盟，红龙不再孤军奋战。",
+      "requirements": {
+        "all": [
+          {"vassalize_any": "ireland_clan"}
+        ]
+      },
+      "reward": "获得爱尔兰诸部附庸 CB（持续 3 年）",
+      "reward_effects": {"grant_cb": {"cb": "vassalize", "scope": "ireland_clan", "duration_months": 36}}
+    },
+    {
+      "id": "wales_revenge",
+      "country": "Wales",
+      "name": "向英格兰复仇",
+      "pos": [540, 330],
+      "parents": ["wales_independence", "wales_irish_pact"],
+      "desc": "夺走英格兰的附庸，让兰开斯特玫瑰为红龙让路。",
+      "requirements": {
+        "all": [
+          {"vassalize_any": "england_subject"}
+        ]
+      },
+      "reward": "获得英格兰附庸 CB（持续 3 年）",
+      "reward_effects": {"grant_cb": {"cb": "vassalize", "scope": "england_subject", "duration_months": 36}}
+    },
+    {
+      "id": "wales_britain_fire",
+      "country": "Wales",
+      "name": "红龙燎原",
+      "pos": [330, 550],
+      "parents": ["wales_march_army", "wales_brothel_dens", "wales_revenge"],
+      "desc": "武装、内政与复仇三线汇合，红龙之火燃遍不列颠。",
+      "requirements": {
+        "all": [
+          {"mission_completed": "wales_march_army"},
+          {"mission_completed": "wales_brothel_dens"},
+          {"mission_completed": "wales_revenge"}
+        ]
+      },
+      "reward": "终局：威望 +50",
+      "reward_effects": {"prestige": 50}
     }
   ]
 }

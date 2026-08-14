@@ -561,8 +561,10 @@ func _apply_play_goal(p: Dictionary, winner_side: String) -> void:
 			p["goal_applied"] = rel_u.get("ok", false)
 		"independence":
 			# 独立：附庸（winner）从宗主（loser）脱离
+			# Master 8/14：置 runtime_liege[winner]="" 而非 erase——erase 会回退到静态 countries.json liege，
+			# 静态宗主仍在（如威尔士初始 liege=England）→ 无法真正独立
 			if _effective_liege(winner) == loser:
-				runtime_liege.erase(winner)
+				runtime_liege[winner] = ""
 				runtime_vassal_type.erase(winner)
 				EventBus.diplomatic_relation_changed.emit(winner, loser, "independence")
 				p["goal_applied"] = true
@@ -973,6 +975,9 @@ func _check_mission_cond(cond: Dictionary) -> bool:
 			if str(province_owner[prov]) == player_country_id:
 				total += int(province_buildings.get(prov, {}).get(bname, 0))
 		return total >= int(bl.get("gte_total", 1))
+	if cond.has("independent"):
+		# 独立（Master 8/14）：玩家国家无宗主（威尔士独立战争胜利后即为任务完成条件，而非奖励）
+		return _effective_liege(player_country_id) == ""
 	return false   # alliance_with / war_goal 等未实现键（老同盟已改事件、进军爱尔兰已改附庸化）→ 不满足
 
 
