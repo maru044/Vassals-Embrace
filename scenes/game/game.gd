@@ -675,14 +675,17 @@ const INK := Color(0.36, 0.26, 0.14)         # 羊皮纸上墨色
 const PANEL_BG := Color(0.87, 0.76, 0.54, 0.92)  # 羊皮纸面板底
 const UI_ICON_DIR := "res://assets/ui/"
 const SITUATION_BAR_DIR := "res://assets/ui/situation_bars/"
-# 局势进度条画框（Master 8/14 定稿）：画框图保持原比例 8.69:1（600×69，由 2928×337 缩放而来），
-# 内框（进度轨道）原 2192×158 → 缩放后 449×32，在画框内偏移 (76,18)。进度条=内框尺寸，画框盖在其上。
-const SITUATION_FRAME_W := 600
-const SITUATION_FRAME_H := 69
-const SITUATION_TRACK_W := 449
-const SITUATION_TRACK_H := 32
-const SITUATION_TRACK_OFF_X := 76
-const SITUATION_TRACK_OFF_Y := 18
+# 局势进度条画框（Master 8/14）：每张画框图统一缩放到宽 600（保持各自原比例），
+# 内框（进度轨道）与偏移按局势 id 查表——源图统一 2928 宽，内框参考：
+#   百年战争 2192x158 → frame 600x69  track 449x32  off(76,18)
+#   统一爱尔兰 2238x151 → frame 600x72  track 459x31  off(71,21)
+#   圣女堕落度 2272x163 → frame 600x72  track 466x33  off(67,19)
+const SITUATION_BAR_CFG := {
+	"hundred_years_war": {"fw": 600, "fh": 69, "tw": 449, "th": 32, "ox": 76, "oy": 18},
+	"unify_ireland":     {"fw": 600, "fh": 72, "tw": 459, "th": 31, "ox": 71, "oy": 21},
+	"corruption_durham": {"fw": 600, "fh": 72, "tw": 466, "th": 33, "ox": 67, "oy": 19},
+}
+const SITUATION_FRAME_W := 600   # 兼容：默认画框宽（未配置局势的兜底宽度）
 const PORTRAIT_DIR := "res://assets/portraits/"   # 立绘资产库（rulers/<id>.png 384×720、harem/*.png 384×720）
 const PARALLAX_SHADER_PATH := "res://shaders/chat_ui_parallax.gdshader"   # 深度图视差 shader（聊天立绘同款）
 const PAPER_TEX_PATH := "res://assets/ui/paper_texture.jpg"   # 纸张材质（Texturelabs 纸面，弱纸纹层用）
@@ -1425,9 +1428,9 @@ func _build_situation_panel() -> void:
 		var stage_name: String = str(stage_names[stage]) if stage < stage_names.size() else "%s" % (stage + 1)
 		_left_body.add_child(_panel_label("◆ %s（%s）" % [str(s.get("name", sid)), stage_name]))
 		_left_body.add_child(_situation_bar(sid, val))
-		# 局势两端标签：两个 label 左右对齐，宽度与进度条画框一致（600），贴合两端（Master 8/14）
+		# 局势两端标签：两个 label 左右对齐，宽度与进度条画框一致，贴合两端（Master 8/14）
 		var ends := HBoxContainer.new()
-		ends.custom_minimum_size = Vector2(SITUATION_FRAME_W, 0)
+		ends.custom_minimum_size = Vector2(_situation_frame_w(sid), 0)
 		ends.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		ends.add_child(_panel_label(str(s.get("value_0", "0"))))
 		var ends_spacer := Control.new()
@@ -1444,31 +1447,50 @@ func _build_situation_panel() -> void:
 ## 比例铁律：画框图保持原比例（8.69:1，600×69）一点不变；wrap 高 = 画框全高（69），画框从 (0,0) 开始
 ## 不向上溢出 → 不盖住上方标题行。填充色与数值在内框区域（偏移 TRACK_OFF，尺寸 TRACK）内。
 ## 固定尺寸（SHRINK_CENTER，不左右塞满），数值留在进度条内框居中。
+## 取局势画框配置（查表；未配置局势用默认 600×69 / 449×32 / off 76,18 兜底）
+func _situation_cfg(situation_id: String) -> Dictionary:
+	var c: Dictionary = SITUATION_BAR_CFG.get(situation_id, {})
+	return {
+		"fw": int(c.get("fw", 600)), "fh": int(c.get("fh", 69)),
+		"tw": int(c.get("tw", 449)), "th": int(c.get("th", 32)),
+		"ox": int(c.get("ox", 76)), "oy": int(c.get("oy", 18)),
+	}
+
+
+func _situation_frame_w(situation_id: String) -> int:
+	return int(_situation_cfg(situation_id)["fw"])
+
+
 func _situation_bar(situation_id: String, value: int) -> Control:
+	var cfg := _situation_cfg(situation_id)
+	var fw: int = int(cfg["fw"]); var fh: int = int(cfg["fh"])
+	var tw: int = int(cfg["tw"]); var th: int = int(cfg["th"])
+	var ox: int = int(cfg["ox"]); var oy: int = int(cfg["oy"])
+	var pct := clampf(float(value) / 100.0, 0.0, 1.0)
 	var wrap := Control.new()
-	wrap.custom_minimum_size = Vector2(SITUATION_FRAME_W, SITUATION_FRAME_H)   # 容纳完整画框 600×69，不被拉伸
+	wrap.custom_minimum_size = Vector2(fw, fh)   # 容纳完整画框，不被拉伸
 	wrap.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	# 轨道暗底（未填充区域底色，让渐变填充更突出，web 进度条 track 思维）
 	var track := ColorRect.new()
 	track.color = Color(0.1, 0.07, 0.04, 0.65)
-	track.position = Vector2(SITUATION_TRACK_OFF_X, SITUATION_TRACK_OFF_Y)
-	track.size = Vector2(SITUATION_TRACK_W, SITUATION_TRACK_H)
+	track.position = Vector2(ox, oy)
+	track.size = Vector2(tw, th)
 	wrap.add_child(track)
 	# 进度填充（内框区域，按 value 比例）：暖金渐变（深琥珀→亮金→暖白高光），金属锦缎质感，非纯色（Master 8/14）
 	var fill := TextureRect.new()
 	fill.texture = _situation_fill_texture()
 	fill.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	fill.stretch_mode = TextureRect.STRETCH_SCALE
-	fill.position = Vector2(SITUATION_TRACK_OFF_X, SITUATION_TRACK_OFF_Y)
-	fill.size = Vector2(SITUATION_TRACK_W * clampf(float(value) / 100.0, 0.0, 1.0), SITUATION_TRACK_H)
+	fill.position = Vector2(ox, oy)
+	fill.size = Vector2(tw * pct, th)
 	wrap.add_child(fill)
 	# 顶部高光细条（增强立体感，web 渐变思维）
 	var gloss := ColorRect.new()
 	gloss.color = Color(1.0, 1.0, 1.0, 0.18)
-	gloss.position = Vector2(SITUATION_TRACK_OFF_X, SITUATION_TRACK_OFF_Y)
-	gloss.size = Vector2(SITUATION_TRACK_W * clampf(float(value) / 100.0, 0.0, 1.0), 3)
+	gloss.position = Vector2(ox, oy)
+	gloss.size = Vector2(tw * pct, 3)
 	wrap.add_child(gloss)
-	# 文艺复兴画框图（600×69 原比例，从 (0,0) 开始；端帽/边框在 wrap 内完整显示）
+	# 文艺复兴画框图（宽 600 原比例，从 (0,0) 开始；端帽/边框在 wrap 内完整显示）
 	var frame_path := SITUATION_BAR_DIR + "%s.png" % situation_id
 	if ResourceLoader.exists(frame_path):
 		var frame := TextureRect.new()
@@ -1477,7 +1499,7 @@ func _situation_bar(situation_id: String, value: int) -> Control:
 		frame.stretch_mode = TextureRect.STRETCH_SCALE   # 纹理本身已是最终尺寸，直接 1:1
 		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		frame.position = Vector2.ZERO
-		frame.size = Vector2(SITUATION_FRAME_W, SITUATION_FRAME_H)
+		frame.size = Vector2(fw, fh)
 		wrap.add_child(frame)
 	# 数值 label（内框区域居中，不重叠画框边框）
 	var lbl := Label.new()
@@ -1486,8 +1508,8 @@ func _situation_bar(situation_id: String, value: int) -> Control:
 	lbl.add_theme_color_override("font_color", Color(0.1, 0.08, 0.05))
 	lbl.add_theme_constant_override("outline_size", 3)
 	lbl.add_theme_color_override("font_outline_color", Color(1, 1, 1, 0.75))
-	lbl.position = Vector2(SITUATION_TRACK_OFF_X, SITUATION_TRACK_OFF_Y)
-	lbl.size = Vector2(SITUATION_TRACK_W, SITUATION_TRACK_H)
+	lbl.position = Vector2(ox, oy)
+	lbl.size = Vector2(tw, th)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	wrap.add_child(lbl)
