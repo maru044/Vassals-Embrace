@@ -7,7 +7,7 @@ const TOOLS: Array = [
 		"type": "function",
 		"function": {
 			"name": "modify_favor",
-			"description": "调整玩家对某国的好感度",
+			"description": "调整玩家与该国之间的好感度（0~100，玩家侧记录）",
 			"parameters": {
 				"type": "object",
 				"properties": {

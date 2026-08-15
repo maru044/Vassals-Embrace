@@ -793,7 +793,7 @@ func _refresh_left_panel() -> void:
 	_build_panel_content(_active_panel)
 
 
-## 好感度色阶（玩家对某国）：80-100 绿 / 60-80 黄绿 / 40-60 黄 / 20-40 橙 / 0-20 红
+## 好感度色阶（玩家与某国之间的好感）：80-100 绿 / 60-80 黄绿 / 40-60 黄 / 20-40 橙 / 0-20 红
 func _favor_color(v: float) -> Color:
 	if v >= 80.0:
 		return Color(0.20, 0.75, 0.25)
@@ -1243,7 +1243,7 @@ func _build_diplomacy_panel() -> void:
 		var cid: String = c.get("id", "")
 		if cid == _player_country_id:
 			continue
-		# 每行：选择按钮 + 好感度（玩家对该国，带色阶）
+		# 每行：选择按钮 + 好感度（玩家与该国之间，带色阶）
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
 		list.add_child(row)
@@ -1254,7 +1254,7 @@ func _build_diplomacy_panel() -> void:
 		var fl := _panel_label("好感 %d" % int(fv))
 		fl.add_theme_color_override("font_color", _favor_color(fv))
 		var favor_tip := _kw_tip("好感度")
-		fl.tooltip_text = "你对「%s」的好感度（0~100）" % c.get("name", cid) + ("\n" + favor_tip if favor_tip != "" else "")
+		fl.tooltip_text = "你与「%s」的好感度（0~100）" % c.get("name", cid) + ("\n" + favor_tip if favor_tip != "" else "")
 		fl.mouse_filter = Control.MOUSE_FILTER_STOP
 		row.add_child(fl)
 

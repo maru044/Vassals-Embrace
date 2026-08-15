@@ -9,7 +9,7 @@
 当前对话对象：{target_name}
 玩家国家：{player_name}
 当前场合：{scene_context}
-玩家对 {target_name} 的好感：{target_favor}
+你与 {target_name} 的好感：{target_favor}
 当前世界动态：
 {world_state}
 

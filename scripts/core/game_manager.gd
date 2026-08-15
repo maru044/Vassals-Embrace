@@ -52,7 +52,7 @@ var loaded_from_save := false   # 引擎⑨：主菜单读档后跳转 game.tscn
 # ---- 引擎① 运行态数据（string 国家 id 索引）----
 var country_gold := {}          # id -> float（金币）
 var country_prestige := {}      # id -> float（威望）
-var player_favor := {}          # target_id -> float（玩家对各国好感度；交互获取引擎⑨）
+var player_favor := {}          # target_id -> float（玩家与该国之间的好感度，玩家侧记录；交互获取引擎⑨）
 var loans := {}                 # id -> float（贷款余额，T4 完善）
 var army_count := {}            # id -> int（军队队数，引擎②完善）
 var recruited_this_month := {}  # id -> bool（本月是否已招募；每月限 1 队，月末重置）
@@ -274,7 +274,7 @@ func recruit_army() -> Dictionary:
 	return {"ok": true, "army": cur + 1, "cap": cap, "gold": country_gold[pid]}
 
 
-## 玩家对某国初始好感：默认 20；直接附庸/宗主 +40（60）；特例覆盖（英格兰视角：威尔士 10 / 曼岛 80）
+## 玩家与某国初始好感（两国之间的好感度）：默认 20；直接附庸/宗主 +40（60）；特例覆盖（英格兰视角：威尔士 10 / 曼岛 80）
 func _initial_favor(cid: String) -> float:
 	var base := 20.0
 	if _country_liege(cid) == player_country_id:
@@ -287,7 +287,7 @@ func _initial_favor(cid: String) -> float:
 	return base
 
 
-## 玩家对某国好感增减（LLM modify_favor 工具落地；clamp 0-100，即时生效并广播刷新）
+## 玩家与某国好感增减（两国之间的好感度；LLM modify_favor 工具落地；clamp 0-100，即时生效并广播刷新）
 func change_favor(target_id: String, delta: float) -> void:
 	if not player_favor.has(target_id):
 		player_favor[target_id] = 0.0
@@ -313,7 +313,7 @@ func _settle_month() -> void:
 		country_gold[cid] += income - maint - interest
 		# 威望衰减 1%
 		country_prestige[cid] = country_prestige[cid] * PRESTIGE_DECAY
-	# 玩家好感度（玩家 → 各国）衰减 5%
+	# 玩家与各国之间的好感度（玩家侧记录）衰减 5%
 	for target in player_favor:
 		player_favor[target] = player_favor[target] * FAVOR_DECAY
 	# 招募次数每月重置（每月限 1 队）
@@ -778,7 +778,7 @@ func _is_vassal_of(cid: String, liege: String) -> bool:
 	return _effective_liege(cid) == liege and _effective_vassal_type(cid) != "protectorate"
 
 
-## 玩家对某国是否可发起要求（好感度 >80，仅玩家侧判定）
+## 玩家与某国好感足够时是否可发起要求（两国之间的好感度 >80，仅玩家侧判定）
 func can_require_favor(target: String) -> bool:
 	return player_favor.get(target, 0.0) > REQUIRE_FAVOR_MIN
 
