@@ -70,6 +70,32 @@ func _initialize() -> void:
 	gm.set("runtime_liege", {})
 	gm.set("runtime_vassal_type", {})
 
+	# ④c 威尔士起义退缩落地（Master 8/15 修复：welsh_revolt 原落入 _ 分支不落地 → 现在双条款生效）
+	#     威尔士（附庸）发起 welsh_revolt → 宗主英格兰退缩 → 威尔士独立 + 英格兰被联统（入威尔士后宫）
+	gm.set("plays", [])
+	gm.set("unions", [])
+	gm.set("_next_union_id", 1)
+	gm.set("runtime_union", {})
+	gm.set("runtime_liege", {"Wales": "England", "England": ""})
+	gm.set("runtime_vassal_type", {"Wales": "autonomous", "England": ""})
+	gm.set("_next_play_id", 13)
+	gm.call("start_play", "Wales", "England", "威尔士起义", "welsh_revolt")
+	var bd3: Dictionary = gm.call("back_down", 13, "B")   # 宗主英格兰退缩 → 威尔士胜
+	out.append("welsh_revolt backdown ok winner=A: %s" % (bd3.get("ok", false) and str(bd3.get("winner_side", "")) == "A"))
+	out.append("welsh_revolt backdown -> Wales liege cleared: %s" % (
+		gm.get("runtime_liege").get("Wales", "") == ""))
+	var wu: Array = gm.get("unions")
+	var wales_lead := false
+	if wu.size() > 0:
+		wales_lead = str(wu[0].get("lead", "")) == "Wales" and (wu[0].get("members", []) as Array).has("England")
+	out.append("welsh_revolt backdown -> union lead=Wales member=England: %s" % wales_lead)
+	out.append("welsh_revolt backdown -> runtime_union England lead Wales: %s" % (
+		gm.get("runtime_union").get("England", "") == "Wales"))
+	gm.set("runtime_liege", {})
+	gm.set("runtime_vassal_type", {})
+	gm.set("unions", [])
+	gm.set("runtime_union", {})
+
 	# ⑤ 到期开战：新博弈 → 两次 tick → 战争 + 站队国入战
 	gm.set("plays", [])
 	gm.set("wars", [])

@@ -631,7 +631,8 @@ func back_down(play_id: int, side: String) -> Dictionary:
 
 ## 退缩后目标落地（Master 8/14 修正：V3 规则，一方退缩自动实现对方战争目标）
 ## 按 CB 类型落地：vassalize→附庸 / protectorate→受保护国 / personal_union→联统 /
-## independence→附庸独立（解除宗主）；吞并/夺至高王/未知仅记录 winner_goal（数据就绪后补）
+## independence→附庸独立（解除宗主）/ welsh_revolt→独立+联统英格兰（威尔士起义双条款）/
+## percy_rebellion→联统英格兰（珀西叛乱）；吞并/夺至高王/未知仅记录 winner_goal（数据就绪后补）
 func _apply_play_goal(p: Dictionary, winner_side: String) -> void:
 	p["winner_goal"] = p["init_goal"] if winner_side == "A" else p["targ_goal"]
 	var winner: String = p["initiator"] if winner_side == "A" else p["target"]
@@ -655,6 +656,29 @@ func _apply_play_goal(p: Dictionary, winner_side: String) -> void:
 				runtime_vassal_type.erase(winner)
 				EventBus.diplomatic_relation_changed.emit(winner, loser, "independence")
 				p["goal_applied"] = true
+		"welsh_revolt":
+			# 威尔士起义（Master 8/15 修复：原落入 _ 分支不落地，退缩后威尔士不独立/不联统）。
+			# 双条款：① 威尔士独立（解除宗主英格兰）② 英格兰公主被纳入威尔士后宫（联合统治，威尔士主导）
+			# 仅威尔士胜出（winner=发起方）时生效；英格兰镇压成功则无条款
+			if winner == p["initiator"]:
+				# ① 独立：威尔士从宗主英格兰脱离
+				if _effective_liege(winner) == loser:
+					runtime_liege[winner] = ""
+					runtime_vassal_type.erase(winner)
+					EventBus.diplomatic_relation_changed.emit(winner, loser, "independence")
+				# ② 联合统治：英格兰被威尔士联统（英格兰公主入威尔士后宫）
+				var rel_w: Dictionary = establish_requirement(winner, loser, "personal_union")
+				p["goal_applied"] = rel_w.get("ok", false)
+			else:
+				p["goal_applied"] = false
+		"percy_rebellion":
+			# 珀西叛乱（Master 8/15 修复：原落入 _ 分支不落地）：诺森伯兰胜出 → 联统英格兰公主
+			# （Game_Mechanics：获胜可联合统治英格兰公主，或转移联合统治权——此处简化为建立联统）
+			if winner == p["initiator"]:
+				var rel_p: Dictionary = establish_requirement(winner, loser, "personal_union")
+				p["goal_applied"] = rel_p.get("ok", false)
+			else:
+				p["goal_applied"] = false
 		_:
 			p["goal_applied"] = false   # 吞并/夺取至高王：记录 winner_goal，数据就绪后补落地
 
