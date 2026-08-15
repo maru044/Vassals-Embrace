@@ -153,11 +153,20 @@ func show_keyword_tooltip(meta: Variant, at_global_pos: Vector2 = Vector2.INF) -
 	popup.reset_size()
 	popup.popup()
 	# 定位到鼠标附近（+16 偏移避免遮挡指针；超右/下边缘回折）
+	# ⚠️ PopupPanel 无 get_global_mouse_position（非 CanvasItem 坐标方法）→ 用 viewport 全局坐标
 	var pos: Vector2 = at_global_pos
 	if pos == Vector2.INF:
-		pos = _popup.get_global_mouse_position()
+		var vp_root := _popup.get_viewport()
+		if vp_root:
+			pos = vp_root.get_mouse_position()
+		else:
+			pos = Vector2(320, 240)
 	pos += Vector2(18, 18)
-	var vp: Vector2 = _popup.get_viewport_rect().size
+	# ⚠️ PopupPanel 是 Window（非 Control），无 get_viewport_rect() → 从 viewport 取可见区域尺寸
+	var vp: Vector2 = Vector2(1920, 1080)
+	var vp_root := _popup.get_viewport()
+	if vp_root:
+		vp = vp_root.get_visible_rect().size
 	var pop_size: Vector2 = popup.size
 	if pos.x + pop_size.x > vp.x:
 		pos.x = vp.x - pop_size.x - 8
