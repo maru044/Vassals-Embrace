@@ -153,20 +153,23 @@ func show_keyword_tooltip(meta: Variant, at_global_pos: Vector2 = Vector2.INF) -
 	popup.reset_size()
 	popup.popup()
 	# 定位到鼠标附近（+16 偏移避免遮挡指针；超右/下边缘回折）
-	# ⚠️ PopupPanel 无 get_global_mouse_position（非 CanvasItem 坐标方法）→ 用 viewport 全局坐标
+	# ⚠️ 关键（Master 8/15 修复）：PopupPanel 是 Window（嵌入子窗口），_popup.get_viewport()
+	# 返回的是它自己的子窗口 viewport，其 get_mouse_position() 不可靠（会落在左上角附近）。
+	# 必须用本单例自身（挂在 root 下）的主窗口 viewport 取鼠标位置——与女仆别墅用 ChatUI 的
+	# get_viewport() 同理。popup.position 相对主窗口内容区，与主窗口 viewport 鼠标坐标一致。
 	var pos: Vector2 = at_global_pos
 	if pos == Vector2.INF:
-		var vp_root := _popup.get_viewport()
-		if vp_root:
-			pos = vp_root.get_mouse_position()
+		var main_vp := get_viewport()
+		if main_vp:
+			pos = main_vp.get_mouse_position()
 		else:
 			pos = Vector2(320, 240)
 	pos += Vector2(18, 18)
-	# ⚠️ PopupPanel 是 Window（非 Control），无 get_viewport_rect() → 从 viewport 取可见区域尺寸
+	# 主窗口可见区域尺寸（防弹窗超出右/下边缘）
 	var vp: Vector2 = Vector2(1920, 1080)
-	var vp_root := _popup.get_viewport()
-	if vp_root:
-		vp = vp_root.get_visible_rect().size
+	var main_vp2 := get_viewport()
+	if main_vp2:
+		vp = main_vp2.get_visible_rect().size
 	var pop_size: Vector2 = popup.size
 	if pos.x + pop_size.x > vp.x:
 		pos.x = vp.x - pop_size.x - 8
