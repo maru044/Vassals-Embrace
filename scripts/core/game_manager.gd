@@ -47,6 +47,7 @@ var player_country_id := ""     # 玩家国家（string id，与 game.gd / count
 var month: int = 9              # 开局 1400.9
 var year: int = 1400
 var is_running: bool = false
+var loaded_from_save := false   # 引擎⑨：主菜单读档后跳转 game.tscn 时，game.gd 跳过选国直接进入游戏
 
 # ---- 引擎① 运行态数据（string 国家 id 索引）----
 var country_gold := {}          # id -> float（金币）
@@ -86,8 +87,14 @@ const REQUIRE_FAVOR_MIN := 80.0      # 要求附庸/受保护国/联合统治需
 var _cb_list := []                   # cb.json（懒加载）
 var cb_timers := {}                  # "actor:target:cb_id" -> 剩余月数（1年CB）
 var runtime_liege := {}              # target -> liege（要求X同意后运行时附庸关系；完整机制引擎⑤）
-var runtime_union := {}              # target -> lead（要求联合统治同意后运行时联统；引擎⑧完整）
+var runtime_union := {}              # target -> lead（兼容映射，引擎⑧ 由 unions 重建）
 var runtime_vassal_type := {}        # target -> vassal_type（要求X同意后运行时附庸类型：feudal/protectorate）
+# ---- 引擎⑧ 联合统治（Master 8/14：多成员国际组织，unions 唯一事实源）----
+var unions := []                     # 每项 {id, lead, members:[...], since}（1 主导国 + N 被联统国，一国仅一组织）
+var _next_union_id := 1
+# ---- 引擎⑧ 海盗联盟（Master 8/14：CD 4月 + 成功率劫掠；简化分赃各自保留）----
+var raid_cooldown := {}              # cid -> 剩余月数（劫掠 CD）
+var raid_merit := {}                 # cid -> 功勋值（成功劫掠次数，轻量参考/LLM 演绎）
 # ---- 引擎⑥ 事件 + 临时修正（Master 8/13：历史/脉冲/随机三类 + [Root.*] 变量 + effects/modifiers）----
 const EVENTS_PATH := "res://data/events.json"
 var _event_list := []                  # events.json（懒加载）
@@ -121,6 +128,7 @@ func start_new_game(country_id: String) -> void:
 	month = 9
 	year = 1400
 	is_running = true
+	loaded_from_save = false   # 引擎⑨：新游戏不跳过选国
 	_load_countries()
 	# 初始化所有国家运行态数据（Master 2026-08-11 定：初始金币 20 / 威望 50）
 	country_gold.clear()
@@ -149,6 +157,10 @@ func start_new_game(country_id: String) -> void:
 	runtime_liege.clear()        # 引擎④-CB：新档无运行时附庸关系
 	runtime_union.clear()        # 引擎④-CB：新档无运行时联统关系
 	runtime_vassal_type.clear()  # 引擎④-CB：新档无运行时附庸类型
+	unions.clear()               # 引擎⑧：新档无联合统治
+	_next_union_id = 1
+	raid_cooldown.clear()        # 引擎⑧：新档无劫掠冷却
+	raid_merit.clear()           # 引擎⑧：新档无劫掠功勋
 	situation_value.clear()      # 引擎⑥-局势：新档按 initial_stage 重置
 	high_king_id = "Tyrone"      # 引擎⑥-局势：初始爱尔兰至高王 = 蒂龙（Master 8/14）
 	_init_situations()           # 引擎⑥-局势：新档初始化所有局势值
@@ -322,6 +334,8 @@ func _settle_month() -> void:
 	_tick_plays()
 	# 引擎④-CB：1 年要求 CB 计时 -1
 	_tick_cbs()
+	# 引擎⑧-海盗联盟：劫掠 CD 倒计时
+	_tick_raid_cooldowns()
 	# 引擎⑥-事件触发已移至「回合开始」（_on_end_month 内 _advance_time 后 + start_new_game 开局），此处不再触发
 	# 引擎④-T5：AI 军队状态机决策（停战回 FREE / 首都沦陷解围 / 友军激战增援 / 默认围敌方首都，ZoC 阻挡先攻要塞）
 	_tick_ai_armies()
@@ -367,9 +381,14 @@ func _ai_economy() -> void:
 
 # ===== 引擎③ 战斗结算器（源 引擎数值备忘.md §六，无减员）=====
 
-## 总士气 = 基础士气 × 部队总数 ×（1 + 临时 morale 修正，引擎⑥）
+## 威望数值加成（Master 8/14：每 100 威望 +10% 士气/收入；源 游戏规则.md §六 数值加成；负威望同样减成）
+func prestige_bonus(cid: String) -> float:
+	return float(country_prestige.get(cid, 0.0)) / 100.0 * 0.1
+
+
+## 总士气 = 基础士气 × 部队总数 ×（1 + 临时 morale 修正 + 威望加成，引擎⑥ / Master 8/14）
 func get_total_morale(cid: String) -> float:
-	return BASE_MORALE * float(army_count.get(cid, 0)) * (1.0 + country_event_modifier(cid, "morale"))
+	return BASE_MORALE * float(army_count.get(cid, 0)) * (1.0 + country_event_modifier(cid, "morale") + prestige_bonus(cid))
 
 
 ## 当前士气（clamp 到 0..总士气；上限随军队数变化）
@@ -881,6 +900,13 @@ func get_situation_stage(situation_id: String) -> int:
 func change_situation(situation_id: String, delta: float) -> void:
 	if not player_owns_situation(situation_id):
 		return   # AI 无局势；玩家未拥有不生效
+	var v := clampi(get_situation_value(situation_id) + int(delta), 0, 100)
+	situation_value[situation_id] = v
+	EventBus.situation_changed.emit(situation_id, v)
+
+
+## 组织级局势变更（绕过拥有者检查，Master 8/14：爱尔兰凝聚力归至高王国，无论谁任至高王都生效）
+func _change_situation_value(situation_id: String, delta: float) -> void:
 	var v := clampi(get_situation_value(situation_id) + int(delta), 0, 100)
 	situation_value[situation_id] = v
 	EventBus.situation_changed.emit(situation_id, v)
@@ -1442,11 +1468,359 @@ func establish_requirement(actor: String, target: String, cb_id: String) -> Dict
 			EventBus.diplomatic_relation_changed.emit(actor, target, rel)
 			return {"ok": true, "relation": rel, "liege": actor}
 		"personal_union":
-			# 联合统治不是国家从属（不参与宗主树），无需防环
-			runtime_union[target] = actor
-			EventBus.diplomatic_relation_changed.emit(actor, target, "union")
-			return {"ok": true, "relation": "union", "lead": actor}
+			# 联合统治不是国家从属（不参与宗主树），无需防环；走引擎⑧ 多成员组织
+			return _create_union(actor, target)
 	return {"ok": false, "error": "未知关系类型"}
+
+
+# ===== 引擎⑧ 联合统治（Personal Union，Master 8/14：多成员国际组织）=====
+## 数据模型：unions 唯一事实源（1 主导国 + N 被联统国，一国仅在一个组织）
+## 生命周期：建立（CB/要求同意/事件）→ 主导权转移（LLM 聊天要求成为攻，攻受互换）
+##           → 战争夺取（移除+加入另一组织，NTR）→ 吞并/灭亡自动清理
+## runtime_union 保留为兼容映射（member -> lead），由 _sync_runtime_union 重建
+
+## 查询：cid 所在联合统治组织（无则 {}）
+func union_of(cid: String) -> Dictionary:
+	for u in unions:
+		if str(u["lead"]) == cid or u["members"].has(cid):
+			return u
+	return {}
+
+
+## cid 是否在任一联合统治
+func in_union(cid: String) -> bool:
+	return not union_of(cid).is_empty()
+
+
+## cid 是否为主导国
+func is_union_lead(cid: String) -> bool:
+	var u := union_of(cid)
+	return not u.is_empty() and str(u["lead"]) == cid
+
+
+## cid 是否为被联统国
+func is_union_member(cid: String) -> bool:
+	var u := union_of(cid)
+	return not u.is_empty() and str(u["lead"]) != cid
+
+
+## 该国所在联合统治的成员列表（含主导；无则 []）
+func get_union_members(cid: String) -> Array:
+	var u := union_of(cid)
+	if u.is_empty():
+		return []
+	var out: Array = [str(u["lead"])]
+	for m in u["members"]:
+		out.append(str(m))
+	return out
+
+
+## 建立联合统治：lead 主导 + member 被联统（一国仅一个组织；member 原在其它组织先移除）
+func _create_union(lead: String, member: String) -> Dictionary:
+	if lead == "" or member == "" or lead == member:
+		return {"ok": false, "error": "无效的国家"}
+	if in_union(lead):
+		return {"ok": false, "error": "主导国已处于其它联合统治"}
+	if in_union(member):
+		_remove_from_union(member)
+	unions.append({"id": _next_union_id, "lead": lead, "members": [member], "since": "%d.%d" % [year, month]})
+	var uid := _next_union_id
+	_next_union_id += 1
+	_sync_runtime_union()
+	EventBus.union_changed.emit(lead, member, true)
+	EventBus.diplomatic_relation_changed.emit(lead, member, "union")
+	# 引擎⑧：部落间联姻结亲 → 爱尔兰凝聚力 +5
+	_on_tribal_union_formed(unions[-1])
+	return {"ok": true, "union_id": uid, "relation": "union", "lead": lead}
+
+
+## 把 cid 从所在组织移除：被联统国→移除成员；主导国→首名成员继任主导（原主导离场）；空组织解散
+func _remove_from_union(cid: String) -> void:
+	var changed := false
+	for i in unions.size():
+		var u: Dictionary = unions[i]
+		if str(u["lead"]) == cid:
+			changed = true
+			if u["members"].is_empty():
+				unions.remove_at(i)
+			else:
+				var successor := str(u["members"][0])
+				u["lead"] = successor
+				u["members"].remove_at(0)
+				EventBus.diplomatic_relation_changed.emit(cid, successor, "union_break")
+			break
+		if u["members"].has(cid):
+			changed = true
+			u["members"].erase(cid)
+			EventBus.diplomatic_relation_changed.emit(str(u["lead"]), cid, "union_break")
+			if u["members"].is_empty():
+				unions.remove_at(i)
+			break
+	if changed:
+		_sync_runtime_union()
+
+
+## 主导权转移（Master 8/14：被联统国 LLM 聊天要求成为攻）：claimant 变主导，原主导变被联统国（攻受互换）
+func transfer_union_lead(claimant: String) -> Dictionary:
+	var u := union_of(claimant)
+	if u.is_empty():
+		return {"ok": false, "error": "该国不在任何联合统治中"}
+	if str(u["lead"]) == claimant:
+		return {"ok": false, "error": "该国已是主导国"}
+	var old_lead := str(u["lead"])
+	u["members"].erase(claimant)
+	u["members"].append(old_lead)
+	u["lead"] = claimant
+	_sync_runtime_union()
+	EventBus.organization_changed.emit(int(u["id"]))
+	EventBus.diplomatic_relation_changed.emit(claimant, old_lead, "union_lead_change")
+	return {"ok": true, "union_id": int(u["id"]), "lead": claimant, "old_lead": old_lead}
+
+
+## 战争夺取 / NTR（Master 8/14：目标国从当前组织移除，加入 new_lead 的组织；无则新建）
+func seize_union(target: String, new_lead: String) -> Dictionary:
+	if target == new_lead:
+		return {"ok": false, "error": "不能夺取到自己"}
+	if in_union(target):
+		_remove_from_union(target)
+	var u := union_of(new_lead)
+	if u.is_empty():
+		return _create_union(new_lead, target)
+	if str(u["lead"]) == new_lead:
+		u["members"].append(target)
+		_sync_runtime_union()
+		EventBus.union_changed.emit(new_lead, target, true)
+		# 引擎⑧：部落间联姻结亲 → 爱尔兰凝聚力 +5
+		_on_tribal_union_formed(u)
+		return {"ok": true, "union_id": int(u["id"]), "lead": new_lead}
+	return {"ok": false, "error": "新主导国必须独立或为其组织主导国"}
+
+
+## 吞并清理（被吞并国离场；主导被吞 → 移交或解散）
+func _handle_annexed_union(target: String) -> void:
+	_remove_from_union(target)
+
+
+## 兼容映射重建（member -> lead，供旧逻辑 / 测试读取；unions 才是唯一事实源）
+func _sync_runtime_union() -> void:
+	runtime_union.clear()
+	for u in unions:
+		for m in u["members"]:
+			runtime_union[str(m)] = str(u["lead"])
+
+
+## 调试：注入演示联合统治（引擎⑧ 面板验证用；玩家主导 + 两个被联统国）
+## 正式游戏不调用；仅在选国界面勾选「🔧 演示联合统治」或带 --demo-union 参数时触发
+func debug_inject_demo_union(pid: String) -> Dictionary:
+	var members: Array = []
+	for c in _country_list:
+		var cid: String = str(c.get("id", ""))
+		if cid != pid and cid != "":
+			members.append(cid)
+			if members.size() >= 2:
+				break
+	if members.is_empty():
+		return {"ok": false, "error": "无可用成员"}
+	var r1 := _create_union(pid, str(members[0]))
+	if not r1.get("ok", false):
+		return r1
+	if members.size() > 1:
+		seize_union(str(members[1]), pid)
+	return {"ok": true, "members": members, "union": union_of(pid)}
+
+
+# ===== 引擎⑧ 爱尔兰至高王国（Master 8/14：凝聚力 = 统一爱尔兰局势值 unify_ireland）=====
+## 组织：16 部犬娘（government=tribal）+ 1 至高王（high_king_id）。凝聚力直接复用
+## situation_value["unify_ireland"]（0~100），拥有者=当前至高王（scope_high_king）。
+## 获取：事件（iu_* 已改局势）/ 部落间联姻（_on_tribal_union_formed +5）。
+## 消耗：召集诸部（call_allies_to_war，每部落 -10，程序召唤 join_play 无需 LLM）。
+
+const COHESION_COST_PER_CALL := 10   # 召集一个部落消耗的凝聚力
+
+
+## 爱尔兰诸部（government=tribal，16 部）
+func get_high_kingdom_members() -> Array:
+	var out: Array = []
+	for c in _country_list:
+		if str(c.get("government", "")) == "tribal":
+			out.append(str(c.get("id", "")))
+	return out
+
+
+## 凝聚力（= 统一爱尔兰局势值 0~100）
+func get_high_kingdom_cohesion() -> int:
+	return get_situation_value("unify_ireland")
+
+
+## cid 是否为爱尔兰部落制国家（部落间联姻判定用）
+func _is_ireland_tribal(cid: String) -> bool:
+	return _country_government(cid) == "tribal"
+
+
+## 部落间联姻结亲（Master 8/14）：联合统治组织内含 ≥2 爱尔兰部落 → 凝聚力 +5（组织级，无论谁任至高王）
+func _on_tribal_union_formed(org: Dictionary) -> void:
+	if org.is_empty():
+		return
+	var tribal := 0
+	if _is_ireland_tribal(str(org.get("lead", ""))):
+		tribal += 1
+	for m in org.get("members", []):
+		if _is_ireland_tribal(str(m)):
+			tribal += 1
+	if tribal >= 2:
+		_change_situation_value("unify_ireland", 5)
+		EventBus.tool_executed.emit("tribal_union_cohesion", {"count": tribal, "delta": 5})
+
+
+## 按 id 找进行中的博弈（无则 {}）
+func _find_play_by_id(play_id: int) -> Dictionary:
+	for p in plays:
+		if int(p.get("id", 0)) == play_id and p.get("state", "") == "playing":
+			return p
+	return {}
+
+
+## 至高王召集诸部加入爱尔兰一方（Master 8/14：程序直接召唤，无需 LLM 同意）
+## 消耗凝聚力（每部落 -10），可召数 = 凝聚力/10；只召中立爱尔兰部落（未参战/未站队）
+func call_allies_to_war(play_id: int) -> Dictionary:
+	if player_country_id != high_king_id:
+		return {"ok": false, "error": "只有至高王才能召集诸部"}
+	var play := _find_play_by_id(play_id)
+	if play.is_empty():
+		return {"ok": false, "error": "博弈不存在或已结束"}
+	var cohesion := get_high_kingdom_cohesion()
+	var max_call := int(cohesion / COHESION_COST_PER_CALL)
+	if max_call <= 0:
+		return {"ok": false, "error": "凝聚力不足（需至少 %d）" % COHESION_COST_PER_CALL}
+	var called: Array = []
+	for cid in get_high_kingdom_members():
+		if cid == high_king_id:
+			continue
+		if _in_play(cid) or _in_war(cid):
+			continue
+		if called.size() >= max_call:
+			break
+		called.append(cid)
+	if called.is_empty():
+		return {"ok": false, "error": "没有可召集的中立部落"}
+	for cid in called:
+		_change_situation_value("unify_ireland", -COHESION_COST_PER_CALL)
+		join_play(play_id, cid, "B")
+	EventBus.tool_executed.emit("call_allies_to_war", {"play_id": play_id, "called": called, "cohesion": get_high_kingdom_cohesion()})
+	return {"ok": true, "called": called, "cohesion": get_high_kingdom_cohesion(), "play_id": play_id}
+
+
+# ===== 引擎⑧ 海盗联盟（Master 8/14：CD 4月 + 成功率劫掠；简化分赃各自保留）=====
+## 劫掠 = 非战争行动，海盗国（piracy 政体）主动发动的经济行动。
+## CD 4 个月；成功率基础 60% + 修正（劫掠季/目标要塞/目标富裕/自身士气）。
+
+const RAID_CD_MONTHS := 4            # 劫掠 CD（4 个月一个周期）
+const RAID_BASE_CHANCE := 0.6        # 基础成功率 60%
+const RAID_GOLD_MIN := 15.0          # 战利品金币下限
+const RAID_GOLD_MAX := 30.0          # 战利品金币上限
+const RAID_RAID_SEASON_MONTH := 9    # 劫掠季（9月）成功率 +15%
+
+
+## 海盗联盟成员（piracy 政体：The Isles/Orkney/Shetland）
+func get_pirate_members() -> Array:
+	var out: Array = []
+	for c in _country_list:
+		if str(c.get("government", "")) == "piracy":
+			out.append(str(c.get("id", "")))
+	return out
+
+
+## 劫掠 CD 剩余（0 = 可用）
+func raid_remaining(cid: String) -> int:
+	return int(raid_cooldown.get(cid, 0))
+
+
+## 是否可劫掠（CD 结束）
+func raid_available(cid: String) -> bool:
+	return raid_remaining(cid) <= 0
+
+
+## 沿海判定：省份与海邻接（adjacency 有 sea 类型邻接）
+func _is_coastal(prov: String) -> bool:
+	if not _ensure_adjacency():
+		return false
+	for nb in _adjacency.get(prov, {}):
+		if str(_adjacency[prov][nb]) == "sea":
+			return true
+	return false
+
+
+## 全部沿海省份（劫掠目标选择用）
+func get_coastal_provinces() -> Array:
+	var out: Array = []
+	if not _ensure_adjacency():
+		return out
+	for prov in province_owner:
+		if _is_coastal(str(prov)):
+			out.append(str(prov))
+	return out
+
+
+## 劫掠成功率：基础 60% + 劫掠季(9月)+15% / 目标要塞≥2 -20% / 目标富裕(market+brothel≥4)+10% / 自身士气<50% -10%
+func raid_success_chance(cid: String, prov: String) -> float:
+	var chance := RAID_BASE_CHANCE
+	if month == RAID_RAID_SEASON_MONTH:
+		chance += 0.15
+	if int(province_buildings.get(prov, {}).get("fort", 0)) >= 2:
+		chance -= 0.20
+	var wealth := int(province_buildings.get(prov, {}).get("market", 0)) + int(province_buildings.get(prov, {}).get("brothel", 0))
+	if wealth >= 4:
+		chance += 0.10
+	var max_m := get_total_morale(cid)
+	if max_m > 0.0 and get_morale(cid) / max_m < 0.5:
+		chance -= 0.10
+	return clampf(chance, 0.05, 0.95)
+
+
+## 执行劫掠：校验（海盗国/CD/目标沿海）→ 成功率判定 → 结果落地 → 进入 CD（4 月）
+## 成功：金币 15~30（按目标富裕）+ 士气+10%最大 + 功勋+1 + add_raid；目标威望-5
+## 失败：威望-3 + 士气-10%；两种结果都进入 CD
+func do_raid(cid: String, target_prov: String) -> Dictionary:
+	if not get_pirate_members().has(cid):
+		return {"ok": false, "error": "只有海盗国（塞壬）才能劫掠"}
+	if not raid_available(cid):
+		return {"ok": false, "error": "劫掠冷却中（剩 %d 个月）" % raid_remaining(cid)}
+	if target_prov == "" or not province_owner.has(target_prov):
+		return {"ok": false, "error": "目标省份不存在"}
+	if not _is_coastal(target_prov):
+		return {"ok": false, "error": "目标不是沿海省份"}
+	var chance := raid_success_chance(cid, target_prov)
+	var success := Dice.chance(chance)
+	raid_cooldown[cid] = RAID_CD_MONTHS
+	if success:
+		var wealth := int(province_buildings.get(target_prov, {}).get("market", 0)) + int(province_buildings.get(target_prov, {}).get("brothel", 0))
+		var gold := clampf(RAID_GOLD_MIN + (RAID_GOLD_MAX - RAID_GOLD_MIN) * float(wealth) / 4.0, RAID_GOLD_MIN, RAID_GOLD_MAX)
+		country_gold[cid] = country_gold.get(cid, 0.0) + gold
+		var max_m := get_total_morale(cid)
+		army_morale[cid] = minf(get_morale(cid) + max_m * 0.1, max_m)
+		raid_merit[cid] = raid_merit.get(cid, 0) + 1
+		add_raid(1)
+		var owner := str(province_owner.get(target_prov, ""))
+		if owner != "":
+			country_prestige[owner] = maxf(0.0, country_prestige.get(owner, 0.0) - 5.0)
+		EventBus.tool_executed.emit("do_raid", {"cid": cid, "target": target_prov, "success": true, "gold": gold, "chance": chance})
+		return {"ok": true, "success": true, "gold": gold, "chance": chance, "target": target_prov, "cooldown": RAID_CD_MONTHS}
+	country_prestige[cid] = maxf(0.0, country_prestige.get(cid, 0.0) - 3.0)
+	var mm := get_total_morale(cid)
+	army_morale[cid] = maxf(get_morale(cid) - mm * 0.1, 0.0)
+	EventBus.tool_executed.emit("do_raid", {"cid": cid, "target": target_prov, "success": false, "chance": chance})
+	return {"ok": true, "success": false, "chance": chance, "target": target_prov, "cooldown": RAID_CD_MONTHS}
+
+
+## 每月劫掠 CD -1（_settle_month 调用）；归零清除
+func _tick_raid_cooldowns() -> void:
+	var expired: Array[String] = []
+	for cid in raid_cooldown:
+		raid_cooldown[cid] = int(raid_cooldown[cid]) - 1
+		if int(raid_cooldown[cid]) <= 0:
+			expired.append(str(cid))
+	for cid in expired:
+		raid_cooldown.erase(cid)
 
 
 ## ---- 交战结算（Master 8/12：只在战争状态触发；盟友按同侧合并对敌）----
@@ -1625,6 +1999,8 @@ func _annex_country(annexer: String, target: String) -> void:
 			province_owner[prov] = annexer
 	runtime_liege.erase(target)
 	runtime_vassal_type.erase(target)
+	# 引擎⑧：被吞并国移出联合统治（主导被吞 → 移交或解散）
+	_handle_annexed_union(target)
 	army_count[target] = 0
 
 
@@ -1657,7 +2033,7 @@ func get_country_income(cid: String) -> float:
 		inc += float(b.get("farm", 0)) * BUILDING_INCOME
 		inc += float(b.get("market", 0)) * BUILDING_INCOME
 		inc += float(b.get("brothel", 0)) * BUILDING_INCOME
-	return inc * (1.0 + country_event_modifier(cid, "income"))
+	return inc * (1.0 + country_event_modifier(cid, "income") + prestige_bonus(cid))
 
 
 func _advance_time() -> void:
@@ -2075,3 +2451,92 @@ func _advance_army() -> void:
 			army_order[cid] = ""
 		if retreating.get(cid, false) and army_position[cid] == capital_province.get(cid, ""):
 			retreating[cid] = false   # 已撤回首都 → 撤退结束，命令解锁
+
+
+# ===== 引擎⑨ 存档（Master 8/15：全运行态序列化，参考 Synthetica SaveManager）=====
+
+## 打包全部运行态（存档用）；聊天历史由外部（LLMClient/存档 UI）附加进 data
+func serialize() -> Dictionary:
+	return {
+		"player_country_id": player_country_id,
+		"year": year, "month": month, "is_running": is_running,
+		"country_gold": country_gold, "country_prestige": country_prestige,
+		"player_favor": player_favor, "loans": loans,
+		"army_count": army_count, "recruited_this_month": recruited_this_month,
+		"army_position": army_position, "army_order": army_order,
+		"retreating": retreating, "return_province": return_province,
+		"army_morale": army_morale, "surrender_flag": surrender_flag,
+		"capital_lost_months": capital_lost_months, "siege_target": siege_target,
+		"ai_army_state": ai_army_state,
+		"wars": wars, "next_war_id": _next_war_id,
+		"plays": plays, "next_play_id": _next_play_id,
+		"cb_timers": cb_timers, "runtime_liege": runtime_liege,
+		"runtime_union": runtime_union, "runtime_vassal_type": runtime_vassal_type,
+		"unions": unions, "next_union_id": _next_union_id,
+		"raid_cooldown": raid_cooldown, "raid_merit": raid_merit,
+		"high_king_id": high_king_id,
+		"modifiers": modifiers, "situation_value": situation_value,
+		"fired_historical": _fired_historical, "pulse_last": _pulse_last,
+		"completed_missions": completed_missions, "mission_flags": mission_flags,
+		"raid_count": raid_count, "player_event_queue": player_event_queue,
+		"province_owner": province_owner, "province_buildings": province_buildings,
+		"capital_province": capital_province,
+		"created_at": Time.get_datetime_string_from_system(),
+	}
+
+
+## 恢复运行态（读档用；缺失字段用默认/空，防御旧档）
+func deserialize(data: Dictionary) -> void:
+	player_country_id = str(data.get("player_country_id", ""))
+	year = int(data.get("year", 1400))
+	month = int(data.get("month", 1))
+	is_running = bool(data.get("is_running", true))
+	country_gold = _dict_or_empty(data.get("country_gold"))
+	country_prestige = _dict_or_empty(data.get("country_prestige"))
+	player_favor = _dict_or_empty(data.get("player_favor"))
+	loans = _dict_or_empty(data.get("loans"))
+	army_count = _dict_or_empty(data.get("army_count"))
+	recruited_this_month = _dict_or_empty(data.get("recruited_this_month"))
+	army_position = _dict_or_empty(data.get("army_position"))
+	army_order = _dict_or_empty(data.get("army_order"))
+	retreating = _dict_or_empty(data.get("retreating"))
+	return_province = _dict_or_empty(data.get("return_province"))
+	army_morale = _dict_or_empty(data.get("army_morale"))
+	surrender_flag = _dict_or_empty(data.get("surrender_flag"))
+	capital_lost_months = _dict_or_empty(data.get("capital_lost_months"))
+	siege_target = _dict_or_empty(data.get("siege_target"))
+	ai_army_state = _dict_or_empty(data.get("ai_army_state"))
+	wars = _array_or_empty(data.get("wars"))
+	_next_war_id = int(data.get("next_war_id", 1))
+	plays = _array_or_empty(data.get("plays"))
+	_next_play_id = int(data.get("next_play_id", 1))
+	cb_timers = _dict_or_empty(data.get("cb_timers"))
+	runtime_liege = _dict_or_empty(data.get("runtime_liege"))
+	runtime_union = _dict_or_empty(data.get("runtime_union"))
+	runtime_vassal_type = _dict_or_empty(data.get("runtime_vassal_type"))
+	unions = _array_or_empty(data.get("unions"))
+	_next_union_id = int(data.get("next_union_id", 1))
+	raid_cooldown = _dict_or_empty(data.get("raid_cooldown"))
+	raid_merit = _dict_or_empty(data.get("raid_merit"))
+	high_king_id = str(data.get("high_king_id", ""))
+	modifiers = _dict_or_empty(data.get("modifiers"))
+	situation_value = _dict_or_empty(data.get("situation_value"))
+	_fired_historical = _dict_or_empty(data.get("fired_historical"))
+	_pulse_last = _dict_or_empty(data.get("pulse_last"))
+	completed_missions = _dict_or_empty(data.get("completed_missions"))
+	mission_flags = _dict_or_empty(data.get("mission_flags"))
+	raid_count = int(data.get("raid_count", 0))
+	player_event_queue = _array_or_empty(data.get("player_event_queue"))
+	province_owner = _dict_or_empty(data.get("province_owner"))
+	province_buildings = _dict_or_empty(data.get("province_buildings"))
+	capital_province = _dict_or_empty(data.get("capital_province"))
+
+
+## 防御：Variant → Dictionary（非字典返回空）
+func _dict_or_empty(v: Variant) -> Dictionary:
+	return v if v is Dictionary else {}
+
+
+## 防御：Variant → Array（非数组返回空）
+func _array_or_empty(v: Variant) -> Array:
+	return v if v is Array else []

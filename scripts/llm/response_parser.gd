@@ -1,6 +1,7 @@
 extends Node
 class_name ResponseParser
 ## 响应解析：把 LLM 返回拆成 思考(CoT) / 正文 / 工具调用，带容错。
+## Master 8/15：正文改走 <content> 标签 + 正则提取（参考女仆别墅项目），不再依赖 submit_dialogue 工具。
 
 static func parse_response(data: Dictionary) -> Dictionary:
 	## 返回 { cot, content, tool_calls }
@@ -10,21 +11,48 @@ static func parse_response(data: Dictionary) -> Dictionary:
 	var message: Dictionary = data["choices"][0].get("message", {})
 
 	# CoT：部分模型用 reasoning_content（如 deepseek-r1 风格）
-	result["cot"] = message.get("reasoning_content", "")
+	result["cot"] = str(message.get("reasoning_content", ""))
 
 	# 正文：分离 <thinking>...</thinking> 块（容错）
-	var content: String = message.get("content", "")
+	# ⚠️ Master 8/15 修复：OpenAI 协议下 tool_calls 模式的 content 常为 null，
+	# Dictionary.get(key, default) 只在 key 缺失时返回 default——key 存在但值为 null 时返回 null！
+	# 直接赋给 String 类型变量会运行时崩溃 → 必须先 null 检查，否则正文丢失 + 后续工具执行中断。
+	var content: String = ""
+	if message.has("content") and message["content"] != null:
+		content = str(message["content"])
 	var ts := content.find("<thinking>")
 	var te := content.find("</thinking>")
 	if ts != -1 and te != -1 and te > ts:
-		result["cot"] += "\n" + content.substr(ts + 11, te - ts - 11)
-		content = content.substr(te + 12)
-	# 容错：正文已改走 submit_dialogue 工具输出（不靠 <content> 标签），此处仅清理旧格式残留
-	var cs := content.find("<content>")
-	var ce := content.find("</content>")
-	if cs != -1 and ce != -1 and ce > cs:
-		content = content.substr(cs + 9, ce - cs - 9)
-	result["content"] = content.strip_edges()
+		# <thinking> 10 字符 / </thinking> 11 字符（Master 8/15：原 ts+11/te+12 会多跳 1 字符，修）
+		result["cot"] += "\n" + content.substr(ts + 10, te - ts - 10)
+		content = content.substr(te + 11)
+	# 容错：有 <thinking> 但没闭合 → 截到 <content> 前（若存在）
+	var t_start := content.find("<thinking>")
+	if t_start != -1:
+		var c_start := content.find("<content>")
+		if c_start != -1 and c_start > t_start:
+			result["cot"] += "\n" + content.substr(t_start + 10, c_start - t_start - 10)
+			content = content.substr(c_start)
+
+	# 正文主路径：<content> 标签 + 正则提取（参考女仆别墅 ResponseParser，三级兜底）
+	# ① 完整闭合标签：(?s) 单行模式让 . 匹配换行
+	var regex_content := RegEx.new()
+	regex_content.compile("(?s)<content>(.*?)</content>")
+	var content_match := regex_content.search(content)
+	if content_match:
+		content = content_match.get_string(1).strip_edges()
+	else:
+		# ② 容错：有 <content> 开始但没闭合 → 截取到结尾
+		var cs := content.find("<content>")
+		if cs != -1:
+			content = content.substr(cs + 9).replace("</content>", "").strip_edges()
+		else:
+			# ③ 极端兜底：模型全忘了标签 → 剥离标签痕迹，用剩余文本当正文
+			var fallback := content
+			fallback = fallback.replace("</think>", "").replace("<thinking>", "").replace("</thinking>", "")
+			fallback = fallback.replace("<content>", "").replace("</content>", "")
+			content = fallback.strip_edges()
+	result["content"] = content
 
 	# 工具调用
 	if message.has("tool_calls"):

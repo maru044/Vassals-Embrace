@@ -41,7 +41,7 @@ signal peace_signed(war_id: int)
 signal diplomatic_play_started(play_id: int)
 signal diplomatic_play_resolved(play_id: int)
 signal vassal_changed(liege_id: int, vassal_id: int, relation: String)
-signal union_changed(lead_id: int, member_id: int, active: bool)
+signal union_changed(lead_id: String, member_id: String, active: bool)
 signal organization_changed(org_id: int)
 signal diplomatic_relation_changed(actor: String, target: String, relation: String)   # 引擎④-CB：要求X同意后附庸/受保护国/联合统治关系建立
 

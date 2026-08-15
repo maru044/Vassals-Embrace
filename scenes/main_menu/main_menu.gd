@@ -61,6 +61,8 @@ const TEXTURE_SIZE := 256                           # 噪声贴图边长
 @onready var _credits_text: RichTextLabel = $CreditsDialog/Margin/VBox/CreditsText
 @onready var _credits_close: Button = $CreditsDialog/Margin/VBox/Buttons/Close
 
+var _save_panel: CanvasLayer = null   # 引擎⑨ 存档面板（读档模式）
+
 
 func _ready() -> void:
 	_start_button.pressed.connect(_on_start_pressed)
@@ -81,6 +83,10 @@ func _ready() -> void:
 	_apply_startup_resolution()
 	_apply_parchment_buttons()
 	AudioManager.play_menu_music()
+	# 引擎⑨ 存档面板：主菜单「读档」入口（load 模式：读取/删除）
+	_save_panel = load("res://scenes/game/save_panel.gd").new()
+	add_child(_save_panel)
+	_save_panel.load_completed.connect(_on_save_load_completed)
 
 
 func _on_start_pressed() -> void:
@@ -90,14 +96,14 @@ func _on_start_pressed() -> void:
 
 
 func _on_load_pressed() -> void:
-	var data := SaveManager.load_game()
-	if data.is_empty():
-		# TODO: 无存档提示（后续接 Toast/弹窗）
-		push_warning("主界面: 无存档可读取")
-		return
+	# 引擎⑨：打开存档面板（load 模式），选槽读取 → 恢复状态 → 跳转游戏
+	_save_panel.show_panel("load")
+
+
+## 主菜单读档完成（save_panel.load_completed）：恢复状态已由 save_panel 落地 → 跳转整合游戏场景
+func _on_save_load_completed(_data: Dictionary) -> void:
 	EventBus.load_game.emit()
-	# TODO: 用 data 恢复 GameManager / 各系统状态
-	get_tree().change_scene_to_file("res://scenes/game_ui/game_ui.tscn")
+	get_tree().change_scene_to_file("res://scenes/game/game.tscn")
 
 
 func _on_config_pressed() -> void:

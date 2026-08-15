@@ -188,13 +188,18 @@ var _play_notice_msg: String = ""           # 外交博弈面板：动作反馈�
 var _play_goal_edit: LineEdit = null        # 外交博弈面板：修改我方目标输入框
 var _diplo_cb_opt: OptionButton = null      # 外交国家视图：宣战 CB 子菜单（引擎④-CB）
 var _diplo_notice_msg: String = ""          # 外交国家视图：发起博弈反馈
+var _debug_mode := false                     # EU4 式调试模式：按反引号 ` 切换（显示测试按钮）
+var _demo_union_btn: CheckButton = null     # 调试：选国界面「演示联合统治」勾选（引擎⑧ 面板验证）
+var _raid_target_opt: OptionButton = null    # 海盗联盟面板：劫掠目标沿海省份选择
+var _raid_chance_label: Label = null         # 海盗联盟面板：成功率预览
 var _chat_ui: ChatUI = null   # 全局聊天面板（羊皮纸 + 立绘视差；Miku 无立绘）
+var _save_panel: CanvasLayer = null   # 引擎⑨ 存档面板（save 模式）
 # 引擎⑥ 事件面板（居中弹窗）
 var _event_layer: CanvasLayer = null
 var _event_overlay: ColorRect = null
 var _event_image: TextureRect = null
 var _event_title: Label = null
-var _event_body: Label = null
+var _event_body: RichTextLabel = null   # Master 8/15：事件正文改 RichTextLabel（关键词高亮 + meta 悬停）
 var _event_opts_box: VBoxContainer = null
 
 
@@ -219,7 +224,7 @@ func _ready() -> void:
 		# 当前打开的博弈面板已结束 → 自动关闭（Master 8/13：退缩后图标消失导致无法退出）
 		if _bottom_open and _active_bottom == "play_%d" % p:
 			_close_bottom_slide())
-	EventBus.union_changed.connect(func(_l: int, _m: int, _a: bool) -> void: _refresh_bottom_bar())
+	EventBus.union_changed.connect(func(_l: String, _m: String, _a: bool) -> void: _refresh_bottom_bar())
 	EventBus.organization_changed.connect(func(_o: int) -> void: _refresh_bottom_bar())
 	# 引擎①：过月后顶栏 + 左栏当前面板热更新（金币/威望/好感/经济即时刷新，无需关开面板）
 	EventBus.month_advanced.connect(func(_m: int, _y: int) -> void:
@@ -239,6 +244,12 @@ func _ready() -> void:
 	# 聊天界面（参考 ChatUI 案例：左立绘+深度图视差，右对话区）
 	_chat_ui = ChatUI.new()
 	add_child(_chat_ui)
+	# 引擎⑨ 存档面板（save 模式：保存/读取/删除）+ 聊天历史存取（存档恢复对话）
+	_save_panel = load("res://scenes/game/save_panel.gd").new()
+	add_child(_save_panel)
+	_save_panel.get_chat_history = func() -> Array: return _chat_ui.get_chat_history()
+	_save_panel.set_chat_history = func(h: Array) -> void: _chat_ui.set_chat_history(h)
+	_save_panel.load_completed.connect(_on_save_load_completed)
 	# 引擎⑥ 事件面板（居中弹窗）+ 事件通知
 	_build_event_ui()
 	EventBus.event_pending.connect(_show_event_panel)
@@ -250,6 +261,10 @@ func _ready() -> void:
 	# 过月世界 AI（LLM）思考 → 全屏遮挡「战略思考中」，思考期间拦截操作（Master 8/13）
 	EventBus.world_ai_thinking_started.connect(func() -> void: _set_thinking_overlay(true))
 	EventBus.world_ai_thinking_finished.connect(func() -> void: _set_thinking_overlay(false))
+	# 引擎⑨：主菜单读档 → 跳过选国，直接进入游戏状态（GameManager 已 deserialize 恢复）
+	if GameManager.loaded_from_save:
+		GameManager.loaded_from_save = false
+		_enter_loaded_game()
 
 
 func _load_countries() -> void:
@@ -368,6 +383,31 @@ func _build_select_layer() -> void:
 	_confirm = info.get_node("Confirm")
 	_confirm.pressed.connect(_on_confirm_pressed)
 	_style_detail_confirm()
+
+	# 调试入口（引擎⑧ 联合统治面板验证用）：勾选后开局自动建立「玩家主导 + 两个成员」演示联合统治
+	_demo_union_btn = CheckButton.new()
+	_demo_union_btn.text = "🔧 演示联合统治"
+	_demo_union_btn.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_demo_union_btn.offset_left = 40
+	_demo_union_btn.offset_top = -70
+	_demo_union_btn.offset_right = 240
+	_demo_union_btn.offset_bottom = -35
+	_demo_union_btn.tooltip_text = "测试用：开局自动建立玩家主导的联合统治（含 2 个被联统国），便于点击底栏「联合统治」查看面板"
+	_demo_union_btn.visible = false   # EU4 式：默认隐藏，按反引号 ` 进入调试模式才显示
+	root.add_child(_demo_union_btn)
+
+
+## EU4 式调试模式：按下反引号（`，KEY_QUOTELEFT）切换 —— 显示/隐藏测试按钮（选国界面「演示联合统治」等）
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_QUOTELEFT:
+		_debug_mode = not _debug_mode
+		_refresh_debug_ui()
+
+
+## 刷新调试 UI：反引号进入调试模式后才显示测试按钮
+func _refresh_debug_ui() -> void:
+	if _demo_union_btn != null:
+		_demo_union_btn.visible = _debug_mode
 
 
 func _make_shield_button(id: String, recommended: bool, grid: GridContainer) -> TextureButton:
@@ -546,6 +586,18 @@ func _build_province_content(province: String, country: String) -> void:
 		lbl.add_theme_color_override("font_color", INK)
 		lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(lbl)
+		# EU4 式 tooltip（Master 8/15）：建筑行悬停解释（词条 + 产出）
+		var bld_tip := _kw_tip(BUILDING_CN.get(b, b))
+		var bld_desc: String = str({
+			"farm": "产出税收：每级每月 +0.3 金",
+			"market": "产出贸易：每级每月 +0.3 金",
+			"brothel": "产出卖淫：每级每月 +0.3 金（受威望加成）",
+			"fort": "防御：围城判定用（等级越高越难攻破）",
+		}.get(b, ""))
+		lbl.tooltip_text = ("%s（Lv.%d）：%s" % [BUILDING_CN.get(b, b), lv, bld_desc]) + ("\n" + bld_tip if bld_tip != "" else "")
+		lbl.mouse_filter = Control.MOUSE_FILTER_STOP
+		if b == "fort" and lv > 0:
+			lbl.tooltip_text += "\n（本省为要塞：控制自身及相邻地块，形成 ZoC）"
 
 		if is_own and b != "fort":   # 要塞不可建造/升级（Master：关闭要塞升级，仅显示等级只读）
 			var up_cost := int(GameManager.building_upgrade_cost(b, lv))
@@ -616,6 +668,7 @@ func _format_ruler(c: Dictionary) -> String:
 
 
 ## 资料栏：政体 / 文化 / 首都 / 地位 —— 写入 2 列 GridContainer（每行两个，自动对齐）
+## Master 8/15：EU4 式 tooltip——政体/文化/地位悬停弹词条解释
 func _update_stats(c: Dictionary) -> void:
 	var gov: String = _GOV_CN.get(c.get("government", ""), c.get("government", ""))
 	var culture: String = _CULTURE_CN.get(c.get("culture_group", ""), c.get("culture_group", ""))
@@ -629,6 +682,22 @@ func _update_stats(c: Dictionary) -> void:
 	_info_stats.get_node("Stat2").text = "文化：%s（%s）" % [culture, race]
 	_info_stats.get_node("Stat3").text = "首都：%s" % capital
 	_info_stats.get_node("Stat4").text = "地位：%s" % status
+	# EU4 式 tooltip：政体 / 文化 / 附庸类型 悬停解释
+	var gov_tip := _kw_tip(gov)
+	var stat1: Label = _info_stats.get_node("Stat1")
+	stat1.tooltip_text = ("政体：%s" % gov) + ("\n" + gov_tip if gov_tip != "" else "")
+	stat1.mouse_filter = Control.MOUSE_FILTER_STOP
+	var stat2: Label = _info_stats.get_node("Stat2")
+	var cult_tip := _kw_tip(culture)
+	stat2.tooltip_text = ("文化：%s，种族：%s" % [culture, race]) + ("\n" + cult_tip if cult_tip != "" else "")
+	stat2.mouse_filter = Control.MOUSE_FILTER_STOP
+	var stat4: Label = _info_stats.get_node("Stat4")
+	if liege and _country_index.has(liege):
+		var vt: String = GameManager.effective_vassal_type(str(c.get("id", "")))
+		var vt_cn: String = str(VASSAL_TYPE_CN.get(vt, vt))
+		var vt_tip := _kw_tip(vt_cn)
+		stat4.tooltip_text = ("附庸类型：%s" % vt_cn) + ("\n" + vt_tip if vt_tip != "" else "")
+		stat4.mouse_filter = Control.MOUSE_FILTER_STOP
 
 
 func _on_confirm_pressed() -> void:
@@ -638,6 +707,9 @@ func _on_confirm_pressed() -> void:
 	EventBus.country_selected.emit(_selected)
 	EventBus.confirm_country.emit()
 	GameManager.start_new_game(id)   # 引擎①：string 国家 id 初始化运行态数据
+	# 调试：勾选「演示联合统治」→ 开局注入玩家主导的多成员联合统治（引擎⑧ 面板验证）
+	if _demo_union_btn != null and _demo_union_btn.button_pressed:
+		GameManager.debug_inject_demo_union(id)
 	GameManager.capital_province = _capital_positions()      # 引擎③：首都英文省（撤退/投降判定用）
 	GameManager.init_army_positions(_capital_positions())   # 引擎②-B3-2：军队起始位置 = 各国首都
 	AudioManager.play_game_music()
@@ -666,14 +738,49 @@ func _transition_to_game(id: String) -> void:
 	_map_view.refresh_army(GameManager.army_position, GameManager.army_count)   # 引擎②-B3-2b：军队兵牌（盾徽+方框+数字k）
 
 
+## 引擎⑨：从存档加载进入游戏（跳过选国；GameManager 已 deserialize 恢复全运行态）
+func _enter_loaded_game() -> void:
+	var pid: String = GameManager.player_country_id
+	if pid.is_empty():
+		return
+	# 同步省份数据：读档后 GameManager 持有存档值，重新绑定到本场景显示引用（原引用是 map_data 初始值）
+	_province_owner = GameManager.province_owner
+	_province_buildings = GameManager.province_buildings
+	GameManager.province_owner = _province_owner
+	GameManager.province_buildings = _province_buildings
+	_in_game = true
+	_player_country_id = pid
+	AudioManager.play_game_music()
+	_select_root.visible = false
+	_select_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_game_root.position.x = 0.0
+	_left_slide.visible = true
+	_top_country.text = _country_name(pid)
+	var shield_path := SHIELD_DIR + pid + ".png"
+	if ResourceLoader.exists(shield_path):
+		_top_shield.texture = load(shield_path)
+	_refresh_top_bar()
+	_refresh_bottom_bar()
+	_map_view.apply_ownership(GameManager.province_owner)
+	_map_view.refresh_forts(GameManager.province_buildings)
+	_map_view.refresh_army(GameManager.army_position, GameManager.army_count)
+	_refresh_left_panel()
+
+
 ## 顶栏接真值（引擎①）：日期 / 金币 / 威望 / 军队 从 GameManager 读取
 func _refresh_top_bar() -> void:
 	_top_date.text = "%d 年 %d 月" % [GameManager.year, GameManager.month]
 	var pid := _player_country_id
 	_top_gold.text = "金币 %d" % int(GameManager.country_gold.get(pid, 0.0))
 	_top_prestige.text = "威望 %d" % int(GameManager.country_prestige.get(pid, 0.0))
+	# 引擎①-威望加成（Master 8/14）：悬停显示「当前威望给予我们 +X% 士气/收入」（EU4 式）
+	var pbonus: float = GameManager.prestige_bonus(pid) * 100.0
+	_top_prestige.tooltip_text = "当前威望给予我们：\n+%.1f%% 士气\n+%.1f%% 收入" % [pbonus, pbonus]
 	# 引擎②-B1：军队显示「当前/上限」，上限 = 5 + 2×直辖地块（附庸 -3）
 	_top_army.text = "军队 %d/%d" % [GameManager.army_count.get(pid, 0), GameManager.get_army_cap(pid)]
+	# EU4 式 tooltip（Master 8/15）：顶栏数值悬停解释
+	_top_gold.tooltip_text = "金币：招募军队（20金/队）、升级建筑、举办淫趴等开销使用\n每月收入 = 税基 5 + 建筑产出 + 威望加成"
+	_top_army.tooltip_text = "军队 %d/%d\n上限 = 5 + 2×直辖地块（附庸 -3 队）\n1 队 = 100 人；招募 20 金、每月限 1 队" % [GameManager.army_count.get(pid, 0), GameManager.get_army_cap(pid)]
 
 
 ## 过月热更新：左栏当前面板重建（经济/外交等动态数字即时刷新；外交二级子面板过月回到列表）
@@ -947,13 +1054,23 @@ func _build_panel_content(panel_id: String) -> void:
 			_left_body.add_child(_panel_label("「%s」面板建设中…" % PANEL_CN.get(panel_id, panel_id)))
 
 
-## 面板正文 Label（16 号墨色衬线）
-func _panel_label(text: String) -> Label:
+## 面板正文 Label（16 号墨色衬线）；tip 非空 → 悬停显示词条定义（EU4 式，Master 8/15）
+func _panel_label(text: String, tip := "") -> Label:
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_size_override("font_size", 16)
 	l.add_theme_color_override("font_color", INK)
+	if tip != "":
+		l.mouse_filter = Control.MOUSE_FILTER_STOP   # 默认 IGNORE 会穿透导致 tooltip 不触发
+		l.tooltip_text = tip
 	return l
+
+
+## 查询关键词定义（KeywordTooltip 词库；无词条返回空串）——EU4 式 tooltip 内容源
+func _kw_tip(keyword: String) -> String:
+	if KeywordTooltip and KeywordTooltip.has_method("get_definition"):
+		return KeywordTooltip.get_definition(keyword)
+	return ""
 
 
 ## 经济：收入/支出/结余（引擎①接真值）+ 招募 / 贷款 / 还贷（T4 完善扣款）
@@ -963,22 +1080,41 @@ func _build_economy_panel() -> void:
 	var maint: float = GameManager.ARMY_MAINTENANCE * float(GameManager.army_count.get(pid, 0))
 	var interest: float = GameManager.loans.get(pid, 0.0) * GameManager.LOAN_RATE / 12.0
 	var spend := maint + interest
-	_left_body.add_child(_panel_label("收入：%.1f（基础 5 + 建筑 %.1f）" % [income, income - GameManager.BASE_INCOME]))
-	_left_body.add_child(_panel_label("支出：%.1f（军队维护 %.1f + 贷款利息 %.1f）" % [spend, maint, interest]))
-	_left_body.add_child(_panel_label("结余：%.1f / 金币 %d" % [income - spend, int(GameManager.country_gold.get(pid, 0.0))]))
+	# 收入构成：基础 + 建筑 + 威望加成（Master 8/14：每 100 威望 +10% 收入，单独列出便于验证）
+	var raw_income := GameManager.BASE_INCOME
+	for province in GameManager.province_owner:
+		if GameManager.province_owner[province] != pid:
+			continue
+		var b: Dictionary = GameManager.province_buildings.get(province, {})
+		raw_income += float(b.get("farm", 0)) * GameManager.BUILDING_INCOME
+		raw_income += float(b.get("market", 0)) * GameManager.BUILDING_INCOME
+		raw_income += float(b.get("brothel", 0)) * GameManager.BUILDING_INCOME
+	var pbonus: float = GameManager.prestige_bonus(pid)
+	var bonus_income := raw_income * pbonus
+	# 收入三项自洽：基础 5 + 建筑 + 威望加成 = 总收入（Master 8/14）
+	# EU4 式 tooltip（Master 8/15）：收入构成 = 税基 + 建筑（农场/市场/妓院）+ 威望加成
+	_left_body.add_child(_panel_label("收入：%.2f（基础 5 + 建筑 %.2f + 威望加成 %.2f）" % [income, raw_income - GameManager.BASE_INCOME, bonus_income],
+		"月收入构成：\n· 基础：税基 60/年 = 5 金/月\n· 建筑：农场/市场/妓院 每级 +0.3 金\n· 威望加成：每 100 威望 +10% 收入"))
+	_left_body.add_child(_panel_label("支出：%.1f（军队维护 %.1f + 贷款利息 %.1f）" % [spend, maint, interest],
+		"月支出：\n· 军队维护：0.1 金/队/月\n· 贷款利息：年利率 5%（按月结算）"))
+	_left_body.add_child(_panel_label("结余：%.1f / 金币 %d" % [income - spend, int(GameManager.country_gold.get(pid, 0.0))],
+		"金币：招募军队（20金/队）、升级建筑、举办淫趴等开销使用"))
 	# 引擎②-B2：军队 当前/上限 + 维护/招募费用
-	_left_body.add_child(_panel_label("军队：%d/%d（维护 0.1 金/队/月）" % [GameManager.army_count.get(pid, 0), GameManager.get_army_cap(pid)]))
+	_left_body.add_child(_panel_label("军队：%d/%d（维护 0.1 金/队/月）" % [GameManager.army_count.get(pid, 0), GameManager.get_army_cap(pid)],
+		"军队上限 = 5 + 2×直辖地块（附庸 -3 队）\n1 队 = 100 人；招募 20 金、每月限 1 队"))
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 8)
 	_left_body.add_child(spacer)
-	_left_body.add_child(_panel_label("贷款总额：%.0f 金币（年利率 5%%）" % GameManager.loans.get(pid, 0.0)))
+	_left_body.add_child(_panel_label("贷款总额：%.0f 金币（年利率 5%%）" % GameManager.loans.get(pid, 0.0),
+		"贷款：一笔 +10 金币；年利率 5%（按月计息）"))
 	# 招募每月限 1 队：本月已招募 → 按钮灰掉（过月重建面板自动恢复）
-	var recruit_btn := _build_gold_button(_left_body, "招募一队军队（20 金·每月限 1 队）", _on_recruit_pressed)
+	var recruit_btn := _build_gold_button(_left_body, "招募一队军队（20 金·每月限 1 队）", _on_recruit_pressed,
+		"招募 1 队（100 人），花费 20 金币，每月限 1 队\n达到军队上限后不可再招募")
 	if GameManager.recruited_this_month.get(pid, false):
 		recruit_btn.disabled = true
 		recruit_btn.text = "本月已招募（下月再来）"
-	_build_gold_button(_left_body, "贷款一笔（+10 金币）", _on_loan_pressed)
-	_build_gold_button(_left_body, "偿还一笔贷款（-10 金币）", _on_repay_pressed)
+	_build_gold_button(_left_body, "贷款一笔（+10 金币）", _on_loan_pressed, "贷款一笔 +10 金币；年利率 5%（按月计息）")
+	_build_gold_button(_left_body, "偿还一笔贷款（-10 金币）", _on_repay_pressed, "偿还一笔贷款 -10 金币（减少利息负担）")
 
 
 ## 招募一队军队（GameManager.recruit_army；成功刷新，失败警告到控制台）
@@ -1018,7 +1154,13 @@ func _build_court_panel() -> void:
 	var ruler_title := _country_title(_player_country_id)
 	if ruler_title != "":
 		ruler_txt += "（%s）" % ruler_title
-	_left_body.add_child(_panel_label("统治者：%s" % ruler_txt))
+	# EU4 式 tooltip（Master 8/15）：统治者行解释政体/文化/附庸身份
+	var gov_cn: String = str(_GOV_CN.get(_country_government(_player_country_id), ""))
+	var gov_tip := ""
+	if gov_cn != "":
+		gov_tip = _kw_tip(gov_cn)
+	_left_body.add_child(_panel_label("统治者：%s" % ruler_txt,
+		("政体：%s" % gov_cn) + ("\n" + gov_tip if gov_tip != "" else "")))
 	_court_portrait_mat = null   # 重建面板时先清除旧视差引用
 	var portrait_path := PORTRAIT_DIR + "rulers/" + _player_country_id + ".png"
 	if ResourceLoader.exists(portrait_path):
@@ -1045,7 +1187,15 @@ func _build_court_panel() -> void:
 		_left_body.add_child(_panel_label("　（立绘缺失）"))
 
 	# 下方：后宫按钮独立容器，固定高 200（非 EXPAND，勿吃满剩余空间）→ 5 按钮内容超出必出滚动条
-	_left_body.add_child(_panel_label("后宫（容量 5）："))
+	# EU4 式 tooltip：后宫（容量 5）+ 嵌套法则解释（附庸 = 宗主后宫成员）
+	var harem_tip := _kw_tip("后宫编制")
+	var nest_tip := _kw_tip("嵌套法则")
+	var harem_full_tip := "后宫：直属后宫，容量固定 5（武/侍/圣/艺/秘）"
+	if harem_tip != "":
+		harem_full_tip += "\n" + harem_tip
+	if nest_tip != "":
+		harem_full_tip += "\n\n" + nest_tip
+	_left_body.add_child(_panel_label("后宫（容量 5）：", harem_full_tip))
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size = Vector2(0, 190)   # 固定按钮区高度，内容超出即可滚动
 	_left_body.add_child(scroll)
@@ -1059,9 +1209,11 @@ func _build_court_panel() -> void:
 		var role: String = r["role"]
 		var rname: String = r["name"]
 		var portrait: String = r["portrait"]
+		var role_tip := _kw_tip("后宫编制")
 		_build_gold_button(btn_col, "【%s】%s（点击对话）" % [role, rname], func() -> void:
 			if _chat_ui:
-				_chat_ui.open_chat("harem", portrait, rname))
+				_chat_ui.open_chat("harem", portrait, rname),
+			("后宫成员【%s】%s：可与她对话互动、侍奉调教" % [role, rname]) + ("\n" + role_tip if role_tip != "" else ""))
 
 
 ## 宫廷统治者立绘视差：随鼠标平滑移动（复用聊天立绘 shader），无立绘材质时零开销
@@ -1095,11 +1247,15 @@ func _build_diplomacy_panel() -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
 		list.add_child(row)
-		var btn := _build_gold_button(row, "◇ %s" % c.get("name", cid), _open_diplomacy_country.bind(cid))
+		var btn := _build_gold_button(row, "◇ %s" % c.get("name", cid), _open_diplomacy_country.bind(cid),
+			"与「%s」外交：对话 / 要求关系 / 宣战（外交博弈）" % c.get("name", cid))
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var fv: float = GameManager.player_favor.get(cid, 0.0)
 		var fl := _panel_label("好感 %d" % int(fv))
 		fl.add_theme_color_override("font_color", _favor_color(fv))
+		var favor_tip := _kw_tip("好感度")
+		fl.tooltip_text = "你对「%s」的好感度（0~100）" % c.get("name", cid) + ("\n" + favor_tip if favor_tip != "" else "")
+		fl.mouse_filter = Control.MOUSE_FILTER_STOP
 		row.add_child(fl)
 
 
@@ -1110,7 +1266,9 @@ func _open_diplomacy_country(country: String) -> void:
 	for c in _left_body.get_children():
 		c.queue_free()
 	_left_body.add_child(_panel_label("与「%s」的外交：" % _country_name(country)))
-	_build_gold_button(_left_body, "对话", _on_diplomacy_action.bind(country, "chat"))
+	var chat_tip := _kw_tip("外交博弈")
+	_build_gold_button(_left_body, "对话", _on_diplomacy_action.bind(country, "chat"),
+		"与「%s」公主聊天：示好 / 调情 / 商议 / 议和（LLM 演绎）" % _country_name(country) + ("\n" + chat_tip if chat_tip != "" else ""))
 	# 引擎④-CB：要求附庸/受保护国/联合统治（按玩家文化显示；好感>80 才可用，AI 不受限）
 	var pcult := GameManager.country_culture(_player_country_id)
 	var req_label := ""
@@ -1125,10 +1283,19 @@ func _open_diplomacy_country(country: String) -> void:
 		req_label = "提议联合统治"
 		req_action = "require_union"
 	if req_label != "":
-		var req_btn := _build_gold_button(_left_body, req_label, _on_diplomacy_action.bind(country, req_action))
+		var req_tip := ""
+		match req_action:
+			"require_vassal":
+				req_tip = _kw_tip("附庸")
+			"require_protect":
+				req_tip = _kw_tip("受保护国")
+			"require_union":
+				req_tip = _kw_tip("联合统治")
+		var req_btn := _build_gold_button(_left_body, req_label, _on_diplomacy_action.bind(country, req_action),
+			("%s：好感度需高于 80，对方同意后建立关系" % req_label) + ("\n" + req_tip if req_tip != "" else ""))
 		if not GameManager.can_require_favor(country):
 			req_btn.disabled = true
-			req_btn.tooltip_text = "好感度需高于 80"
+			req_btn.tooltip_text = "好感度需高于 80\n（当前好感不足，无法发起要求）"
 	# 引擎④-CB：宣战 = 选可用 CB（子菜单）→ 发起博弈（2 个月）
 	var cbs: Array = GameManager.get_available_cbs(_player_country_id, country)
 	if cbs.is_empty():
@@ -1136,15 +1303,19 @@ func _open_diplomacy_country(country: String) -> void:
 	else:
 		var cb_row := HBoxContainer.new()
 		cb_row.add_theme_constant_override("separation", 8)
-		cb_row.add_child(_panel_label("战争理由："))
+		var cb_tip := _kw_tip("CB")
+		cb_row.add_child(_panel_label("战争理由：", "CB（Casus Belli）：战争的正当理由，决定战后可索要范围" + ("\n" + cb_tip if cb_tip != "" else "")))
 		_diplo_cb_opt = OptionButton.new()
 		_diplo_cb_opt.custom_minimum_size = Vector2(300, 40)
+		_diplo_cb_opt.tooltip_text = "选择本次战争的战争理由（CB）"
 		for c in cbs:
 			_diplo_cb_opt.add_item(str(c.get("name", c.get("id", ""))))
 			_diplo_cb_opt.set_item_metadata(_diplo_cb_opt.item_count - 1, str(c.get("id", "")))
 		cb_row.add_child(_diplo_cb_opt)
 		_left_body.add_child(cb_row)
-		_build_gold_button(_left_body, "发起博弈（宣战）", _on_diplo_declare_war.bind(country))
+		var play_tip := _kw_tip("外交博弈")
+		_build_gold_button(_left_body, "发起博弈（宣战）", _on_diplo_declare_war.bind(country),
+			"发起外交博弈：持续 2 个月，期间可站队/退缩/改目标；期满未谈拢即开战" + ("\n" + play_tip if play_tip != "" else ""))
 	if not _diplo_notice_msg.is_empty():
 		_left_body.add_child(_panel_label(_diplo_notice_msg))
 	var spacer := Control.new()
@@ -1162,10 +1333,20 @@ func _back_to_diplomacy_list() -> void:
 
 
 ## 外交动作（chat/vassal_chat 打开聊天；require_* 打开要求对话 → LLM 同意/拒绝 → 引擎落地）
+## 2026-08-15：按入口/关系计算立绘变体（vassal 附庸 / war 交战 / default 平级），war 附战场环境
 func _on_diplomacy_action(country: String, action: String) -> void:
 	if action == "chat" or action == "vassal_chat":
 		if _chat_ui:
-			_chat_ui.open_chat("country", country, _country_name(country))
+			var variant := "default"
+			var wid := _war_between_player_and(country)
+			if action == "vassal_chat":
+				variant = "vassal"
+			elif wid >= 0:
+				variant = "war"
+			elif _is_vassal_relation(country):
+				variant = "vassal"
+			var ctx := _war_context_text(wid) if variant == "war" else ""
+			_chat_ui.open_chat("country", country, _country_name(country), "", "", variant, ctx)
 		return
 	if action == "require_vassal":
 		_open_requirement_chat(country, "vassalize", "要求附庸")
@@ -1176,13 +1357,18 @@ func _on_diplomacy_action(country: String, action: String) -> void:
 	if action == "require_union":
 		_open_requirement_chat(country, "personal_union", "提议联合统治")
 		return
+	if action == "make_vassal":
+		# 受保护国 → 要求升级为附庸（LLM 对话：同意 → establish_requirement 置 vassal_type=feudal，附庸税 -3 生效）
+		_open_requirement_chat(country, "vassalize", "要求成为附庸")
+		return
 	print("外交: ", action, " → ", country, "（占位）")
 
 
 ## 打开要求对话（引擎④-CB：LLM 同意→建立关系 / 拒绝→获得 1 年 CB）
+## 2026-08-15：要求对话统一 negotiate 变体
 func _open_requirement_chat(country: String, cb_id: String, label: String) -> void:
 	if _chat_ui:
-		_chat_ui.open_chat("country", country, _country_name(country), cb_id, label)
+		_chat_ui.open_chat("country", country, _country_name(country), cb_id, label, "negotiate")
 
 
 ## 发起博弈（宣战）：用选中的 CB 名作为战争目标发起 2 个月博弈（引擎④-CB）
@@ -1211,20 +1397,25 @@ func _refresh_diplo_country(country: String) -> void:
 ## 附庸/宗主：直接宗主 + 【直接附庸】与【受保护国】分开展示
 ## 引擎⑤：运行时附庸关系（要求X同意建立）也计入；受保护国独立一栏，附「要求成为附庸」按钮
 func _build_vassal_panel() -> void:
+	var liege_tip := _kw_tip("宗主")
+	var vassal_tip := _kw_tip("附庸")
+	var prot_tip := _kw_tip("受保护国")
 	var my_liege := GameManager.effective_liege(_player_country_id)
 	if my_liege != "" and _country_index.has(my_liege):
 		var lrow := HBoxContainer.new()
 		lrow.add_theme_constant_override("separation", 8)
 		_left_body.add_child(lrow)
-		var lname := _panel_label("直接宗主：%s" % _country_name(my_liege))
+		var lname := _panel_label("直接宗主：%s" % _country_name(my_liege),
+			("宗主：%s" % _country_name(my_liege)) + ("\n" + liege_tip if liege_tip != "" else ""))
 		lname.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		lrow.add_child(lname)
-		_build_gold_button(lrow, "对话", _on_diplomacy_action.bind(my_liege, "chat"))
+		_build_gold_button(lrow, "对话", _on_diplomacy_action.bind(my_liege, "chat"),
+			"与宗主「%s」对话：请求恩宠 / 交涉 / 后宫互动" % _country_name(my_liege))
 	else:
 		_left_body.add_child(_panel_label("直接宗主：无（独立政权）"))
 
 	# —— 直接附庸（受保护国另列一栏）——
-	_left_body.add_child(_panel_label("直接附庸："))
+	_left_body.add_child(_panel_label("直接附庸：", "附庸：从属于你的国家，其统治者是你后宫的高级玩物" + ("\n" + vassal_tip if vassal_tip != "" else "")))
 	var vassal_found := false
 	for c in _countries:
 		var vcid: String = c.get("id", "")
@@ -1236,15 +1427,19 @@ func _build_vassal_panel() -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 		_left_body.add_child(row)
-		var name := _panel_label("%s（%s）" % [c.get("name", c.get("id", "")), _vassal_type_cn(c.get("id", ""))])
+		var vt_cn := _vassal_type_cn(c.get("id", ""))
+		var vt_tip := _kw_tip(vt_cn)
+		var name := _panel_label("%s（%s）" % [c.get("name", c.get("id", "")), vt_cn],
+			("附庸类型：%s" % vt_cn) + ("\n" + vt_tip if vt_tip != "" else ""))
 		name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(name)
-		_build_gold_button(row, "对话", _on_diplomacy_action.bind(c.get("id", ""), "vassal_chat"))
+		_build_gold_button(row, "对话", _on_diplomacy_action.bind(c.get("id", ""), "vassal_chat"),
+			"与附庸「%s」对话（附庸变体立绘）" % c.get("name", c.get("id", "")))
 	if not vassal_found:
 		_left_body.add_child(_panel_label("　（无直接附庸）"))
 
 	# —— 受保护国（独立一栏 + 要求成为附庸按钮）——
-	_left_body.add_child(_panel_label("受保护国："))
+	_left_body.add_child(_panel_label("受保护国：", "受保护国：受你保护、内政自主、外交军事受节制" + ("\n" + prot_tip if prot_tip != "" else "")))
 	var prot_found := false
 	for c in _countries:
 		var pcid: String = c.get("id", "")
@@ -1259,8 +1454,10 @@ func _build_vassal_panel() -> void:
 		var pname := _panel_label(c.get("name", c.get("id", "")))
 		pname.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		prows.add_child(pname)
-		_build_gold_button(prows, "对话", _on_diplomacy_action.bind(c.get("id", ""), "vassal_chat"))
-		_build_gold_button(prows, "要求成为附庸", _on_diplomacy_action.bind(c.get("id", ""), "make_vassal"))
+		_build_gold_button(prows, "对话", _on_diplomacy_action.bind(c.get("id", ""), "vassal_chat"),
+			"与受保护国「%s」对话" % c.get("name", c.get("id", "")))
+		_build_gold_button(prows, "要求成为附庸", _on_diplomacy_action.bind(c.get("id", ""), "make_vassal"),
+			"要求「%s」从受保护国升级为封臣附庸（LLM 对话裁定）" % c.get("name", c.get("id", "")))
 	if not prot_found:
 		_left_body.add_child(_panel_label("　（无受保护国）"))
 
@@ -1505,13 +1702,18 @@ func _build_situation_panel() -> void:
 	if list.is_empty():
 		_left_body.add_child(_panel_label("你当前没有局势。"))
 		return
+	var situ_tip := _kw_tip("局势")
 	for s in list:
 		var sid: String = str(s.get("id", ""))
 		var val: int = GameManager.get_situation_value(sid)
 		var stage: int = GameManager.get_situation_stage(sid)
 		var stage_names: Array = s.get("stage_names", [])
 		var stage_name: String = str(stage_names[stage]) if stage < stage_names.size() else "%s" % (stage + 1)
-		_left_body.add_child(_panel_label("◆ %s（%s）" % [str(s.get("name", sid)), stage_name]))
+		var sdesc := str(s.get("desc", ""))
+		var s_tip := ("%s：%s" % [str(s.get("name", sid)), sdesc]) if sdesc != "" else str(s.get("name", sid))
+		if situ_tip != "":
+			s_tip += "\n" + situ_tip
+		_left_body.add_child(_panel_label("◆ %s（%s）" % [str(s.get("name", sid)), stage_name], s_tip))
 		_left_body.add_child(_situation_bar(sid, val))
 		# 局势两端标签：两个 label 左右对齐，宽度与进度条画框一致，贴合两端（Master 8/14）
 		var ends := HBoxContainer.new()
@@ -1712,6 +1914,9 @@ func _bottom_icon_slots() -> Array:
 		slots.append("org_pirate_league")   # 塞壬三栖姬（群岛/奥克尼/设得兰）→ 海盗联盟
 	elif gov == "tribal":
 		slots.append("org_high_kingdom")    # 爱尔兰犬娘诸部（蒂龙等）→ 爱尔兰至高王国
+	# 引擎⑧：玩家所在联合统治 → 组织图标（一国仅一个，随时出现/消失随状态刷新）
+	if GameManager.in_union(_player_country_id):
+		slots.append("org_union")
 	# 引擎④：每个进行中的外交博弈一个独立图标
 	for p in GameManager.get_active_plays():
 		slots.append("play_%d" % int(p.get("id", 0)))
@@ -1792,9 +1997,33 @@ func _make_bottom_status_icon(icon_id: String, label: String) -> Button:
 	else:
 		b.text = label
 	b.modulate = Color(1.35, 1.35, 1.35, 0.6)   # 提亮 + 半透明（不抢眼）
-	b.tooltip_text = label
+	# EU4 式 tooltip（Master 8/15）：底栏图标叠加词条定义（外交博弈/战争/国际组织）
+	var btip := _bottom_icon_tip(icon_id)
+	b.tooltip_text = label if btip == "" else label + "\n\n" + btip
 	b.pressed.connect(_on_bottom_icon_pressed.bind(icon_id))
 	return b
+
+
+## 底栏图标词条定义（Master 8/15）：按图标类型查 KeywordTooltip 词库
+func _bottom_icon_tip(icon_id: String) -> String:
+	var kw := ""
+	if icon_id.begins_with("play_"):
+		kw = "外交博弈"
+	elif icon_id.begins_with("war_"):
+		kw = "战争"
+	else:
+		match icon_id:
+			"org_union":
+				kw = "联合统治"
+			"org_high_kingdom":
+				kw = "爱尔兰至高王国"
+			"org_pirate_league":
+				kw = "海盗联盟"
+			"diplomacy_game":
+				kw = "外交博弈"
+			"war":
+				kw = "战争"
+	return _kw_tip(kw)
 
 
 ## 下栏图标：点击滑出底部子菜单；再次点击同一图标收起（toggle）
@@ -1847,14 +2076,11 @@ func _build_bottom_content(icon_id: String) -> void:
 		return
 	match icon_id:
 		"org_pirate_league":
-			_build_org_content(vbox, "海盗联盟", ["群岛领地", "奥克尼", "设得兰"],
-				"塞壬三栖姬 · 按功勋分赃的战利品共享（引擎⑧）")
+			_build_pirate_content(vbox)
 		"org_high_kingdom":
-			_build_org_content(vbox, "爱尔兰至高王国", [],
-				"犬娘诸部 · 至高王选举 + 凝聚力，联盟之仪 / 淫乱火节提升（引擎⑧）")
+			_build_high_kingdom_content(vbox)
 		"org_union":
-			_build_org_content(vbox, "联合统治", [],
-				"多成员共享后宫 · 主导国可变更，关系松散（引擎⑧）")
+			_build_union_content(vbox)
 		_:
 			vbox.add_child(_panel_label("「%s」建设中…" % _bottom_icon_label(icon_id)))
 
@@ -1868,6 +2094,172 @@ func _build_org_content(vbox: VBoxContainer, title: String, members: Array, note
 		vbox.add_child(_panel_label("　（成员生成中，引擎⑧接入）"))
 	vbox.add_child(_panel_label(note))
 	vbox.add_child(_panel_label("—— 引擎⑧接入凝聚力 / 成员管理 ——"))
+
+
+## 联合统治面板（引擎⑧）：状态展示 + 成员对话 + 主导权转移提示
+## 玩法（共享后宫 / 站队倾向）全交 LLM 演绎，程序只展示状态与入口
+func _build_union_content(vbox: VBoxContainer) -> void:
+	var u := GameManager.union_of(_player_country_id)
+	if u.is_empty():
+		vbox.add_child(_panel_label("当前未加入任何联合统治"))
+		return
+	var union_tip := _kw_tip("联合统治")
+	var lead := str(u.get("lead", ""))
+	vbox.add_child(_panel_label("联合统治 #%d · 主导国：%s" % [int(u.get("id", 0)), _country_name(lead)],
+		("联合统治：共享后宫——主导国 + 被联统国共同组成一个后宫") + ("\n" + union_tip if union_tip != "" else "")))
+	# 成员紧凑排列：主导★ + 被联统国、分隔（自动换行，不逐行）
+	var names: Array[String] = ["★%s" % _country_name(lead)]
+	for m in u.get("members", []):
+		names.append(_country_name(str(m)))
+	var member_lbl := _panel_label("成员：%s" % "、".join(names))
+	member_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	member_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(member_lbl)
+	var share_tip := _kw_tip("共享后宫")
+	vbox.add_child(_panel_label("—— 共享后宫：成员后宫可互入、百合互动（LLM 演绎）——",
+		"共享后宫：联合统治成员后宫可互入对方后宫进行百合互动/侍奉/调教" + ("\n" + share_tip if share_tip != "" else "")))
+	if _player_country_id != lead:
+		vbox.add_child(_panel_label("—— 与「%s」聊天可请求成为主导国（攻受互换）——" % _country_name(lead)))
+
+
+## 海盗联盟面板（引擎⑧）：成员 + 功勋 + 劫掠（CD 4月 + 成功率 + 目标选择）
+func _build_pirate_content(vbox: VBoxContainer) -> void:
+	var members: Array = GameManager.get_pirate_members()
+	var pirate_tip := _kw_tip("海盗联盟")
+	vbox.add_child(_panel_label("海盗联盟 · 三栖姬", "海盗联盟：群岛/奥克尼/设得兰三栖姬的平等同盟，战利品按功勋分配" + ("\n" + pirate_tip if pirate_tip != "" else "")))
+	var names: Array[String] = []
+	for m in members:
+		var tag := "★" if str(m) == "The Isles" else ""
+		names.append("%s%s" % [tag, _country_name(str(m))])
+	var ml := _panel_label("成员：%s" % "、".join(names))
+	ml.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ml.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(ml)
+	# 功勋（谁抢得多，供 LLM 演绎分赃剧情）
+	var merit_tip := _kw_tip("功勋")
+	var merits: Array[String] = []
+	for m in members:
+		merits.append("%s %d 功勋" % [_country_name(str(m)), int(GameManager.raid_merit.get(str(m), 0))])
+	vbox.add_child(_panel_label("功勋：%s" % "、".join(merits),
+		"功勋：按成功劫掠次数、战利品价值等计算，战利品按功勋比例分配" + ("\n" + merit_tip if merit_tip != "" else "")))
+	# 劫掠区（玩家是海盗国才显示按钮）
+	if GameManager.get_pirate_members().has(_player_country_id):
+		_build_raid_section(vbox)
+	var raid_tip := _kw_tip("劫掠")
+	vbox.add_child(_panel_label("—— 劫掠有 CD（4月）与成功率；成功得金币+士气+功勋，失败损威望士气 ——",
+		"劫掠：海盗国对任意沿海地块发动的非战争行动，有冷却时间与成功率" + ("\n" + raid_tip if raid_tip != "" else "")))
+
+
+## 劫掠区：CD 显示 + 目标沿海省份选择 + 成功率预览 + 劫掠按钮
+func _build_raid_section(vbox: VBoxContainer) -> void:
+	var cd := GameManager.raid_remaining(_player_country_id)
+	vbox.add_child(_panel_label("劫掠冷却：%s" % ("已就绪" if cd <= 0 else "剩 %d 个月" % cd)))
+	var coastal: Array = GameManager.get_coastal_provinces()
+	if coastal.is_empty():
+		vbox.add_child(_panel_label("（无可劫掠的沿海省份）"))
+		return
+	_raid_target_opt = OptionButton.new()
+	_raid_target_opt.custom_minimum_size = Vector2(320, 40)
+	for p in coastal:
+		_raid_target_opt.add_item("%s（%s）" % [_country_name(str(p)), str(p)])
+		_raid_target_opt.set_item_metadata(_raid_target_opt.item_count - 1, str(p))
+	_raid_target_opt.item_selected.connect(func(_i: int) -> void: _update_raid_chance())
+	vbox.add_child(_raid_target_opt)
+	_raid_chance_label = _panel_label("")
+	vbox.add_child(_raid_chance_label)
+	_update_raid_chance()
+	var btn := _build_gold_button(vbox, "🏴‍☠️ 出海劫掠", _on_raid_pressed)
+	if cd > 0:
+		btn.disabled = true
+		btn.tooltip_text = "劫掠冷却中（剩 %d 个月）" % cd
+
+
+## 刷新劫掠成功率预览（选中目标变化时）
+func _update_raid_chance() -> void:
+	if _raid_target_opt == null or _raid_chance_label == null:
+		return
+	var sel := _raid_target_opt.selected
+	if sel < 0:
+		return
+	var prov := str(_raid_target_opt.get_item_metadata(sel))
+	var chance: float = GameManager.raid_success_chance(_player_country_id, prov)
+	_raid_chance_label.text = "成功率：%d%%" % int(chance * 100.0)
+
+
+## 执行劫掠（引擎⑧）：选目标 → do_raid → 刷新面板 + 结果提示
+func _on_raid_pressed() -> void:
+	if _raid_target_opt == null or _raid_target_opt.selected < 0:
+		return
+	var prov := str(_raid_target_opt.get_item_metadata(_raid_target_opt.selected))
+	var res := GameManager.do_raid(_player_country_id, prov)
+	_refresh_bottom_slide()
+	if _bottom_open:
+		var msg := ""
+		if not res.get("ok", false):
+			msg = str(res.get("error", "劫掠失败"))
+		elif res.get("success", false):
+			msg = "劫掠成功！战利品 %d 金币，士气高昂" % int(res.get("gold", 0))
+		else:
+			msg = "劫掠失败，空手而归（威望士气受损）"
+		var l := _panel_label(msg)
+		l.add_theme_color_override("font_color", Color(0.96, 0.84, 0.55))
+		_bottom_body.add_child(l)
+
+
+## 爱尔兰至高王国面板（引擎⑧）：凝聚力 + 成员 + 至高王召集按钮（程序召唤，无需 LLM）
+func _build_high_kingdom_content(vbox: VBoxContainer) -> void:
+	var hk := str(GameManager.high_king_id)
+	var hk_tip := _kw_tip("爱尔兰至高王国")
+	vbox.add_child(_panel_label("爱尔兰至高王国 · 至高王：%s" % _country_name(hk),
+		"爱尔兰至高王国：平等至高王国（爱尔兰诸部），至高王牵头" + ("\n" + hk_tip if hk_tip != "" else "")))
+	var cohesion: int = GameManager.get_high_kingdom_cohesion()
+	var coh_tip := _kw_tip("凝聚力")
+	vbox.add_child(_panel_label("凝聚力：%d / 100（统一爱尔兰进度）" % cohesion,
+		"凝聚力：淫趴/节日/部落联姻提升；战争参战消耗；凝聚满可统一爱尔兰" + ("\n" + coh_tip if coh_tip != "" else "")))
+	vbox.add_child(_panel_label("成员诸部："))
+	var names: Array[String] = []
+	for cid in GameManager.get_high_kingdom_members():
+		var tag := "★" if str(cid) == hk else ""
+		names.append("%s%s" % [tag, _country_name(str(cid))])
+	var member_lbl := _panel_label("、".join(names))
+	member_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	member_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(member_lbl)
+	# 至高王专属：召集诸部按钮（程序召唤，无需 LLM 同意）
+	if _player_country_id == hk:
+		_build_gold_button(vbox, "⚔ 召集诸部加入爱尔兰一方", _on_call_allies_pressed)
+	var yp_tip := _kw_tip("淫趴")
+	vbox.add_child(_panel_label("—— 淫趴/节日/部落联姻提升凝聚力；被围攻时至高王可消耗凝聚力召集诸部 ——",
+		("淫趴/淫乱节日：至高王举办（需金币）提升凝聚力") + ("\n" + yp_tip if yp_tip != "" else "")))
+
+
+## 至高王召集诸部（引擎⑧）：找爱尔兰成员被发起的外来博弈 → 程序召唤中立部落 join_play 入 B 方
+func _on_call_allies_pressed() -> void:
+	var hk_members: Array = GameManager.get_high_kingdom_members()
+	var target_play := -1
+	for p in GameManager.get_active_plays():
+		var target := str(p.get("target", ""))
+		var bside: Array = p.get("sides", {}).get("B", [])
+		if hk_members.has(target) or bside.has(GameManager.high_king_id):
+			target_play = int(p.get("id", 0))
+			break
+	var msg := "当前没有爱尔兰成员被发起的博弈，无法召集"
+	if target_play >= 0:
+		var res := GameManager.call_allies_to_war(target_play)
+		msg = "召集诸部：%s" % ("成功（%s 应召加入）" % "、".join(res.get("called", [])) if res.get("ok", false) else str(res.get("error", "失败")))
+	_refresh_bottom_slide()
+	if _bottom_open:
+		var l := _panel_label(msg)
+		l.add_theme_color_override("font_color", Color(0.96, 0.84, 0.55))
+		_bottom_body.add_child(l)
+
+
+## 刷新底部弹窗内容（召集诸部后重建当前面板，反映凝聚力/成员变化）
+func _refresh_bottom_slide() -> void:
+	if _bottom_open and _active_bottom != "":
+		for c in _bottom_body.get_children():
+			c.queue_free()
+		_build_bottom_content(_active_bottom)
 
 
 ## 按 id 找进行中的博弈（无则 {}）
@@ -1892,13 +2284,16 @@ func _build_single_play_content(vbox: VBoxContainer, play_id: int) -> void:
 	if p.is_empty():
 		vbox.add_child(_panel_label("博弈 #%d 已结束" % play_id))
 		return
-	vbox.add_child(_panel_label("外交博弈 #%d（单阶段 · 持续 2 个月）" % play_id))
+	var play_tip := _kw_tip("外交博弈")
+	vbox.add_child(_panel_label("外交博弈 #%d（单阶段 · 持续 2 个月）" % play_id,
+		"外交博弈：宣战前的单阶段流程，持续 2 个月，期满未谈拢即开战" + ("\n" + play_tip if play_tip != "" else "")))
 	vbox.add_child(_panel_label("%s(%s) vs %s(%s) · 剩 %d 月" % [
 		_country_name(str(p.get("initiator", ""))), str(p.get("init_goal", "")),
 		_country_name(str(p.get("target", ""))), str(p.get("targ_goal", "")),
 		int(p.get("deadline", 0))]))
 	vbox.add_child(_panel_label("站队：%s / %s" % [
-		_side_names(p.get("sides", {}).get("A", [])), _side_names(p.get("sides", {}).get("B", []))]))
+		_side_names(p.get("sides", {}).get("A", [])), _side_names(p.get("sides", {}).get("B", []))],
+		"站队：加入发起方（A）或防守方（B）；退缩则对方不战而获目标"))
 	var my_side := _my_play_side(p)
 	# 战争目标只有「战争盟主」（发起方/防守方 initiator/target）能提；站队/旁观玩家只能选边（Master 8/14）
 	var is_principal := str(p.get("initiator", "")) == _player_country_id or str(p.get("target", "")) == _player_country_id
@@ -2016,7 +2411,10 @@ func _build_single_war_content(vbox: VBoxContainer, war_id: int) -> void:
 	if w.is_empty():
 		vbox.add_child(_panel_label("战争 #%d 已结束" % war_id))
 		return
-	vbox.add_child(_panel_label("战争 #%d（Battle Fuck）" % war_id))
+	var war_tip := _kw_tip("战争")
+	var bf_tip := _kw_tip("Battle Fuck")
+	vbox.add_child(_panel_label("战争 #%d（Battle Fuck）" % war_id,
+		("战争：以色情交锋决出胜负，直到一方高潮失神败北") + ("\n" + war_tip if war_tip != "" else "") + ("\n\n" + bf_tip if bf_tip != "" else "")))
 	vbox.add_child(_panel_label("A方（进攻）：%s" % _side_names(w.get("attacker", []))))
 	vbox.add_child(_panel_label("B方（防守）：%s" % _side_names(w.get("defender", []))))
 	var a_surr := _surrender_names(w.get("attacker", []))
@@ -2025,20 +2423,77 @@ func _build_single_war_content(vbox: VBoxContainer, war_id: int) -> void:
 		vbox.add_child(_panel_label("A方已投降：%s（可提全面条款）" % a_surr))
 	if not b_surr.is_empty():
 		vbox.add_child(_panel_label("B方已投降：%s（可提全面条款）" % b_surr))
-	vbox.add_child(_panel_label("议和规则：攻破对方首都 → 无条件投降；其余 → 与敌国公主聊天提条件，同意即和平"))
-	_build_gold_button(vbox, "与敌国公主议和", _on_peace_treaty_pressed.bind(war_id))
+	var peace_tip := _kw_tip("议和")
+	vbox.add_child(_panel_label("议和规则：攻破对方首都 → 无条件投降；其余 → 与敌国公主聊天提条件，同意即和平",
+		("议和：未攻破首都时可随时与敌国公主聊天提条件") + ("\n" + peace_tip if peace_tip != "" else "")))
+	# 2026-08-15：战争面板一键议和对话（war 变体 + 战场环境注入，无需绕外交面板）
+	var enemies := _war_enemies_of_player(war_id)
+	if enemies.is_empty():
+		vbox.add_child(_panel_label("（你未参与该战争，无法直接议和）"))
+	else:
+		for e in enemies:
+			_build_gold_button(vbox, "⚔ 与「%s」议和对话" % _country_name(str(e)), _on_war_peace_chat.bind(war_id, str(e)))
 	_bottom_notice = _panel_label("")
 	vbox.add_child(_bottom_notice)
 
 
-## 议和：提示从外交面板找对方公主聊天（LLM 谈条件，同意即和平）
-func _on_peace_treaty_pressed(war_id: int = 0) -> void:
-	if _bottom_notice:
-		var w := _find_war(war_id)
-		if w.is_empty():
-			_bottom_notice.text = "当前无战争可议和（有战争时从外交面板找对方公主聊天提条件）"
-		else:
-			_bottom_notice.text = "战争 #%d：请从左栏外交面板点对方公主「对话」议和（LLM 谈条件）" % war_id
+## 战争面板一键议和对话（2026-08-15）：war 变体 + 战场环境注入（LLM 知悉战争编号/双方/投降状态）
+func _on_war_peace_chat(war_id: int, enemy: String) -> void:
+	if _chat_ui:
+		_chat_ui.open_chat("country", enemy, _country_name(enemy), "", "", "war", _war_context_text(war_id))
+
+
+## 玩家与某国的共同战争 id（无则 -1；玩家/该国须在敌对阵营）
+func _war_between_player_and(cid: String) -> int:
+	for w in GameManager.wars:
+		var a: Array = w.get("attacker", [])
+		var d: Array = w.get("defender", [])
+		var p_a: bool = a.has(_player_country_id)
+		var p_d: bool = d.has(_player_country_id)
+		var c_a: bool = a.has(cid)
+		var c_d: bool = d.has(cid)
+		if (p_a and c_d) or (p_d and c_a):
+			return int(w.get("id", 0))
+	return -1
+
+
+## 玩家与某国是否存在宗主-附庸（含受保护）关系（决定 vassal 变体；宗主场景少，复用附庸图）
+func _is_vassal_relation(cid: String) -> bool:
+	if cid == _player_country_id:
+		return false
+	return GameManager.effective_liege(cid) == _player_country_id or GameManager.effective_liege(_player_country_id) == cid
+
+
+## 玩家在战争中的敌对阵营国家列表（未参战返回空）
+func _war_enemies_of_player(war_id: int) -> Array:
+	var w := _find_war(war_id)
+	if w.is_empty():
+		return []
+	var a: Array = w.get("attacker", [])
+	var d: Array = w.get("defender", [])
+	if a.has(_player_country_id):
+		return d
+	if d.has(_player_country_id):
+		return a
+	return []
+
+
+## 战场环境文本（供 LLM scene_context 注入）：战争编号 + 双方 + 投降状态
+func _war_context_text(war_id: int) -> String:
+	var w := _find_war(war_id)
+	if w.is_empty():
+		return "战争 #%d" % war_id
+	var parts: Array[String] = []
+	parts.append("战争 #%d" % war_id)
+	parts.append("A方（进攻）：%s" % _side_names(w.get("attacker", [])))
+	parts.append("B方（防守）：%s" % _side_names(w.get("defender", [])))
+	var a_surr := _surrender_names(w.get("attacker", []))
+	var b_surr := _surrender_names(w.get("defender", []))
+	if not a_surr.is_empty():
+		parts.append("A方已投降：%s（可提全面条款）" % a_surr)
+	if not b_surr.is_empty():
+		parts.append("B方已投降：%s（可提全面条款）" % b_surr)
+	return "。".join(parts)
 
 
 ## ===== 主题样式 =====
@@ -2162,8 +2617,16 @@ func _build_event_ui() -> void:
 	_event_title = _make_themed_label("")
 	_event_title.add_theme_font_size_override("font_size", 26)
 	right.add_child(_event_title)
-	_event_body = _make_themed_label("")
+	# 事件正文：RichTextLabel + 关键词高亮（EU4 式悬停弹解释，Master 8/15）
+	_event_body = RichTextLabel.new()
+	_event_body.bbcode_enabled = true
+	_event_body.fit_content = true
+	_event_body.scroll_active = false
 	_event_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_event_body.add_theme_font_size_override("normal_font_size", 16)
+	_event_body.add_theme_color_override("default_color", INK)
+	_event_body.meta_hover_started.connect(_on_event_meta_hover)
+	_event_body.meta_hover_ended.connect(_on_event_meta_exited)
 	right.add_child(_event_body)
 	# 选项（金色羊皮纸按钮）
 	_event_opts_box = VBoxContainer.new()
@@ -2179,6 +2642,18 @@ func _show_event_panel() -> void:
 	_render_event_panel()
 
 
+## 事件正文关键词悬停：弹出定义（Master 8/15，复用 KeywordTooltip）
+func _on_event_meta_hover(meta: Variant) -> void:
+	if KeywordTooltip and KeywordTooltip.has_method("show_keyword_tooltip"):
+		KeywordTooltip.show_keyword_tooltip(meta)
+
+
+## 事件正文关键词悬停离开：隐藏弹窗（meta_hover_ended，Master 8/15）
+func _on_event_meta_exited(_meta: Variant) -> void:
+	if KeywordTooltip and KeywordTooltip.has_method("hide_keyword_tooltip"):
+		KeywordTooltip.hide_keyword_tooltip()
+
+
 ## 渲染当前事件（标题/正文/左图容错/选项金色按钮 + EU4 effects tooltip）
 func _render_event_panel() -> void:
 	var ev: Dictionary = GameManager.peek_player_event()
@@ -2190,7 +2665,11 @@ func _render_event_panel() -> void:
 	for c in _event_opts_box.get_children():
 		c.queue_free()
 	_event_title.text = str(e.get("name", "事件"))
-	_event_body.text = GameManager.resolve_event_vars(str(e.get("text", "")), root, from)
+	var ev_text := GameManager.resolve_event_vars(str(e.get("text", "")), root, from)
+	_event_body.text = ev_text
+	# Master 8/15：事件正文关键词高亮（色情/机制术语悬停弹解释）
+	if KeywordTooltip and KeywordTooltip.has_method("highlight_text"):
+		_event_body.text = KeywordTooltip.highlight_text(ev_text)
 	# 左图容错：res://assets/events/<id>.png 存在才显示，否则不显示（不报错）
 	var img := "res://assets/events/%s.png" % str(ev.get("event_id", ""))
 	if ResourceLoader.exists(img):
@@ -2211,7 +2690,12 @@ func _render_event_panel() -> void:
 		if my_side != "" and str(o.get("side", "")) == my_side:
 			label = "〔我方〕" + label
 		var b := _build_gold_button(_event_opts_box, label, _on_event_option.bind(i))
-		b.tooltip_text = _event_effects_text(o.get("effects", {}))
+		# EU4 式 tooltip：选项效果 + 词条定义（Master 8/15 叠加）
+		var fx_text := _event_effects_text(o.get("effects", {}))
+		var opt_tip := str(o.get("desc", ""))
+		b.tooltip_text = fx_text
+		if opt_tip != "":
+			b.tooltip_text += "\n\n%s" % opt_tip
 	_event_layer.visible = true
 
 
@@ -2273,7 +2757,18 @@ func _make_icon_button(panel_id: String, icon_name: String, cb: Callable) -> But
 	# 兜底：图标缺失时显示汉字，避免空白
 	else:
 		b.text = icon_name
+	# EU4 式 tooltip（Master 8/15）：左栏图标加面板说明（叠加词条定义）
+	var panel_tip: String = str({
+		"economy": "经济：收入 / 支出 / 招募军队 / 贷款",
+		"court": "宫廷：统治者立绘 / 后宫（容量 5）",
+		"diplomacy": "外交：与他国对话 / 要求关系 / 宣战（外交博弈）",
+		"vassal": "附庸·宗主：封臣附庸 / 受保护国 / 宗主关系",
+		"mission": "任务：国家任务树（完成条件 + 奖励）",
+		"situation": "局势：0~100 进度条，分 5 阶段，与事件绑定",
+	}.get(panel_id, ""))
 	b.tooltip_text = PANEL_CN.get(panel_id, icon_name)
+	if panel_tip != "":
+		b.tooltip_text += "\n\n%s" % panel_tip
 	b.pressed.connect(cb.bind(panel_id))
 	return b
 
@@ -2295,7 +2790,7 @@ func _make_float_button(icon_id: String, sym: String, cb: Callable) -> Button:
 	return b
 
 
-func _build_gold_button(parent: Node, text: String, cb: Callable) -> Button:
+func _build_gold_button(parent: Node, text: String, cb: Callable, tip := "") -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size.y = 40
@@ -2304,6 +2799,8 @@ func _build_gold_button(parent: Node, text: String, cb: Callable) -> Button:
 	b.add_theme_stylebox_override("normal", _make_panel_stylebox())
 	b.add_theme_stylebox_override("hover", _make_panel_stylebox(true))
 	b.add_theme_stylebox_override("pressed", _make_panel_stylebox(true))
+	if tip != "":
+		b.tooltip_text = tip
 	b.pressed.connect(cb)
 	parent.add_child(b)
 	return b
@@ -2314,6 +2811,7 @@ func _make_top_label(parent: Node, text: String) -> Label:
 	l.text = text
 	l.add_theme_font_size_override("font_size", 20)
 	l.add_theme_color_override("font_color", INK)
+	l.mouse_filter = Control.MOUSE_FILTER_STOP   # Master 8/14：顶栏数值可悬停显示 tooltip（如威望加成），默认 IGNORE 会穿透导致 tooltip 不触发
 	parent.add_child(l)
 	return l
 
@@ -2373,8 +2871,29 @@ func _on_chat_pressed() -> void:
 
 
 func _on_save_pressed() -> void:
-	# 存档待引擎⑨接入；当前占位
-	print("Save pressed (placeholder)")
+	# 引擎⑨：打开存档面板（save 模式）—— 保存/读取/删除 6 槽位
+	if _save_panel:
+		_save_panel.show_panel("save")
+
+
+## 游戏内读档完成（save_panel.load_completed）：恢复状态已由 save_panel 落地 → 刷新顶栏/地图/底栏/左栏
+func _on_save_load_completed(_data: Dictionary) -> void:
+	# 同步省份数据：读档后 GameManager 持有存档值，重新绑定本场景显示引用
+	_province_owner = GameManager.province_owner
+	_province_buildings = GameManager.province_buildings
+	GameManager.province_owner = _province_owner
+	GameManager.province_buildings = _province_buildings
+	_player_country_id = GameManager.player_country_id
+	_close_left_slide()
+	_top_country.text = _country_name(_player_country_id)
+	var shield_path := SHIELD_DIR + _player_country_id + ".png"
+	if ResourceLoader.exists(shield_path):
+		_top_shield.texture = load(shield_path)
+	_refresh_top_bar()
+	_refresh_bottom_bar()
+	_map_view.apply_ownership(GameManager.province_owner)
+	_map_view.refresh_forts(GameManager.province_buildings)
+	_map_view.refresh_army(GameManager.army_position, GameManager.army_count)
 
 
 func _load_json(path: String) -> Dictionary:

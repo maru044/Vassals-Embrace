@@ -22,9 +22,10 @@ func _initialize() -> void:
 	out.append("history size 1: %s" % (int(client.get("history").size()) == 1))
 
 	# ③ 成功响应：_on_request_completed(200) → request_finished(true) + assistant 带 tool_calls 入历史
+	# （正文走 content 字段，工具只做数据操作——Master 8/15 新机制）
 	var body := JSON.stringify({
-		"choices": [{"message": {"role": "assistant", "content": "思考正文", "tool_calls": [
-			{"id": "call_1", "function": {"name": "submit_dialogue", "arguments": "{\"content\":\"你好\"}"}},
+		"choices": [{"message": {"role": "assistant", "content": "<thinking>（检定）</thinking>\n<content>你好</content>", "tool_calls": [
+			{"id": "call_1", "function": {"name": "modify_favor", "arguments": "{\"target_id\":\"Wales\",\"delta\":3}"}},
 		]}}]
 	}).to_utf8_buffer()
 	var holder1 := {"ok": false}

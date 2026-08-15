@@ -108,6 +108,19 @@ func _world_state_text() -> String:
 		var tag: String = "（玩家）" if cid == GameManager.player_country_id else ""
 		lines.append("  %s：军队 %d 队，威望 %.0f%s" % [
 			cid, GameManager.army_count[cid], GameManager.country_prestige.get(cid, 0.0), tag])
+	# 附庸/宗主关系一览（Master 8/15：LLM 决策须知晓封建从属，避免附庸对宗主宣战等误判）
+	var liege_lines: Array[String] = []
+	for cid in GameManager.army_count:
+		var liege: String = GameManager.effective_liege(str(cid))
+		if liege == "":
+			continue
+		liege_lines.append("  %s → 宗主 %s（%s）" % [
+			cid, liege, _vassal_type_cn(GameManager.effective_vassal_type(str(cid)))])
+	if liege_lines.is_empty():
+		lines.append("附庸/宗主关系：无（各国均独立）")
+	else:
+		lines.append("附庸/宗主关系：")
+		lines.append_array(liege_lines)
 	var plays: Array = GameManager.get_active_plays()
 	if plays.is_empty():
 		lines.append("进行中的外交博弈：无")
@@ -124,6 +137,14 @@ func _world_state_text() -> String:
 		lines.append("进行中的战争：")
 		for w in GameManager.wars:
 			lines.append("  战争#%s：A方%s vs B方%s" % [str(w.get("id", "")), str(w.get("attacker", [])), str(w.get("defender", []))])
+	# 引擎⑧：当前联合统治组织（LLM 可见——AI 间联合统治也写入引擎，主导权可由被联统国聊天要求转移）
+	if GameManager.unions.is_empty():
+		lines.append("进行中的联合统治：无")
+	else:
+		lines.append("进行中的联合统治：")
+		for u in GameManager.unions:
+			lines.append("  联合统治#%s：主导%s，被联统%s" % [
+				str(u.get("id", "")), str(u.get("lead", "")), str(u.get("members", []))])
 	# 投降告知（Master 8/13：投降不自动结束战争/割地，和平条款全交 LLM 对话，只需让 LLM 知道谁投降了）
 	var surrendered: Array[String] = []
 	for cid in GameManager.army_count:
@@ -135,3 +156,16 @@ func _world_state_text() -> String:
 		lines.append("已投降国家（已无条件投降，可谈和平条款/割地）：%s" % ", ".join(surrendered))
 	lines.append("请决定本月 AI 国家的外交动作（用工具；无事可做就什么都别调）。")
 	return "\n".join(lines)
+
+
+## 附庸类型中文名（UI 同款；vassalize 封臣 / protectorate 受保护国 / feudal 封臣附庸）
+func _vassal_type_cn(t: String) -> String:
+	match t:
+		"feudal":
+			return "封臣附庸"
+		"protectorate":
+			return "受保护国"
+		"autonomous":
+			return "自治藩属"
+		_:
+			return t

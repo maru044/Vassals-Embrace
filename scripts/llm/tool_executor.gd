@@ -18,36 +18,6 @@ const TOOLS: Array = [
 			},
 		},
 	},
-	{
-		"type": "function",
-		"function": {
-			"name": "modify_service_tendency",
-			"description": "调整某角色的奉仕傾向",
-			"parameters": {
-				"type": "object",
-				"properties": {
-					"country_id": {"type": "integer", "description": "国家 id"},
-					"member_name": {"type": "string", "description": "后宫成员名"},
-					"delta": {"type": "integer", "description": "倾向增减量"},
-				},
-				"required": ["country_id", "member_name", "delta"],
-			},
-		},
-	},
-	{
-		"type": "function",
-		"function": {
-			"name": "trigger_event",
-			"description": "触发一个私人事件（LLM 演绎用）",
-			"parameters": {
-				"type": "object",
-				"properties": {
-					"event_id": {"type": "string", "description": "事件 id"},
-				},
-				"required": ["event_id"],
-			},
-		},
-	},
 	# ---- 引擎④ 外交 / 战争（Master 8/13 过家家模式：AI 决策由 LLM 经工具落地）----
 	{
 		"type": "function",
@@ -161,21 +131,23 @@ const TOOLS: Array = [
 			},
 		},
 	},
-	# ---- 聊天正文输出（Master 8/13：正文走函数调用，不靠 <content> 标签解析，更可靠）----
+	# ---- 引擎⑧ 联合统治（Master 8/14：被联统国 LLM 聊天要求成为主导国，攻受互换）----
 	{
 		"type": "function",
 		"function": {
-			"name": "submit_dialogue",
-			"description": "提交角色对话/播报正文（聊天时的正式回复内容，系统会自动提取参数显示）。思考过程放 <thinking>，正文全部写进 content 参数。",
+			"name": "transfer_union_lead",
+			"description": "被联统国要求成为联合统治的主导国（攻受互换）：该国从被联统国变为主导国，原主导国变为被联统国。仅该国正处于联合统治且非主导时可用（对话中由被联统国公主提出、主导国同意后调用落地）。",
 			"parameters": {
 				"type": "object",
 				"properties": {
-					"content": {"type": "string", "description": "对话/播报的完整正文（含角色台词、动作与内心描写）"},
+					"country_id": {"type": "string", "description": "请求成为主导国的国家 id（被联统国）"},
 				},
-				"required": ["content"],
+				"required": ["country_id"],
 			},
 		},
 	},
+	# Master 8/15：正文不再走 submit_dialogue 工具（LLM 自身行为不稳定），改走 <content> 标签 + 正则提取（参考女仆别墅项目）。
+	# TOOLS 不再注册 submit_dialogue；execute() 保留容错分支，兼容旧历史/旧回复中的残留调用。
 ]
 
 
@@ -183,10 +155,6 @@ func execute(tool_name: String, args: Dictionary) -> Dictionary:
 	match tool_name:
 		"modify_favor":
 			return _modify_favor(args)
-		"modify_service_tendency":
-			return _modify_service_tendency(args)
-		"trigger_event":
-			return _trigger_event(args)
 		"declare_war":
 			return _declare_war(args)
 		"join_war":
@@ -202,7 +170,10 @@ func execute(tool_name: String, args: Dictionary) -> Dictionary:
 		"sign_peace":
 			return _sign_peace(args)
 		"submit_dialogue":
+			# 容错（Master 8/15）：旧历史/旧回复残留调用 → 仍回传正文，但新机制不再依赖
 			return _submit_dialogue(args)
+		"transfer_union_lead":
+			return _transfer_union_lead(args)
 		_:
 			return {"ok": false, "error": "未知工具: %s" % tool_name}
 
@@ -215,28 +186,19 @@ func _modify_favor(args: Dictionary) -> Dictionary:
 	return {"ok": true, "target_id": target_id, "delta": delta, "favor": GameManager.player_favor.get(target_id, 0.0)}
 
 
-func _modify_service_tendency(args: Dictionary) -> Dictionary:
-	var country_id: int = args.get("country_id", -1)
-	var member_name: String = args.get("member_name", "")
-	var delta: int = args.get("delta", 0)
-	# TODO: 落库到后宫系统
-	EventBus.service_tendency_changed.emit(country_id, delta)
-	EventBus.tool_executed.emit("modify_service_tendency", {"country_id": country_id, "member": member_name, "delta": delta})
-	return {"ok": true, "country_id": country_id, "delta": delta}
-
-
-func _trigger_event(args: Dictionary) -> Dictionary:
-	var event_id: String = args.get("event_id", "")
-	EventBus.event_triggered.emit(event_id)
-	EventBus.tool_executed.emit("trigger_event", {"event_id": event_id})
-	return {"ok": true, "event_id": event_id}
-
-
-## 聊天正文输出（Master 8/13：正文走函数调用而非 <content> 标签解析）；引擎不落地，仅回传正文
+## 聊天正文输出容错（Master 8/15：新机制正文走 <content> 标签 + 正则提取；此分支仅兼容旧调用，引擎不落地）
 func _submit_dialogue(args: Dictionary) -> Dictionary:
 	var content := str(args.get("content", ""))
 	EventBus.tool_executed.emit("submit_dialogue", {"content": content})
 	return {"ok": true, "content": content}
+
+
+## 引擎⑧：被联统国要求成为主导国（攻受互换；Master 8/14：LLM 聊天驱动，引擎只落地）
+func _transfer_union_lead(args: Dictionary) -> Dictionary:
+	var cid: String = str(args.get("country_id", ""))
+	var res := GameManager.transfer_union_lead(cid)
+	EventBus.tool_executed.emit("transfer_union_lead", {"country_id": cid, "result": res})
+	return res
 
 
 # ---- 引擎④ 外交 / 战争工具（过家家模式：AI 决策由 LLM 落地）----
