@@ -31,6 +31,17 @@ func _initialize() -> void:
 	var p5: Dictionary = parser.parse_response({"choices": [{"message": {"role": "assistant", "content": "<thinking>未闭合思考<content>正文五号</content>"}}]})
 	out.append("⑤ 未闭合 thinking 兜底: %s" % (str(p5.get("content", "")) == "正文五号"))
 
+	# ⑥ PREFILL 式（Master 8/15 修复）：无 <thinking> 开标签（PREFILL 已提供），只有 </thinking> 闭合，
+	#    且 thinking 里复述了 <content> 字样 → 必须先剥离 thinking 再提取正文，否则误读
+	var prefill_body := "检查格式和规则：\n- 角色 Miku 第一人称说话。\n- <content>包裹正文。\n</thinking>\n\n<content>\n“欸？我在呢，Master~♡”（正文）\n</content>"
+	var p6: Dictionary = parser.parse_response({"choices": [{"message": {"role": "assistant", "content": prefill_body}}]})
+	out.append("⑥ PREFILL 式 thinking 含 <content> 字样仍正确提取: %s" % (str(p6.get("content", "")).contains("我在呢")))
+	out.append("⑥ CoT 含 thinking 内容: %s" % str(p6.get("cot", "")).contains("检查格式"))
+
+	# ⑦ 无 <thinking> 开标签、无 <content> 标签（PREFILL 式纯文本）→ 剥离 </thinking> 后极端兜底
+	var p7: Dictionary = parser.parse_response({"choices": [{"message": {"role": "assistant", "content": "思考一下\n</thinking>\n这是正文七号"}}]})
+	out.append("⑦ PREFILL 式无 content 标签兜底: %s" % (str(p7.get("content", "")).contains("正文七号")))
+
 	out.append("TAG_EXTRACT_DONE")
 	var f := FileAccess.open(RESULT_PATH, FileAccess.WRITE)
 	if f:
