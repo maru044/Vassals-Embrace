@@ -14,8 +14,10 @@ const INK := Color(0.18, 0.13, 0.08)
 
 var _mode := "save"
 var _slot_container: VBoxContainer
-## 可选：取聊天历史（返回 Array[Dictionary]）；由 game.gd 注入（从 ChatDialog 的 LLMClient 取）
+## 取聊天历史（返回 Array[Dictionary]）；默认从 GameManager.chat_history 持久记忆读取，
+## 调用方（game.gd）可注入覆盖（从 ChatUI/LLMClient 取最新会话历史）
 var get_chat_history: Callable = Callable()
+## 写聊天历史；默认写入 GameManager.chat_history 持久记忆，调用方可注入覆盖
 var set_chat_history: Callable = Callable()
 
 
@@ -160,13 +162,17 @@ func _country_name(id: String) -> String:
 	return _country_names.get(id, id)
 
 
-## 保存到槽位：GameManager.serialize() + 聊天历史（可选）
+## 保存到槽位：GameManager.serialize() + 聊天历史（持久记忆；调用方可注入覆盖来源）
 func _on_save(idx: int) -> void:
 	var data := GameManager.serialize()
+	var hist: Array = []
 	if get_chat_history.is_valid():
-		var hist: Variant = get_chat_history.call()
-		if hist is Array:
-			data["chat_history"] = hist
+		var h: Variant = get_chat_history.call()
+		if h is Array:
+			hist = h
+	if hist.is_empty():
+		hist = GameManager.chat_history   # 兜底：未注入回调时用持久记忆
+	data["chat_history"] = hist.duplicate(true)
 	SaveManager.save_game_to_slot(idx, data)
 	_refresh_slot_list()
 
@@ -179,8 +185,12 @@ func _on_load(idx: int) -> void:
 	GameManager.deserialize(data)
 	# 主菜单读档 → 跳转 game.tscn 时跳过选国直接进入游戏（引擎⑨）
 	GameManager.loaded_from_save = true
-	if set_chat_history.is_valid() and data.has("chat_history"):
-		set_chat_history.call(data["chat_history"])
+	if data.has("chat_history"):
+		var hist: Variant = data["chat_history"]
+		if set_chat_history.is_valid():
+			set_chat_history.call(hist)          # 调用方（chat_ui）注入时：写入 LLMClient
+		elif hist is Array:
+			GameManager.chat_history = hist.duplicate(true)   # 兜底：写入持久记忆（主菜单读档链路）
 	load_completed.emit(data)
 	hide_panel()
 

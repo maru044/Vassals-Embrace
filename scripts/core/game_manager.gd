@@ -116,6 +116,8 @@ var mission_flags := {}                # flag -> true（事件 effects.flags 置
 var raid_count := 0                    # 引擎⑦：玩家海盗劫掠次数（塞壬任务条件；引擎⑧海盗联盟/事件胜利时 add_raid 增长）
 
 var _country_list: Array = []   # countries.json（读 liege 关系，用于初始好感）
+# ---- 引擎⑨ · LLM 上下文记忆（Master 8/24：跨场景/跨会话持久，存档/读档/换场景从本体恢复）----
+var chat_history: Array = []    # LLM 消息历史 [{role, content, ...}]；由 chat_ui 同步，随存档持久化
 
 
 func _ready() -> void:
@@ -167,6 +169,7 @@ func start_new_game(country_id: String) -> void:
 	completed_missions.clear()   # 引擎⑦-任务：新档无已完成任务
 	mission_flags.clear()        # 引擎⑦-任务：新档无任务 flag
 	raid_count = 0               # 引擎⑦-任务：新档无海盗劫掠
+	chat_history.clear()         # 引擎⑨-记忆：新档清空 LLM 上下文记忆（旧档记忆不串到新局）
 	for cid in _all_country_ids():
 		country_gold[cid] = START_GOLD
 		country_prestige[cid] = START_PRESTIGE
@@ -2505,6 +2508,7 @@ func serialize() -> Dictionary:
 		"raid_count": raid_count, "player_event_queue": player_event_queue,
 		"province_owner": province_owner, "province_buildings": province_buildings,
 		"capital_province": capital_province,
+		"chat_history": chat_history,
 		"created_at": Time.get_datetime_string_from_system(),
 	}
 
@@ -2554,6 +2558,7 @@ func deserialize(data: Dictionary) -> void:
 	province_owner = _dict_or_empty(data.get("province_owner"))
 	province_buildings = _dict_or_empty(data.get("province_buildings"))
 	capital_province = _dict_or_empty(data.get("capital_province"))
+	chat_history = _array_or_empty(data.get("chat_history"))
 
 
 ## 防御：Variant → Dictionary（非字典返回空）

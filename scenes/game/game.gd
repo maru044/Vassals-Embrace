@@ -248,8 +248,13 @@ func _ready() -> void:
 	_save_panel = load("res://scenes/game/save_panel.gd").new()
 	add_child(_save_panel)
 	_save_panel.get_chat_history = func() -> Array: return _chat_ui.get_chat_history()
-	_save_panel.set_chat_history = func(h: Array) -> void: _chat_ui.set_chat_history(h)
+	_save_panel.set_chat_history = func(h: Array) -> void:
+		_chat_ui.set_chat_history(h)
+		GameManager.chat_history = h.duplicate(true)   # 同步持久记忆（切换场景/主菜单读档不丢）
 	_save_panel.load_completed.connect(_on_save_load_completed)
+	# 引擎⑨-记忆：进入游戏场景时，从持久记忆恢复上一局聊天上下文（主菜单读档/返回游戏均不丢）
+	if not GameManager.chat_history.is_empty():
+		_chat_ui.set_chat_history(GameManager.chat_history)
 	# 引擎⑥ 事件面板（居中弹窗）+ 事件通知
 	_build_event_ui()
 	EventBus.event_pending.connect(_show_event_panel)

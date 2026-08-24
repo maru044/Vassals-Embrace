@@ -208,19 +208,35 @@ func open_chat(kind: String, id: String, display_name: String, requirement := ""
 	# 引擎④-CB：要求对话（LLM 同意→建立关系 / 拒绝→1年CB）
 	_pending_requirement = requirement
 	_pending_requirement_label = requirement_label
-	# 重置 LLM 上下文 + 注入对象人设
+	# 注入对象人设：移除旧的环境注入（system），保留对话历史（Master 8/20：单 Agent 保存上下文记忆，串味交给 LLM 自己）
 	if _llm:
-		_llm.reset_history()
+		_remove_system_messages()
 		_llm.add_message("system", _build_system_prompt())
 		if not requirement.is_empty():
 			_llm.add_message("system", "（外交要求）玩家向你提出【%s】。请结合你的性格、与玩家的关系与好感，决定是否同意。你必须在回复末尾用【同意】或【拒绝】明确标注结果。" % requirement_label)
+	_sync_memory()   # 引擎⑨-记忆：切换对话对象时同步一次（历史保持连续）
 
 
 func _close() -> void:
 	visible = false
 	_tachie_rect.visible = false
+	# 只清除环境信息注入（system），保留对话历史（Master 8/20：参考女仆别墅 Panel Closed 的 replace_system_context 语义）
 	if _llm:
-		_llm.reset_history()   # 关闭对话即销毁历史+动态注入，防上下文串味（Master 8/13，参考女仆别墅 Panel Closed）
+		_remove_system_messages()
+	_sync_memory()   # 引擎⑨-记忆：关闭对话即持久化（场景切换/读档后仍能回忆上下文）
+
+
+## 移除所有 system 消息（环境信息注入），保留 user/assistant/tool 对话历史
+## 参考女仆别墅 replace_system_context：关闭/切换对话时只替换 system 上下文，不清空历史
+func _remove_system_messages() -> void:
+	if _llm == null:
+		return
+	var i := 0
+	while i < _llm.history.size():
+		if str(_llm.history[i].get("role", "")) == "system":
+			_llm.history.remove_at(i)
+		else:
+			i += 1
 
 
 ## 引擎⑨：取当前 LLM 聊天历史（存档用；无则空数组）
@@ -230,14 +246,23 @@ func get_chat_history() -> Array:
 	return []
 
 
+## 引擎⑨：把当前会话历史同步到 GameManager.chat_history 持久记忆
+## （切换/关闭对话、场景切换、主菜单读档后都能从本体恢复——上下文不丢）
+func _sync_memory() -> void:
+	if _llm and GameManager:
+		GameManager.chat_history = get_chat_history()
+
+
 ## 引擎⑨：恢复聊天历史（读档用；重置后回填，保证与读档后的世界状态同步）
+## 经 sanitize_history 防御清理：剔除旧 system（打开对话时重新注入）与孤儿 tool（防 400）
 func set_chat_history(hist: Array) -> void:
 	if _llm == null:
 		return
 	_llm.reset_history()
-	for m in hist:
-		if m is Dictionary:
-			_llm.history.append(m.duplicate(true))
+	var clean: Array = _llm.sanitize_history(hist)
+	for m in clean:
+		_llm.history.append(m.duplicate(true))
+	_sync_memory()
 
 
 ## 立绘加载（country → rulers/<variant>/<id> 优先，回退 rulers/<id>；harem → harem/<name>；miku 无）
@@ -298,6 +323,7 @@ func _on_send_pressed() -> void:
 		_send.text = "思考中…"
 		# Master 8/13 修复：所有对话都启用工具（正文走 <content> 标签 + modify_favor 好感等数据工具），
 		# 否则 Miku/harem 对话无工具 → LLM 只能把工具写成 JSON 文本而非标准 tool_calls
+		_sync_memory()   # 引擎⑨-记忆：消息入列即时持久化
 		if _tool_executor_script:
 			_llm.send_request(_tool_executor_script.TOOLS)
 		else:
@@ -382,6 +408,7 @@ func _on_llm_finished(success: bool, data: Dictionary) -> void:
 		_handle_requirement_result(display_text)
 		_pending_requirement = ""
 		_pending_requirement_label = ""
+	_sync_memory()   # 引擎⑨-记忆：每轮 LLM 回复后持久化（含工具回填，上下文完整）
 
 
 ## 引擎④-CB：解析要求对话结果（优先【同意】/【拒绝】标签，兜底关键词）

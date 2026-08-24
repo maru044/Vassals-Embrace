@@ -37,6 +37,39 @@ func reset_history() -> void:
 	_retry_count = 0
 
 
+## 清理脏历史（读档/恢复前防御 HTTP 400）：
+## ① 删除所有 system 消息（环境注入由 chat_ui.open_chat 重新注入，旧 system 会造成串味/占窗口）；
+## ② 删除孤儿 tool 消息（tool_calls 后未紧跟 role=tool 的残片）——OpenAI 协议要求 tool_calls 后必须有 tool 结果。
+## 返回清理后的消息数组（不修改原 history）。
+func sanitize_history(messages: Array) -> Array:
+	var res: Array = []
+	var pending_tool := 0   # 期待中的 tool 结果数
+	for m in messages:
+		if not (m is Dictionary):
+			continue
+		var role := str(m.get("role", ""))
+		if role == "system":
+			continue   # ① system 移除
+		if role == "tool":
+			if pending_tool > 0:
+				res.append(m.duplicate(true))
+				pending_tool -= 1
+			continue   # ② 孤儿 tool 丢弃
+		res.append(m.duplicate(true))
+		var calls: Array = m.get("tool_calls", []) if m.get("tool_calls") is Array else []
+		if not calls.is_empty():
+			pending_tool += calls.size()
+	# 修剪尾部残缺：结尾若残留未配对的 tool_calls（后面没有 tool 结果）→ 移除该 assistant
+	while res.size() > 0:
+		var last: Dictionary = res.back()
+		var last_calls: Array = last.get("tool_calls", []) if last.get("tool_calls") is Array else []
+		if not last_calls.is_empty():
+			res.pop_back()
+		else:
+			break
+	return res
+
+
 func add_message(role: String, content: String) -> void:
 	history.append({"role": role, "content": content})
 
@@ -118,6 +151,11 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 	if response_code != 200:
 		var hint := _http_error_hint(response_code)
 		print("[LLMClient] ❌ HTTP ", response_code, " ", hint)
+		# 诊断（Master 8/24）：打印服务端返回的错误体——400 的具体违规原因（max_tokens 超限 /
+		# 模型名不存在 / 参数不支持 / messages 协议残缺）就写在这个 body 里，之前被丢弃无法定位
+		var err_body := body.get_string_from_utf8().strip_edges()
+		if err_body != "":
+			print("[LLMClient] 服务端响应体: ", err_body)
 		if response_code in [0, 400, 429, 500, 502, 503] and _retry_count < MAX_RETRIES:
 			_retry_count += 1
 			print("[LLMClient] 自动重试 %d/%d..." % [_retry_count, MAX_RETRIES])
@@ -136,11 +174,16 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 		return
 	var message: Dictionary = resp_json["choices"][0].get("message", {})
 	_print_response_log(message)
-	# 组装干净 assistant 消息（只保留 role/content/tool_calls，防脏字段）
+	# 组装干净 assistant 消息（role/content/tool_calls + reasoning_content）
+	# DeepSeek reasoning（thinking）模式强制协议（Master 8/24 实锤）：assistant 的 reasoning_content
+	# 下一轮请求必须回传，否则 HTTP 400 "The `reasoning_content` in the thinking mode must be passed back"
+	# Gemini 无此字段 → 自动跳过，不影响
 	var clean_msg := {"role": "assistant"}
 	var has_content := message.has("content") and message["content"] != null and str(message["content"]) != ""
 	if has_content:
 		clean_msg["content"] = message["content"]
+	if message.has("reasoning_content") and message["reasoning_content"] != null and str(message["reasoning_content"]) != "":
+		clean_msg["reasoning_content"] = message["reasoning_content"]
 	var tool_calls: Array = message.get("tool_calls", []) if message.get("tool_calls") is Array else []
 	if not tool_calls.is_empty():
 		clean_msg["tool_calls"] = tool_calls
