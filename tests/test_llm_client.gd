@@ -12,9 +12,8 @@ func _initialize() -> void:
 	root.add_child(client)
 	await process_frame
 
-	# ① PREFILL 常量：应包含 <thinking>（劫持原生思维链）
-	var prefill: String = str(client.get("PREFILL_MAGIC"))
-	out.append("PREFILL_MAGIC contains <thinking>: %s" % prefill.contains("<thinking>"))
+	# ① PREFILL 临时取消（Master 8/24：DeepSeek thinking 400 触发源，置空不注入）
+	out.append("PREFILL_MAGIC empty: %s" % str(client.get("PREFILL_MAGIC")).is_empty())
 
 	# ② reset_history / add_message
 	client.call("reset_history")

@@ -121,8 +121,10 @@ func _do_request(loop_count: int) -> void:
 	if loop_count >= MAX_TOOL_LOOPS:
 		history.append({"role": "system", "content": "[强制指令：你已达到工具调用上限，请立刻输出最终的文字回复，用 <content>...</content> 标签包裹正文]"})
 	var messages: Array = history.duplicate(true)
-	# PREFILL：伪造 assistant 开头（劫持原生思维链；全局统一，Master 8/15 勿改）
-	messages.append({"role": "assistant", "content": PREFILL_MAGIC})
+	# PREFILL 临时取消（Master 8/24）：DeepSeek thinking 模式要求 assistant 必带 reasoning_content 回传，
+	# 伪造的 PREFILL assistant 无此字段 → 400 触发源。恢复时取消本段注释即可。
+	# if not PREFILL_MAGIC.is_empty():
+	# 	messages.append({"role": "assistant", "content": PREFILL_MAGIC})
 	var payload := {
 		"model": ConfigManager.model,
 		"messages": messages,
@@ -236,7 +238,7 @@ func _print_response_log(message: Dictionary) -> void:
 	var has_content := message.has("content") and message["content"] != null and str(message["content"]) != ""
 	if has_content:
 		var reply := str(message["content"])
-		var full := PREFILL_MAGIC + reply
+		var full := reply   # PREFILL 已临时取消（8/24），直接以回复做 CoT 解析
 		var ts := full.find("<thinking>")
 		var te := full.find("</thinking>")
 		if ts != -1:
