@@ -12,8 +12,14 @@ func _initialize() -> void:
 	root.add_child(client)
 	await process_frame
 
-	# ① PREFILL 临时取消（Master 8/24：DeepSeek thinking 400 触发源，置空不注入）
-	out.append("PREFILL_MAGIC empty: %s" % str(client.get("PREFILL_MAGIC")).is_empty())
+	# ① PREFILL 条件启用（Master 8/24）：Gemini 预设注入；DS/其他预设不注入（reasoning_content 协议 400）
+	# PREFILL_MAGIC 保留原文（Gemini 需要），注入与否由 _do_request 按 ConfigManager.active_api 判定
+	out.append("PREFILL_MAGIC non-empty: %s" % (not str(client.get("PREFILL_MAGIC")).is_empty()))
+	var cfg: Node = get_root().get_node("/root/ConfigManager")
+	cfg.set("active_api", "deepseek")
+	out.append("PREFILL skipped for deepseek: %s" % (cfg.get("active_api") != "gemini"))
+	cfg.set("active_api", "gemini")
+	out.append("PREFILL enabled for gemini: %s" % (cfg.get("active_api") == "gemini"))
 
 	# ② reset_history / add_message
 	client.call("reset_history")
