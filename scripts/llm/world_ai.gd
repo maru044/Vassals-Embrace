@@ -111,8 +111,10 @@ func _world_state_text() -> String:
 	lines.append("各国概况：")
 	for cid in GameManager.army_count:
 		var tag: String = "（玩家）" if cid == GameManager.player_country_id else ""
-		lines.append("  %s：军队 %d 队，威望 %.0f%s" % [
-			cid, GameManager.army_count[cid], GameManager.country_prestige.get(cid, 0.0), tag])
+		lines.append("  %s：军队 %d 队，威望 %.0f，金币 %.0f，贷款 %.0f%s" % [
+			cid, GameManager.army_count[cid], GameManager.country_prestige.get(cid, 0.0),
+			GameManager.country_gold.get(cid, 0.0), GameManager.loans.get(cid, 0.0), tag])
+
 	# 附庸/宗主关系一览（Master 8/15：LLM 决策须知晓封建从属，避免附庸对宗主宣战等误判）
 	var liege_lines: Array[String] = []
 	for cid in GameManager.army_count:

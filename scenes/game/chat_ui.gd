@@ -476,6 +476,13 @@ func _build_system_prompt() -> String:
 ## 否则 LLM 无法回应「加入博弈/议和/站队」等请求——此前只注入世界 AI 决策，对话是盲的）
 func _world_state_text() -> String:
 	var lines: Array[String] = []
+	var player_id: String = GameManager.player_country_id
+	lines.append("玩家经济：金币 %.0f，贷款 %.0f（贷款在经济面板操作：每笔 10 金币，年利率 5%%）" % [
+		GameManager.country_gold.get(player_id, 0.0), GameManager.loans.get(player_id, 0.0)])
+	if _target_kind == "country" and _target_id != "" and _target_id != player_id:
+		lines.append("对话对象经济：金币 %.0f，贷款 %.0f" % [
+			GameManager.country_gold.get(_target_id, 0.0), GameManager.loans.get(_target_id, 0.0)])
+
 	# 外交博弈
 	var plays: Array = GameManager.get_active_plays()
 	if plays.is_empty():
