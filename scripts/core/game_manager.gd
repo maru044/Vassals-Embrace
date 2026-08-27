@@ -2515,6 +2515,7 @@ func serialize() -> Dictionary:
 
 ## 恢复运行态（读档用；缺失字段用默认/空，防御旧档）
 func deserialize(data: Dictionary) -> void:
+	_load_countries()
 	player_country_id = str(data.get("player_country_id", ""))
 	year = int(data.get("year", 1400))
 	month = int(data.get("month", 1))
