@@ -206,6 +206,12 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 		EventBus.system_error_occurred.emit("模型返回空内容（安全审查拦截）")
 		_finish(false, {})
 		return
+	if not tool_calls.is_empty() and not tool_callback.is_valid():
+		print("[LLMClient] ❌ 收到工具调用，但未配置工具执行回调")
+		EventBus.system_error_occurred.emit("工具执行回调未配置")
+		_finish(false, {})
+		return
+
 	# 工具调用 + 设置了回调 → ReAct 循环
 	if not tool_calls.is_empty() and tool_callback.is_valid() and _loop_count < MAX_TOOL_LOOPS:
 		_loop_count += 1
