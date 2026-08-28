@@ -3,6 +3,8 @@ extends Node3D
 ## 数据：data/map_data.json（省份→国家）、data/country_colors.json（颜色+宗主）、assets/map/height.png（高度图）
 ## 图层：Britain/Ireland = 陆地基底（地形色）；42 省份 = 覆盖层（国家色 + 微量上抬）。
 
+const InputFocusGuard := preload("res://scripts/ui/input_focus_guard.gd")
+
 signal province_picked(province: String, country: String)
 
 const MAP_DATA_PATH := "res://data/map_data.json"
@@ -112,18 +114,27 @@ func _process(delta: float) -> void:
 ## ===== 相机控制 =====
 
 func _handle_wasd(delta: float) -> void:
-	var speed := 12.0 * lerpf(0.6, 2.5, _zoom) * delta
 	var dir := Vector3.ZERO
 	if Input.is_key_pressed(KEY_W): dir.z -= 1.0   # 北（屏幕上方）
 	if Input.is_key_pressed(KEY_S): dir.z += 1.0   # 南
 	if Input.is_key_pressed(KEY_A): dir.x -= 1.0   # 西
 	if Input.is_key_pressed(KEY_D): dir.x += 1.0   # 东
+	_apply_wasd_movement(delta, dir)
+
+
+func _apply_wasd_movement(delta: float, dir: Vector3) -> void:
+	if InputFocusGuard.should_block_game_shortcuts(get_viewport()):
+		return
 	if dir != Vector3.ZERO:
+		var speed := 12.0 * lerpf(0.6, 2.5, _zoom) * delta
 		_target += dir.normalized() * speed
 		_update_camera()
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and InputFocusGuard.should_block_game_shortcuts(get_viewport()):
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventMouseButton and event.pressed:
 		match event.button_index:
 			MOUSE_BUTTON_WHEEL_UP:
