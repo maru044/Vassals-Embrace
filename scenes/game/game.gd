@@ -3,6 +3,8 @@ extends Node3D
 ## 流程：选国（点盾徽或点地图）→ 确认 → 国家选择层淡出、游戏 UI 从右滑入（Tween），
 ##       地图视角全程保持，无需 change_scene 重载。
 
+const InputFocusGuard := preload("res://scripts/ui/input_focus_guard.gd")
+
 const COUNTRIES_PATH := "res://data/countries.json"     # 国家档案主数据源（27 国全量）
 const COUNTRY_COLORS_PATH := "res://data/country_colors.json"   # 补充颜色/宗主色
 const MAP_DATA_PATH := "res://data/map_data.json"       # 省份→国家映射
@@ -404,6 +406,8 @@ func _build_select_layer() -> void:
 
 ## EU4 式调试模式：按下反引号（`，KEY_QUOTELEFT）切换 —— 显示/隐藏测试按钮（选国界面「演示联合统治」等）
 func _input(event: InputEvent) -> void:
+	if event is InputEventKey and InputFocusGuard.should_block_game_shortcuts(get_viewport()):
+		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_QUOTELEFT:
 		_debug_mode = not _debug_mode
 		_refresh_debug_ui()
