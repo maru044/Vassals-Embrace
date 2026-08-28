@@ -63,6 +63,13 @@ func _ready() -> void:
 	_tool_executor = Node.new()
 	_tool_executor.set_script(_tool_executor_script)
 	add_child(_tool_executor)
+	_llm.tool_callback = _execute_chat_tool
+
+
+func _execute_chat_tool(tool_name: String, args: Dictionary) -> Dictionary:
+	if _tool_executor == null:
+		return {"ok": false, "error": "工具执行器未初始化"}
+	return _tool_executor.execute(tool_name, args)
 
 
 func _build_ui() -> void:
@@ -376,7 +383,7 @@ func _on_llm_finished(success: bool, data: Dictionary) -> void:
 		for tc in tool_calls:
 			var call: Dictionary = _parser_script.parse_tool_call(tc)
 			var tname := str(call.get("name", ""))
-			var res: Dictionary = _tool_executor.execute(tname, call.get("arguments", {}))
+			var res: Dictionary = _execute_chat_tool(tname, call.get("arguments", {}))
 			# 修复②：回填 tool 结果到历史（OpenAI 协议要求 tool_calls 后紧跟 role=tool，否则下次请求 400）
 			_llm.add_tool_result(str(call.get("id", "")), tname, res)
 			if res.get("ok", false) and tname == "modify_favor":

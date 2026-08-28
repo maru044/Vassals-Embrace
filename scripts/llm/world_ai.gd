@@ -26,7 +26,16 @@ func _ready() -> void:
 	_tool_executor = Node.new()
 	_tool_executor.set_script(_tool_script)
 	add_child(_tool_executor)
+	_llm.tool_callback = _execute_world_tool
 	EventBus.month_advanced.connect(_on_month_advanced)
+
+
+func _execute_world_tool(tool_name: String, args: Dictionary) -> Dictionary:
+	if _is_player_action(tool_name, args):
+		return {"ok": false, "error": "世界 AI 不得替玩家国家执行行动"}
+	if _tool_executor == null:
+		return {"ok": false, "error": "工具执行器未初始化"}
+	return _tool_executor.execute(tool_name, args)
 
 
 ## 每月结算后触发一次世界 AI 决策（AI 过家家）；游戏未开/请求进行中则跳过
@@ -58,7 +67,7 @@ func _on_llm_finished(success: bool, data: Dictionary) -> void:
 		var args: Dictionary = call.get("arguments", {})
 		if _is_player_action(tname, args):
 			continue   # 玩家国家由玩家自己决定，LLM 不代劳
-		var res: Dictionary = _tool_executor.execute(tname, args)
+		var res: Dictionary = _execute_world_tool(tname, args)
 		executed.append("%s%s" % [tname, "✓" if res.get("ok", false) else "✗"])
 	if not executed.is_empty():
 		print("世界AI：", "、".join(executed))
