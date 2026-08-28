@@ -128,6 +128,7 @@ func _initialize() -> void:
 	# 无前置任务的三条先断言（条件满足 → available）
 	out.append("⑪ capital_market available (London market≥2): %s" % (gm.call("mission_state", "england_capital_market") == "available"))
 	gm.set("runtime_liege", {"Wales": "England"})
+	gm.call("set_mission_flag", "england_welsh_revolt_suppressed")
 	out.append("⑪ subdue_wales available: %s" % (gm.call("mission_state", "england_subdue_wales") == "available"))
 	gm.set("situation_value", {"hundred_years_war": 15})
 	out.append("⑪ hundred_years available (value_lte≤20): %s" % (gm.call("mission_state", "england_hundred_years") == "available"))

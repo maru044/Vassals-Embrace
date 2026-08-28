@@ -183,6 +183,7 @@
       "desc": "让反叛的威尔士重新臣服于兰开斯特玫瑰之下。",
       "requirements": {
         "all": [
+          {"flag_set": "england_welsh_revolt_suppressed"},
           {"subject_of": "Wales"}
         ]
       },

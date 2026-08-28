@@ -501,6 +501,9 @@ func sign_peace(war_id: int, winner_side: String, terms: Array) -> Dictionary:
 		if t is Dictionary and _apply_peace_term(winner[0], loser[0], t):
 			applied.append(t)
 	# 清参战方投降标记（战争结束，避免旧标记残留影响后续状态）
+	if str(w.get("cb", "")) == "welsh_revolt" and winner.has("England") and loser.has("Wales"):
+		set_mission_flag("england_welsh_revolt_suppressed")
+
 	for cid in winner + loser:
 		surrender_flag.erase(cid)
 	end_war(war_id)
@@ -673,6 +676,8 @@ func _apply_play_goal(p: Dictionary, winner_side: String) -> void:
 				var rel_w: Dictionary = establish_requirement(winner, loser, "personal_union")
 				p["goal_applied"] = rel_w.get("ok", false)
 			else:
+				if winner == "England" and loser == "Wales":
+					set_mission_flag("england_welsh_revolt_suppressed")
 				p["goal_applied"] = false
 		"percy_rebellion":
 			# 珀西叛乱（Master 8/15 修复：原落入 _ 分支不落地）：诺森伯兰胜出 → 联统英格兰公主
@@ -697,7 +702,7 @@ func _tick_plays() -> void:
 		var attacker: String = p["initiator"]
 		var defender: String = p["target"]
 		if not _are_at_war(attacker, defender):
-			var wres := declare_war(attacker, defender)
+			var wres := declare_war(attacker, defender, str(p.get("cb", "")))
 			if wres.get("ok", false):
 				var wid: int = int(wres.get("war_id", 0))
 				for cid in p["sides"]["A"]:
@@ -1492,6 +1497,8 @@ func establish_requirement(actor: String, target: String, cb_id: String) -> Dict
 			runtime_vassal_type[target] = "feudal" if cb_id == "vassalize" else "protectorate"
 			_clamp_army_to_cap(target)
 			var rel: String = "vassal" if cb_id == "vassalize" else "protectorate"
+			if actor == "England" and target == "Wales" and bool(_fired_historical.get("welsh_revolt", false)):
+				set_mission_flag("england_welsh_revolt_suppressed")
 			EventBus.diplomatic_relation_changed.emit(actor, target, rel)
 			return {"ok": true, "relation": rel, "liege": actor}
 		"personal_union":
@@ -2560,6 +2567,30 @@ func deserialize(data: Dictionary) -> void:
 	province_buildings = _dict_or_empty(data.get("province_buildings"))
 	capital_province = _dict_or_empty(data.get("capital_province"))
 	chat_history = _array_or_empty(data.get("chat_history"))
+	_migrate_legacy_mission_state()
+
+
+func _migrate_legacy_mission_state() -> void:
+	if bool(completed_missions.get("england_subdue_wales", false)) or bool(mission_flags.get("england_welsh_revolt_suppressed", false)):
+		return
+	if not bool(_fired_historical.get("welsh_revolt", false)) or _effective_liege("Wales") != "England":
+		return
+	if str(runtime_liege.get("Wales", "")) == "England":
+		set_mission_flag("england_welsh_revolt_suppressed")
+		return
+	var resolved_revolt := false
+	for p in plays:
+		if str(p.get("cb", "")) == "welsh_revolt" and str(p.get("state", "")) == "resolved":
+			resolved_revolt = true
+			break
+	if not resolved_revolt:
+		return
+	for w in wars:
+		var attackers: Array = w.get("attacker", [])
+		var defenders: Array = w.get("defender", [])
+		if (attackers.has("Wales") and defenders.has("England")) or (attackers.has("England") and defenders.has("Wales")):
+			return
+	set_mission_flag("england_welsh_revolt_suppressed")
 
 
 ## 防御：Variant → Dictionary（非字典返回空）
